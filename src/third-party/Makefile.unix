@@ -1,0 +1,5 @@
+
+
+THIRD_PARTY_INCLUDE_PATH += -I$(THIRD_PARTY_PATH)
+
+-include $(THIRD_PARTY_PATH)/json/Makefile.unix

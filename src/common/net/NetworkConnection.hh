@@ -1,0 +1,494 @@
+/*
+ * Copyright (C) 2025 PINGGY TECHNOLOGY PRIVATE LIMITED
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+
+#ifndef CPP_COMMON_NETWORKCONNECTION_HH_
+#define CPP_COMMON_NETWORKCONNECTION_HH_
+
+#ifndef ThisIsNetWorkSource
+#define ThisIsNetworkConnectionHH_AvoidIt
+#endif
+#define ThisIsNetworkConnectionRoot
+
+#include <platform/network.h>
+#include <utils/Utils.hh>
+#include <iostream>
+#include <poll/PollableFD.hh>
+#include <utils/JsonH.hh>
+#include <tuple>
+
+namespace net {
+
+
+DeclareClassWithSharedPtr(NetworkConnection);
+class NetworkConnectionException: public std::exception, public virtual pinggy::SharedObject
+{
+public:
+    NetworkConnectionException(tString message, NetworkConnectionPtr netConn) : message(message), netConn(netConn){}
+    virtual ~NetworkConnectionException() {};
+
+    virtual const char*
+    what() const noexcept override      { return message.c_str(); }
+
+    virtual NetworkConnectionPtr
+    GetNetConn()                        { return netConn; }
+
+private:
+    tString                     message;
+    NetworkConnectionPtr        netConn;
+};
+
+enum ConnectionType {
+    ConnectionType_Unknown  = 0,
+    ConnectionType_SSH      = 1<<0,
+    ConnectionType_SSL      = 1<<1,
+    ConnectionType_HTTP     = 1<<2,
+    ConnectionType_PINGGY   = 1<<3,
+    ConnectionType_RELAY    = 1<<4,
+};
+
+
+#define ADDRESS_METADATA_SIZE           128
+#define NETWORK_METADATA_SIZE           512
+#define METADATA_URL_SIZE_RELAY         256
+extern "C" {
+struct AddressMetadata {
+    ip_addr                     LocalIp;
+    ip_addr                     RemoteIp;
+    tUint16                     LocalPort;
+    tUint16                     RemotePort;
+    //GO is interested upto this
+    tUint32                     Flags;
+};
+
+#define mAddStaticAssert_Struct(_s, _m, _o) \
+    static_assert(offsetof(_s, _m) == _o, \
+            "Offset of `" APP_CONVERT_TO_STRING(_m) "` in `" APP_CONVERT_TO_STRING(_s) "` is incorrect")
+
+static_assert(sizeof(ip_addr) == 16, "Size of in6_addr must be 16 bytes");
+mAddStaticAssert_Struct(struct AddressMetadata, LocalIp, 0);
+mAddStaticAssert_Struct(struct AddressMetadata, RemoteIp, 16);
+mAddStaticAssert_Struct(struct AddressMetadata, LocalPort, 32);
+mAddStaticAssert_Struct(struct AddressMetadata, RemotePort, 34);
+mAddStaticAssert_Struct(struct AddressMetadata, Flags, 36);
+struct ConnectionMetadata {
+    char                        Identifier[8];
+    AddressMetadata             AddrMetadata;
+    tUint16                     ConnType;
+    tUint16                     ServerNameLen;
+    char                        ServerName[256];
+    char                        _padding[204];
+};
+
+mAddStaticAssert_Struct(struct ConnectionMetadata, Identifier, 0);
+mAddStaticAssert_Struct(struct ConnectionMetadata, AddrMetadata, 8);
+mAddStaticAssert_Struct(struct ConnectionMetadata, ConnType, 48);
+mAddStaticAssert_Struct(struct ConnectionMetadata, ServerNameLen, 50);
+mAddStaticAssert_Struct(struct ConnectionMetadata, ServerName, 52);
+static_assert(sizeof(struct ConnectionMetadata) == NETWORK_METADATA_SIZE, "Sizeof meta data must be 512");
+
+
+}
+
+enum ConnectionFlags { //Not required in public
+    ConFlag_NoProbeRequired     = 1 << 0,
+    ConFlag_NotAccountable      = 1 << 1,
+    ConFlag_LocalConnection     = 1 << 2,
+    ConFlag_VisitorConnection   = 1 << 3,
+    ConFlag_ConnectProxy        = 1 << 4,
+    ConFlag_Socks               = 1 << 5,
+    ConFlag_HoldedSocket        = 1 << 6,
+    ConFlag_RelayConnection     = 1 << 7,
+    ConFlag_AcceptSocket        = 1 << 8,
+
+
+    ConFlag_UserFlag1           = 1 << 15,
+    ConFlag_UserFlag2           = 1 << 16,
+    ConFlag_UserFlag3           = 1 << 17,
+    ConFlag_UserFlag4           = 1 << 18,
+};
+
+union tNetState {
+    struct {
+        tUint16                 Ssl:1;
+        tUint16                 Tcp:1;
+        tUint16                 Uds:1;
+        tUint16                 Udp:1;
+        tUint16                 Valid:1;
+        tUint16                 Connected:1;
+        tUint16                 Relayed:1;
+    };
+    tUint16                     Raw;
+    tNetState(): Raw(0)         { Connected = true; }
+
+    tNetState
+    NewWithSsl()                { auto x = *this; x.Ssl = 1; return x; }
+
+    tNetState
+    NewWithTcp()                { auto x = *this; x.Tcp = 1; return x; }
+
+    tNetState
+    NewWithUds()                { auto x = *this; x.Uds = 1; return x; }
+
+    tNetState
+    NewWithUdp()                { auto x = *this; x.Udp = 1; return x; }
+
+    tNetState
+    NewWithValid()              { auto x = *this; x.Valid = 1; return x; }
+
+    tNetState
+    NewWithConnected()          { auto x = *this; x.Connected = 1; return x; }
+
+    tNetState
+    NewWithRelayed()            { auto x = *this; x.Relayed = 1; return x; }
+
+};
+
+struct SocketStat: public virtual pinggy::SharedObject {
+    uint8_t                     Retransmits;
+    uint32_t                    Unacked;
+    uint32_t                    LastDataSent;
+    uint32_t                    LastAckSent;
+    uint32_t                    LastDataRecv;
+    uint32_t                    LastAckRecv;
+};
+DefineMakeSharedPtr(SocketStat);
+
+NLOHMANN_DECLARE_TYPE_NON_INTRUSIVE_CUSTOME_PTR(SocketStat);
+
+abstract class NetworkSocket : public virtual PollableFD {
+public:
+    virtual
+    ~NetworkSocket()            {}
+
+    virtual
+    void SetRecvTimeoutms(uint16_t timeout) = 0;
+
+    virtual
+    void SetSendTimeoutms(uint16_t timeout) = 0;
+
+    virtual
+    tString GetType() = 0;
+
+    virtual
+    void SetBlocking(bool block = true) = 0;
+
+    virtual
+    bool IsBlocking() = 0;
+
+protected:
+    virtual bool
+    ReassigntoLowerFdPtr(sock_t *fd) final;
+};
+
+DeclareSharedPtr(NetworkSocket);
+
+class SocketAddress final : public virtual pinggy::SharedObject {
+public:
+    SocketAddress(const sockaddr_ip addr);
+
+    SocketAddress(const ip_addr, tUint16 port);
+
+    port_t
+    GetPort();
+
+    tString
+    GetIp();
+
+    tString
+    GetPath();
+
+    tString
+    ToString();
+
+    bool
+    IsIpv6() const              { return ipv6; }
+
+    bool
+    IsUds() const               { return uds; }
+
+    bool
+    IsValid() const             { return valid; }
+
+    const ip_addr
+    GetAddr() const             { return addr; }
+
+    const sockaddr_ip
+    GetSockAddr() const         { return sockAddr; }
+
+private:
+    sockaddr_ip                 sockAddr;
+    bool                        valid;
+    bool                        uds;
+    bool                        ipv6;
+    tString                     ip;
+    port_t                      port;
+    tString                     path;
+    ip_addr                     addr;
+};
+DefineMakeSharedPtr(SocketAddress);
+
+abstract class NetworkConnection : public virtual NetworkSocket {
+public:
+    virtual
+    ~NetworkConnection()        {}
+
+    virtual std::tuple<ssize_t, RawDataPtr>
+    Read(len_t nbyte, int flags = 0);
+
+    virtual ssize_t
+    Write(RawDataPtr rwData, int flags = 0);
+
+    virtual std::tuple<ssize_t, RawDataPtr>
+    Peek(len_t nbyte);
+
+    virtual ssize_t
+    Read(void *buf, size_t nbyte, int flags = 0) = 0;
+
+    virtual ssize_t
+    Write(const void *buf, size_t nbyte, int flags = 0) = 0;
+
+    virtual ssize_t
+    Peek(void *, size_t)        { return -1; }
+
+    virtual ssize_t
+    LastReturn() = 0;
+
+    virtual SocketAddressPtr
+    GetPeerAddress() = 0;
+
+    virtual SocketAddressPtr
+    GetLocalAddress() = 0;
+
+    virtual bool
+    IsSsl() final               { return GetState().Ssl; }
+
+    virtual bool
+    IsTcp() final               { return GetState().Tcp; }
+
+    virtual bool
+    IsUds() final               { return GetState().Uds; }
+
+    virtual bool
+    IsUdp() final               { return GetState().Udp;}
+
+    virtual int
+    SslError(int ret) = 0;
+
+    virtual int
+    ShutDown(int how) = 0;
+
+    virtual bool
+    IsValid() final             { return GetState().Valid; }
+
+    virtual tString
+    GetServerName() = 0; //return empty string incase of plaintext connection, sni for ssl
+
+    virtual bool
+    EnableKeepAlive(int keepCnt, int keepIdle,
+                    int keepIntvl, bool enable = true) = 0;
+
+    virtual bool
+    ReassigntoLowerFd() = 0;
+
+    virtual uint32_t //Not required in public
+    Flags() const = 0;
+
+    virtual SocketStatPtr //Not required in public
+    GetSocketStat() final;
+
+    virtual bool
+    TryAgain() = 0;
+
+    virtual const AddressMetadata //Not required in public
+    GetAddressMetadata();
+
+    virtual const ConnectionMetadata //Not required in public
+    GetConnectionMetadata();
+
+    virtual bool
+    IsConnected() final         { return GetState().Connected; }
+
+    virtual bool
+    IsRelayed() final           { return GetState().Relayed; }
+
+    virtual tNetState
+    GetState() = 0;
+};
+
+
+DeclareClassWithSharedPtr(NetworkConnectionImpl);
+abstract class NonBlockingConnectEventHandler: public virtual pinggy::SharedObject {
+public:
+    virtual
+    ~NonBlockingConnectEventHandler()
+                                { }
+
+    virtual len_t
+    HandleConnected(NetworkConnectionImplPtr)
+                                { return 0; }
+
+    virtual len_t
+    HandleConnectionFailed(NetworkConnectionImplPtr)
+                                { return 0; }
+};
+DefineMakeSharedPtr(NonBlockingConnectEventHandler);
+class NetworkConnectionImpl: public NetworkConnection
+{
+public:
+    NetworkConnectionImpl(tString host, tString port, bool blockingConnect=true);
+#ifndef __WINDOWS_OS__
+    NetworkConnectionImpl(tString path);
+#endif
+    NetworkConnectionImpl(sock_t fd);
+
+    virtual
+    ~NetworkConnectionImpl();
+
+    virtual ssize_t
+    Read(void *buf, size_t nbyte, int flags = 0) override;
+
+    virtual ssize_t
+    Peek(void *buf, size_t nbyte) override;
+
+    virtual ssize_t
+    Write(const void *buf, size_t nbyte, int flags = 0) override;
+
+    virtual ssize_t
+    LastReturn() override       { return lastReturn; }
+
+    virtual sock_t
+    GetFd() override            { return fd; }
+
+    virtual void
+    SetRecvTimeoutms(uint16_t timeout) override
+                                {set_recv_timeout_ms(fd, timeout);}
+
+    virtual void
+    SetSendTimeoutms(uint16_t timeout) override
+                                {set_send_timeout_ms(fd, timeout);}
+
+    virtual int
+    SslError(int ret) override;
+
+    virtual int
+    ShutDown(int how) override  { return app_shutdown(fd, how); }
+
+    virtual tString
+    GetType() override          { return Type(); }
+
+    static tString
+    Type()                      { return TO_STR(NetworkConnectionImpl); }
+
+
+    virtual tString
+    GetServerName() override    { return ""; }
+
+    virtual SocketAddressPtr
+    GetPeerAddress() override;
+
+    virtual SocketAddressPtr
+    GetLocalAddress() override;
+
+    virtual bool
+    EnableKeepAlive(int keepCnt, int keepIdleSec,
+            int keepIntvl, bool enable = true) override;
+
+    virtual bool
+    ReassigntoLowerFd() override
+                                { return ReassigntoLowerFdPtr(&fd); }
+
+    virtual uint32_t
+    Flags() const override      { return flags; }
+
+    void
+    SetFlags(uint32_t flags)    { this->flags = flags; }
+
+    virtual void
+    SetBlocking(bool block = true) override;
+
+    virtual bool
+    IsBlocking() override       { return blocking; }
+
+    virtual bool
+    TryAgain() override         { return tryAgain; }
+
+
+    virtual void
+    Connect(NonBlockingConnectEventHandlerPtr handler,
+            pinggy::VoidPtr ptr = nullptr, tString tag = "");
+
+    virtual PollableFDPtr
+    GetOrig() override          { return thisPtr; }
+
+    virtual tNetState
+    GetState() override         { return netState; }
+
+    virtual pinggy::VoidPtr
+    GetConnectEventPtr() final  { return connectEventPtr; }
+
+    template<typename T>
+    void
+    GetConnectEventPtr(std::shared_ptr<T> &ptr)
+                                { ptr = connectEventPtr->DynamicPointerCast<T>(); }
+
+    virtual tString
+    GetConnectEventTag() final  { return connectEventTag; }
+
+    static std::tuple<NetworkConnectionImplPtr, NetworkConnectionImplPtr>
+    CreateConnectionPair();
+
+protected:
+    virtual int
+    CloseNClear(tString location) override;
+
+    virtual len_t
+    HandleConnect() override;
+
+private:
+    void
+    tryNonBlockingConnect();
+
+    sock_t                      fd;
+    int                         soType;
+    int                         soFamily;
+    SocketAddressPtr            peerAddressCached;
+    SocketAddressPtr            localAddressCached;
+    uint32_t                    flags;
+    ssize_t                     lastReturn;
+    bool                        blocking;
+    bool                        tryAgain;
+    bool                        connecting;
+    sock_addrinfo              *addressesToConnect;
+    NonBlockingConnectEventHandlerPtr
+                                connectEventHandler;
+    tString                     connectEventTag;
+    pinggy::VoidPtr             connectEventPtr;
+    tNetState                   netState;
+};
+
+DefineMakeSharedPtr(NetworkConnectionImpl);
+
+} /* namespace net */
+
+std::ostream&
+operator<<(std::ostream& os, const net::SocketAddressPtr& sa);
+        //Here call by reference is mandatory
+
+// std::ostream&
+// operator<<(std::ostream& os, const net::tConnectionType& ct);
+
+#endif /* CPP_COMMON_NETWORKCONNECTION_HH_ */

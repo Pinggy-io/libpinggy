@@ -1,0 +1,144 @@
+
+function(AddLibrary lib_name lib_type)
+    add_library(${lib_name} ${lib_type} ${ARGN})
+endfunction()
+
+function(TargetLinkLibraries target linkType)
+    if (NOT TARGET ${target})
+        message(FATAL_ERROR "Target '${target}' does not exist.")
+    endif()
+
+    foreach(lib IN LISTS ARGN)
+        # message(STATUS "Linking ${lib} to target ${target}")
+        target_link_libraries(${target} ${linkType} ${lib})
+    endforeach()
+endfunction()
+
+function(TargetLinkLibrariesOnlyTarget target linkType)
+    TargetLinkLibraries(${target} ${linkType} ${ARGN})
+endfunction()
+
+function(TargetIncludeDirectories target libType)
+    target_include_directories(${target} ${libType} ${ARGN})
+endfunction()
+
+function(AddExecutable target exeType)
+    add_executable(${target} ${exeType} ${ARGN})
+endfunction()
+
+function(AddCopyTarget target anotherTarget dest cmnt)
+    add_custom_target(${target} ALL
+        ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:${anotherTarget}> ${dest}
+        DEPENDS ${anotherTarget}
+        COMMENT ${cmnt}
+    )
+endfunction()
+
+function(CopyHeaders target dependecy srcFile destDir)
+    add_custom_target(${target} ALL
+        ${CMAKE_COMMAND} -E copy_if_different "${CMAKE_CURRENT_SOURCE_DIR}/${srcFile}" ${destDir}
+        DEPENDS ${dependecy}
+        COMMENT ${cmnt}
+    )
+endfunction()
+
+
+function(SetupSSL)
+    find_package(OpenSSL 3.0.3)
+    if (OPENSSL_FOUND)
+        # On CMake < 3.16, OPENSSL_CRYPTO_LIBRARIES is usually a synonym for OPENSSL_CRYPTO_LIBRARY, but is not defined
+        # when building on Windows outside of Cygwin. We provide the synonym here, if FindOpenSSL didn't define it already.
+        if (NOT DEFINED OPENSSL_CRYPTO_LIBRARIES)
+            set(OPENSSL_CRYPTO_LIBRARIES ${OPENSSL_CRYPTO_LIBRARY})
+        endif()
+
+        set(OPENSSL_INCLUDE_DIR "${OPENSSL_INCLUDE_DIR}" PARENT_SCOPE)
+        set(OPENSSL_CRYPTO_LIBRARY "${OPENSSL_CRYPTO_LIBRARY}" PARENT_SCOPE)
+        set(OPENSSL_CRYPTO_LIBRARIES "${OPENSSL_CRYPTO_LIBRARIES}" PARENT_SCOPE)
+        set(OPENSSL_SSL_LIBRARY "${OPENSSL_SSL_LIBRARY}" PARENT_SCOPE)
+        set(OPENSSL_SSL_LIBRARIES "${OPENSSL_SSL_LIBRARIES}" PARENT_SCOPE)
+        set(OPENSSL_LIBRARIES "${OPENSSL_LIBRARIES}" PARENT_SCOPE)
+        set(OPENSSL_VERSION "${OPENSSL_VERSION}" PARENT_SCOPE)
+        set(OPENSSL_APPLINK_SOURCE "${OPENSSL_APPLINK_SOURCE}" PARENT_SCOPE)
+
+    else()
+        message(FATAL_ERROR "Target '${OPENSSL_FOUND}' does not exist.")
+    endif()
+endfunction()
+
+function(IncludeSSL target)
+    message(STATUS "Including ${OPENSSL_INCLUDE_DIR} for openssl")
+    target_include_directories(${target} PUBLIC ${OPENSSL_INCLUDE_DIR} )
+endfunction()
+
+function(LinkSSL target)
+    # message(STATUS "Linking OPENSSL_ROOT_DIR ${OPENSSL_ROOT_DIR}")
+    # message(STATUS "Linking OPENSSL_INCLUDE_DIR ${OPENSSL_INCLUDE_DIR}")
+    # message(STATUS "Linking OPENSSL_CRYPTO_LIBRARY ${OPENSSL_CRYPTO_LIBRARY}")
+    # message(STATUS "Linking OPENSSL_CRYPTO_LIBRARIES ${OPENSSL_CRYPTO_LIBRARIES}")
+    # message(STATUS "Linking OPENSSL_SSL_LIBRARY ${OPENSSL_SSL_LIBRARY}")
+    # message(STATUS "Linking OPENSSL_SSL_LIBRARIES ${OPENSSL_SSL_LIBRARIES}")
+    # message(STATUS "Linking OPENSSL_LIBRARIES ${OPENSSL_LIBRARIES}")
+    # message(STATUS "Linking OPENSSL_VERSION ${OPENSSL_VERSION}")
+    # message(STATUS "Linking OPENSSL_APPLINK_SOURCE ${OPENSSL_APPLINK_SOURCE}")
+    target_link_libraries(${target}  PRIVATE OpenSSL::SSL OpenSSL::Crypto)
+endfunction()
+
+function(EnableSymbolExport target)
+    target_compile_definitions(${target} PRIVATE ${ARGN})
+endfunction()
+
+SetupSSL()
+
+function(AddSslCopyTarget target anotherTarget dest cmnt)
+    if(DEFINED OPENSSL_ROOT_DIR)
+        add_custom_target(copy_openssl ALL
+            COMMAND ${CMAKE_COMMAND} -E copy_directory
+                "${OPENSSL_ROOT_DIR}"  # Source
+                "${dest}/openssl" # Destination
+                DEPENDS ${anotherTarget}
+                COMMENT ${cmnt}
+        )
+    endif()
+endfunction()
+
+#=================================
+
+function(ListRecursiveStaticLibraries target origTarget)
+    # Prevent infinite recursion by checking visited targets
+
+    # Get all libraries linked to the target
+    get_target_property(linked_libraries ${target} INTERFACE_LINK_LIBRARIES)
+
+    # If there are no linked libraries, return
+    if(NOT linked_libraries)
+        return()
+    endif()
+
+
+    # Process each linked library
+    foreach(lib ${linked_libraries})
+
+        if(TARGET ${lib})
+            # Check the type of the target
+            get_target_property(lib_type ${lib} TYPE)
+            if(lib_type STREQUAL "STATIC_LIBRARY")
+                get_target_property(SOURCES_A ${origTarget} SOURCES)
+
+                target_sources(${origTarget} PRIVATE $<TARGET_OBJECTS:${lib}>)
+                # Recurse into the dependency
+                ListRecursiveStaticLibraries(${lib} ${origTarget})
+            endif()
+        # elseif(lib MATCHES "\\.a$")
+        #     # If it's a static library file, add it to the list
+        #     list(APPEND ${output_list} ${lib})
+        endif()
+
+        if(TARGET ${lib})
+            get_target_property(lib_type ${lib} TYPE)
+            if(lib_type STREQUAL "STATIC_LIBRARY")
+            endif()
+        endif()
+    endforeach()
+
+endfunction()
