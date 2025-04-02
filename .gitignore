@@ -96,6 +96,7 @@ __pycache__/
 build/
 buildcmake/
 Releases/
+releases
 develop-eggs/
 dist/
 downloads/

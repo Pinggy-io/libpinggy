@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+set -x
+
 SCRIPTPATH="$( cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
 REPO_PATH="${SCRIPTPATH}/../.."
 
@@ -38,7 +40,7 @@ do
       -e HOST_GID=$(id -g) \
       -v $REPO_PATH:/workspace \
       -e RELEASE_DIR_NAME="$RELEASE_DIR_NAME" \
-      -it $dockernametag \
+      $dockernametag \
       bash crossbuilding/linux/buildInDocker.sh $arch
 
 done
