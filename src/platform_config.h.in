@@ -2,3 +2,10 @@
 #define PinggyVersionMajor @Pinggy_VERSION_MAJOR@
 #define PinggyVersionMinor @Pinggy_VERSION_MINOR@
 #define PinggyVersionPatch @Pinggy_VERSION_PATCH@
+
+#define PINGGY_GIT_COMMIT_ID "@GIT_COMMIT_ID@"
+#define PINGGY_BUILD_TIMESTAMP "@BUILD_TIMESTAMP@"
+#define PINGGY_LIBC_VERSION "@LIBC_VERSION@"
+#define PINGGY_BUILD_OS "@BUILD_OS@"
+
+#define PLATFORM_CONFIG_INCLUDED

@@ -50,6 +50,18 @@ pinggy_raise_exception(pinggy_const_char_p_t, pinggy_const_char_p_t) {
 
 int
 main() {
+    char details[1024];
+    int ret = 0;
+    ret = pinggy_version(sizeof(details), details);
+    printf("pinggy_version:         %s\n", details);
+    ret = pinggy_git_commit(sizeof(details), details);
+    printf("pinggy_git_commit:      %s\n", details);
+    ret = pinggy_build_timestamp(sizeof(details), details);
+    printf("pinggy_build_timestamp: %s\n", details);
+    ret = pinggy_libc_version(sizeof(details), details);
+    printf("pinggy_libc_version:    %s\n", details);
+    ret = pinggy_build_os(sizeof(details), details);
+    printf("pinggy_build_os:        %s\n", details);
     pinggy_set_log_path("/dev/null");
     pinggy_set_exception_callback(pinggy_raise_exception);
     pinggy_ref_t config = pinggy_create_config();

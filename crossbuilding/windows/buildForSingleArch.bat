@@ -62,7 +62,8 @@ set CMAKE_EXE=C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\ID
     -DPINGGY_RELEASE_DIR="%RELEASE_PATH%" ^
     -DPINGGY_HEADER_RELEASE_DIR="%RELEASE_HEADER_PATH%" ^
     -DCMAKE_INSTALL_PREFIX="%RELEASE_PATH%" ^
-    -DCMAKE_BUILD_TYPE=Release
+    -DCMAKE_BUILD_TYPE=Release ^
+    -DBUILD_MODE_STATIC=yes
 
 if errorlevel 1 (
     echo configuration failed

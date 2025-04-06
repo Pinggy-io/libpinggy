@@ -29,6 +29,8 @@
 typedef uint64_t tDuration;
 typedef uint64_t tTime;
 
+template <typename eleType>
+using PriorityQueueMinHeap = std::priority_queue<eleType, std::vector<eleType>, std::greater<eleType>>;
 
 namespace common {
 
@@ -237,7 +239,8 @@ protected:
     ExecuteCurrentTasks() final;
 
 private:
-    std::priority_queue<PollableTaskPtr, std::vector<PollableTaskPtr>, std::greater<PollableTaskPtr>>
+    // std::priority_queue<PollableTaskPtr, std::vector<PollableTaskPtr>, std::greater<PollableTaskPtr>>;
+    PriorityQueueMinHeap<PollableTaskPtr>
                                 taskQueue;
 
     tTime                       pollTime;

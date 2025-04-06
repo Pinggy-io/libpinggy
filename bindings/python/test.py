@@ -4,6 +4,12 @@ import pinggy
 
 # pinggy.disableLog()
 
+print(f"pinggy_version:             {pinggy.version()}")
+print(f"pinggy_git_commit:          {pinggy.git_commit()}")
+print(f"pinggy_build_timestamp:     {pinggy.build_timestamp()}")
+print(f"pinggy_libc_version:        {pinggy.libc_version()}")
+print(f"pinggy_build_os:            {pinggy.build_os()}")
+
 class TunnelHandler(pinggy.BaseTunnelHandler):
     def primary_forwarding_succeeded(self):
         tunnel:pinggy.Tunnel = self.get_tunnel()
