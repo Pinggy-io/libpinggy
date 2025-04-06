@@ -755,6 +755,19 @@ PINGGY_EXPORT pinggy_const_int_t
 pinggy_tunnel_channel_get_src_host(pinggy_ref_t channel, pinggy_capa_t buffer_len, pinggy_char_p_t buffer);
 
 //========================================
+//==============================================================
+#define DECLARE_CONFIG_GET_FUNC(funcname) \
+PINGGY_EXPORT pinggy_const_int_t \
+funcname(pinggy_capa_t capa, pinggy_char_p_t val)
+
+DECLARE_CONFIG_GET_FUNC(pinggy_version);
+DECLARE_CONFIG_GET_FUNC(pinggy_git_commit);
+DECLARE_CONFIG_GET_FUNC(pinggy_build_timestamp);
+DECLARE_CONFIG_GET_FUNC(pinggy_libc_version);
+DECLARE_CONFIG_GET_FUNC(pinggy_build_os);
+
+#undef DECLARE_CONFIG_GET_FUNC
+//==============================================================
 
 
 #ifdef __cplusplus

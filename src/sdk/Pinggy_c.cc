@@ -23,6 +23,19 @@
 
 #include "pinggy.h"
 
+#ifndef PLATFORM_CONFIG_INCLUDED
+
+#define PinggyVersionMajor 0
+#define PinggyVersionMinor 0
+#define PinggyVersionPatch 0
+
+#define PINGGY_GIT_COMMIT_ID "unknown"
+#define PINGGY_BUILD_TIMESTAMP "0000-00-00 00:00:00"
+#define PINGGY_LIBC_VERSION "unknown"
+#define PINGGY_BUILD_OS "unknown"
+
+#endif
+
 
 //==============================================================
 std::map<pinggy_ref_t, pinggy::VoidPtr> pinggyReferenceMap;
@@ -1072,6 +1085,31 @@ pinggy_tunnel_channel_get_src_host(pinggy_ref_t channelRef, pinggy_capa_t capa, 
 }
 
 //==============================
+
+//==============================================================
+PINGGY_EXPORT pinggy_const_int_t
+pinggy_version(pinggy_capa_t capa, pinggy_char_p_t val)
+{
+    tString str = std::to_string(PinggyVersionMajor) + "." + std::to_string(PinggyVersionMinor) + "." + std::to_string(PinggyVersionPatch);
+    CopyStringToOutput(capa, val, str);
+    return str.length();
+}
+
+#define DEFINE_CONFIG_GET_FUNC(funcname, macro) \
+PINGGY_EXPORT pinggy_const_int_t \
+funcname(pinggy_capa_t capa, pinggy_char_p_t val) \
+{ \
+    tString str = macro; \
+    CopyStringToOutput(capa, val, str); \
+    return str.length(); \
+}
+
+DEFINE_CONFIG_GET_FUNC(pinggy_git_commit, PINGGY_GIT_COMMIT_ID);
+DEFINE_CONFIG_GET_FUNC(pinggy_build_timestamp, PINGGY_BUILD_TIMESTAMP);
+DEFINE_CONFIG_GET_FUNC(pinggy_libc_version, PINGGY_LIBC_VERSION);
+DEFINE_CONFIG_GET_FUNC(pinggy_build_os, PINGGY_BUILD_OS);
+#undef DEFINE_CONFIG_GET_FUNC
+//==============================================================
 
 #ifdef __cplusplus
 }

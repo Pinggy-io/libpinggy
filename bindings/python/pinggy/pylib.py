@@ -14,6 +14,17 @@ def setLogPath(path):
 def disableLog():
     core.pinggy_set_log_enable(False)
 
+def version():
+    return core._get_string_via_cfunc(core.pinggy_version)
+def git_commit():
+    return core._get_string_via_cfunc(core.pinggy_git_commit)
+def build_timestamp():
+    return core._get_string_via_cfunc(core.pinggy_build_timestamp)
+def libc_version():
+    return core._get_string_via_cfunc(core.pinggy_libc_version)
+def build_os():
+    return core._get_string_via_cfunc(core.pinggy_build_os)
+
 
 class Channel:
     def __init__(self, channelRef):
