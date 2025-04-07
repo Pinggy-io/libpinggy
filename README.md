@@ -19,8 +19,13 @@ Building libpinggy requires OpenSSL to be built first.
 
 **Todo:** Add a script to download prebuild opesnssl files.
 
+Place the openssl built files in `C:\OpenSSL\`
+
 **Building from sorce:**
 
 Run the script `crossbuilding/windows/opensslbuild.bat`
 
 ## Building  libpinggy from source
+
+
+`.\crossbuilding\windows\buildForWindows.bat build releases C:\OpenSSL\`
