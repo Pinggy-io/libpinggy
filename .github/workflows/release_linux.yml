@@ -1,0 +1,35 @@
+name: Build and upload release artifacts for linux
+
+on:
+  release:
+    types: [created]
+
+jobs:
+  build:
+    runs-on: self-hosted
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Run build in container
+      run: |
+        bash crossbuilding/linux/buildForLinux.sh
+    
+    - name: Check if releases folder exists
+      id: check_files
+      run: |
+        if [ -d "./releases/linux" ]; then
+          echo "releases_folder_exists=true" >> $GITHUB_OUTPUT
+        else
+          echo "releases_folder_exists=false" >> $GITHUB_OUTPUT
+          echo "::error::releases/linux folder not found. Build may have failed."
+        fi
+    
+    - name: Upload releases folder to release
+      if: steps.check_files.outputs.releases_folder_exists == 'true'
+      uses: softprops/action-gh-release@v1
+      with:
+        files: releases/linux/**/*
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
