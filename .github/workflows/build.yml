@@ -19,6 +19,4 @@ jobs:
     - name: List
       run: ls
     - name: List
-      run: |
-        sudo apt install -y tree
-        tree .
+      run: tree .
