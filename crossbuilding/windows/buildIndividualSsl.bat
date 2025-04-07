@@ -1,4 +1,4 @@
-@echo off
+@echo on
 set ARCH=%~1
 set OPENSSL_SOURCE_DIR=%~2
 if "%ARCH%"=="" (

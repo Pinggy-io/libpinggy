@@ -1,4 +1,4 @@
-@echo off
+@echo on
 
 set CURDIR=%cd%
 set PROJECT_ROOT=%USERPROFILE%\pinggy
