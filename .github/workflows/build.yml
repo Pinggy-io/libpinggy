@@ -16,3 +16,9 @@ jobs:
     - name: Run build in container
       run: |
         bash crossbuilding/linux/buildForLinux.sh
+    - name: List
+      run: ls
+    - name: List
+      run: |
+        sudo apt install -y tree
+        tree .
