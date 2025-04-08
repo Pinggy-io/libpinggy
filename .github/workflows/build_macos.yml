@@ -23,7 +23,7 @@ jobs:
 
     - name: Run build script
       run: |
-        bash crossbuilding/linux/buildForLinux.sh
+        bash crossbuilding/macos/buildForMacos.sh
 
     # - name: Upload release artifact
     #   uses: softprops/action-gh-release@v1
