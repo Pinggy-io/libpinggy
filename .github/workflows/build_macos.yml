@@ -20,6 +20,10 @@ jobs:
         wget https://8000.lvpn.abhijitmondal.in/OpenSSL.tgz
         tar -xzf OpenSSL.tgz
 
+
+    - name: tree1
+      run: tree .
+
     # - name: Set up CMake
     #   uses: lukka/get-cmake@v3
 
@@ -28,7 +32,7 @@ jobs:
 
     - name: Run build script
       run: |
-        OPENSSL_ROOT_PATH="OpenSSL/3.3.1/universal" bash crossbuilding/macos/buildForMacos.sh
+        OPENSSL_ROOT_PATH="${{ github.workspace }}/OpenSSL/3.3.1/universal" bash -x crossbuilding/macos/buildForMacos.sh
 
     - name: tree
       run: tree .
