@@ -15,6 +15,11 @@ jobs:
     - name: Checkout source
       uses: actions/checkout@v4
 
+    - name: Download OpenSSL
+      run: |
+        wget https://8000.lvpn.abhijitmondal.in/OpenSSL.tgz
+        tar -xzf OpenSSL.tgz
+
     # - name: Set up CMake
     #   uses: lukka/get-cmake@v3
 
@@ -23,7 +28,10 @@ jobs:
 
     - name: Run build script
       run: |
-        bash crossbuilding/macos/buildForMacos.sh
+        OPENSSL_ROOT_PATH="OpenSSL/3.3.1/universal" bash crossbuilding/macos/buildForMacos.sh
+
+    - name: tree
+      run: tree .
 
     # - name: Upload release artifact
     #   uses: softprops/action-gh-release@v1
