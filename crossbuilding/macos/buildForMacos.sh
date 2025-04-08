@@ -89,6 +89,7 @@ fi
 
 RELEASE_PATH="$SCRIPTPATH/../../$releaseDir/macos/$ARCH"
 RELEASE_HEADER_PATH="$SCRIPTPATH/../../$releaseDir"
+RELEASE_ARCHIVE_PATH="$SCRIPTPATH/../../$releaseDir"
 mkdir -p "$RELEASE_PATH"
 #==========================
 
@@ -97,8 +98,10 @@ try cmake -S . -B $BUILD_PATH/$ARCH/pinggy \
     -DCMAKE_BUILD_SERVER=no \
     -DPINGGY_RELEASE_DIR="$RELEASE_PATH" \
     -DPINGGY_HEADER_RELEASE_DIR="$RELEASE_HEADER_PATH" \
+    -DPINGGY_ARCHIVE_RELEASE_DIR="$RELEASE_ARCHIVE_PATH" \
     -DCMAKE_INSTALL_PREFIX="$RELEASE_PATH" \
     -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64" \
     -DCMAKE_OSX_DEPLOYMENT_TARGET=11.0 \
     -DCMAKE_BUILD_TYPE=Release
 try cmake --build $BUILD_PATH/$ARCH/pinggy -j --config Release
+try cmake --build $BUILD_PATH/$ARCH/pinggy --target distribute

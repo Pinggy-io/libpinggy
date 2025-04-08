@@ -47,6 +47,7 @@ set BUILD_PATH=%PROJECT_ROOT%\%buildDir%\%ARCH%
 
 set RELEASE_PATH=%PROJECT_ROOT%\%releaseDir%\windows\%ARCH%
 set RELEASE_HEADER_PATH=%PROJECT_ROOT%\%releaseDir%
+set RELEASE_ARCHIVE_PATH=%PROJECT_ROOT%\%releaseDir%
 set GENERATOR=Visual Studio 17 2022
 mkdir "%RELEASE_PATH%"
 
@@ -61,6 +62,7 @@ set CMAKE_EXE=C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\ID
     -DCMAKE_BUILD_SERVER=no ^
     -DPINGGY_RELEASE_DIR="%RELEASE_PATH%" ^
     -DPINGGY_HEADER_RELEASE_DIR="%RELEASE_HEADER_PATH%" ^
+    -DPINGGY_ARCHIVE_RELEASE_DIR="%RELEASE_ARCHIVE_PATH%" ^
     -DCMAKE_INSTALL_PREFIX="%RELEASE_PATH%" ^
     -DCMAKE_BUILD_TYPE=Release ^
     -DBUILD_MODE_STATIC=yes
@@ -71,6 +73,13 @@ if errorlevel 1 (
 )
 
 "%CMAKE_EXE%" --build "%BUILD_PATH%/pinggy" --config Release
+
+if errorlevel 1 (
+    echo build failed
+    exit /b 1
+)
+
+"%CMAKE_EXE%" --build "%BUILD_PATH%/pinggy" --target distribute
 
 if errorlevel 1 (
     echo build failed

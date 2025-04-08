@@ -1,6 +1,15 @@
 # libpinggy - core sdk for Pinggy
-
 A C++ library intended for creating bindings to all major languages.
+
+# Manual building
+```
+$ mkdir build
+$ cmake ..
+$ cmake --build . -j --config Release //building the code
+$ cmake --build . releaselib //releasing libpinggy and
+$ cmake --build . releasessl //releasing ssl
+$ cmake --build . distribute //creating libpinggy.tgz/zip
+```
 
 ## Building instructions for windows
 

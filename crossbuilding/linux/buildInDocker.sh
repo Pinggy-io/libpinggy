@@ -103,6 +103,7 @@ fi
 
 RELEASE_PATH="$SCRIPTPATH/../../$releaseDir/linux/$ARCH"
 RELEASE_HEADER_PATH="$SCRIPTPATH/../../$releaseDir"
+RELEASE_ARCHIVE_PATH="$SCRIPTPATH/../../$releaseDir"
 
 mkdir -p "$RELEASE_PATH"
 
@@ -112,9 +113,11 @@ try cmake -S . -B $BUILD_PATH/$ARCH/pinggy \
     -DCMAKE_BUILD_SERVER=no \
     -DPINGGY_RELEASE_DIR="$RELEASE_PATH" \
     -DPINGGY_HEADER_RELEASE_DIR="$RELEASE_HEADER_PATH" \
+    -DPINGGY_ARCHIVE_RELEASE_DIR="$RELEASE_ARCHIVE_PATH" \
     -DCMAKE_INSTALL_PREFIX="$RELEASE_PATH" \
     -DCMAKE_BUILD_TYPE=Release
 try cmake --build $BUILD_PATH/$ARCH/pinggy -j --config Release
+try cmake --build $BUILD_PATH/$ARCH/pinggy --target distribute
 # try cmake --install $BUILD_PATH/$ARCH/pinggy
 
 if [ "$HOST_GID" != "" ] && [ "$HOST_UID" != "" ]

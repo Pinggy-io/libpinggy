@@ -1,4 +1,15 @@
 
+add_custom_target(
+    releaselib
+    COMMENT "Packaging complete"
+)
+
+
+add_custom_target(
+    releasessl
+    COMMENT "Packaging complete"
+)
+
 function(AddLibrary lib_name lib_type)
     add_library(${lib_name} ${lib_type} ${ARGN})
 endfunction()
@@ -27,19 +38,21 @@ function(AddExecutable target exeType)
 endfunction()
 
 function(AddCopyTarget target anotherTarget dest cmnt)
-    add_custom_target(${target} ALL
+    add_custom_target(${target}
         ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:${anotherTarget}> ${dest}
         DEPENDS ${anotherTarget}
         COMMENT ${cmnt}
     )
+    add_dependencies(releaselib ${target})
 endfunction()
 
 function(CopyHeaders target dependecy srcFile destDir)
-    add_custom_target(${target} ALL
+    add_custom_target(${target}
         ${CMAKE_COMMAND} -E copy_if_different "${CMAKE_CURRENT_SOURCE_DIR}/${srcFile}" ${destDir}
         DEPENDS ${dependecy}
         COMMENT ${cmnt}
     )
+    add_dependencies(releaselib ${target})
 endfunction()
 
 
@@ -92,14 +105,55 @@ SetupSSL()
 
 function(AddSslCopyTarget target anotherTarget dest cmnt)
     if(DEFINED OPENSSL_ROOT_DIR)
-        add_custom_target(copy_openssl ALL
+        add_custom_target(${target}
             COMMAND ${CMAKE_COMMAND} -E copy_directory
                 "${OPENSSL_ROOT_DIR}"  # Source
                 "${dest}/openssl" # Destination
                 DEPENDS ${anotherTarget}
                 COMMENT ${cmnt}
         )
+        add_dependencies(releasessl ${target})
     endif()
+endfunction()
+
+function(DistributeLibPinggy libname dest)
+    set(DIST_STAGE ${CMAKE_BINARY_DIR}/dist_stage)
+    set(ARCH ${CMAKE_SYSTEM_PROCESSOR})
+    string(TOLOWER ${CMAKE_SYSTEM_NAME} OS)
+    if(WIN32)
+        set(ARCHIVE_NAME ${dest}/${libname}-${OS}-${ARCH}.zip)
+    else()
+        set(ARCHIVE_NAME ${dest}/${libname}-${OS}-${ARCH}.tgz)
+        set(ARCHIVE_FORMAT --format=gnutar)
+    endif()
+    add_custom_command(
+    OUTPUT ${DIST_STAGE}/.stamp
+        COMMAND ${CMAKE_COMMAND} -E remove_directory ${DIST_STAGE}
+        COMMAND ${CMAKE_COMMAND} -E make_directory ${DIST_STAGE}
+        COMMAND ${CMAKE_COMMAND} -E copy ${ARGN} ${DIST_STAGE}
+        COMMAND ${CMAKE_COMMAND} -E touch ${DIST_STAGE}/.stamp
+        COMMENT "Staging files for distribution"
+    )
+
+    add_custom_command(
+        OUTPUT ${ARCHIVE_NAME}
+        DEPENDS ${DIST_STAGE}/.stamp
+        WORKING_DIRECTORY ${DIST_STAGE}
+        # COMMAND ${CMAKE_COMMAND} -E chdir ${DIST_STAGE}
+        COMMAND ${CMAKE_COMMAND} -E tar "cfv" ${ARCHIVE_NAME} ${ARCHIVE_FORMAT} -- *
+        # DEPENDS prepare_dist
+        # COMMENT "Creating ZIP archive"
+    )
+        # add_custom_command(OUTPUT ${ARCHIVE_NAME}
+        #     COMMAND ${CMAKE_COMMAND} -E tar "cfv" ${ARCHIVE_NAME} --format=gnutar -- ${ARGN}
+        #     # DEPENDS prepare_dist
+        #     # COMMENT "Creating TGZ archive"
+        # )
+
+    add_custom_target(distribute
+        DEPENDS ${ARCHIVE_NAME}
+        COMMENT "Packaging complete"
+    )
 endfunction()
 
 #=================================
