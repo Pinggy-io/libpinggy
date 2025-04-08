@@ -1,0 +1,28 @@
+name: macOS Build
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+
+jobs:
+  build-macos:
+    name: macOS Package
+    runs-on: macos-latest
+
+    steps:
+    - name: Checkout source
+      uses: actions/checkout@v4
+
+    # - name: Make script executable
+    #   run: chmod +x ./build_macos.sh
+
+    - name: Run build script
+      run: |
+        bash crossbuilding/linux/buildForLinux.sh
+
+    # - name: Upload release artifact
+    #   uses: softprops/action-gh-release@v1
+    #   with:
+    #     files: dist/*.tgz  # or wherever your script puts output
