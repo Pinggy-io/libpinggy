@@ -1,16 +1,6 @@
 # libpinggy - core sdk for Pinggy
 A C++ library intended for creating bindings to all major languages.
 
-# Manual building
-```
-$ mkdir build
-$ cmake ..
-$ cmake --build . -j --config Release //building the code
-$ cmake --build . releaselib //releasing libpinggy and
-$ cmake --build . releasessl //releasing ssl
-$ cmake --build . distribute //creating libpinggy.tgz/zip
-```
-
 ## Building instructions for windows
 
 Install the dependencies.
@@ -38,3 +28,15 @@ Run the script `crossbuilding/windows/opensslbuild.bat`
 
 
 `.\crossbuilding\windows\buildForWindows.bat build releases C:\OpenSSL\`
+
+
+# Manual building
+Once OpenSSL is installed, manual build can be done using following commands
+```
+$ mkdir build
+$ cmake ..
+$ cmake --build . -j --config Release //building the code
+$ cmake --build . releaselib //releasing libpinggy and
+$ cmake --build . releasessl //releasing ssl
+$ cmake --build . distribute //creating libpinggy.tgz/zip
+```
