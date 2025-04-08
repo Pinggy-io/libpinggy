@@ -17,7 +17,7 @@ jobs:
     - name: Download OpenSSL
       run: |
         wget https://8000.lvpn.abhijitmondal.in/OpenSSL-3.3.1-macos.tgz
-        tar -xzf OpenSSL.tgz
+        tar -xzf OpenSSL-3.3.1-macos.tgz
 
     - name: LS
       run: ls -lrt .
