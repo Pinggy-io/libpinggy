@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - dev
 
 jobs:
   build-macos:
@@ -17,17 +16,11 @@ jobs:
 
     - name: Download OpenSSL
       run: |
-        wget https://8000.lvpn.abhijitmondal.in/OpenSSL.tgz
+        wget https://8000.lvpn.abhijitmondal.in/OpenSSL-3.3.1-macos.tgz
         tar -xzf OpenSSL.tgz
 
     - name: LS
       run: ls -lrt .
-
-    # - name: Set up CMake
-    #   uses: lukka/get-cmake@v3
-
-    # - name: Make script executable
-    #   run: chmod +x ./build_macos.sh
 
     - name: Run build script
       run: |
@@ -35,8 +28,3 @@ jobs:
 
     - name: LS
       run: ls -lrt .
-
-    # - name: Upload release artifact
-    #   uses: softprops/action-gh-release@v1
-    #   with:
-    #     files: dist/*.tgz  # or wherever your script puts output
