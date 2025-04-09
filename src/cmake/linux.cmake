@@ -1,4 +1,6 @@
 
+set(PINGGY_OS "linux")
+
 ## set compiler
 set(CMAKE_CXX_FLAGS_DEBUG "-g -Wall")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG")

@@ -2,22 +2,22 @@
 
 set ARCH=%~1
 
+if "%~2"=="" (
+    set opensslDir="%HOMEDRIVE%\OpenSSL"
+) else (
+    set opensslDir=%~2
+)
+
 if "%~3"=="" (
     set buildDir=build
 ) else (
     set buildDir=%~3
 )
 
-if "%~2"=="" (
+if "%~4"=="" (
     set releaseDir=releases
 ) else (
-    set releaseDir=%~2
-)
-
-if "%~4"=="" (
-    set opensslDir="%HOMEDRIVE%\OpenSSL"
-) else (
-    set opensslDir=%~4
+    set releaseDir=%~4
 )
 
 if "%ARCH%"=="i686" (
@@ -58,6 +58,7 @@ set CMAKE_EXE=C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\ID
     "-B%BUILD_PATH%/pinggy" ^
     "-G%GENERATOR%" ^
     -A %CMAKE_ARCH% ^
+    -DPINGGY_BUILD_ARCH="%ARCH%" ^
     -DOPENSSL_ROOT_DIR="%OPENSSL_ROOT_PATH%" ^
     -DCMAKE_BUILD_SERVER=no ^
     -DPINGGY_RELEASE_DIR="%RELEASE_PATH%" ^

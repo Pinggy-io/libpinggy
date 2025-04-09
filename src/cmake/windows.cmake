@@ -1,4 +1,6 @@
 
+set(PINGGY_OS "windows")
+
 # Set architecture
 if(CMAKE_SIZEOF_VOID_P EQUAL 8)
     set(ARCHITECTURE "x64")

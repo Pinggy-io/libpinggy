@@ -10,6 +10,10 @@ add_custom_target(
     COMMENT "Packaging complete"
 )
 
+if(NOT PINGGY_BUILD_ARCH)
+    set(PINGGY_BUILD_ARCH ${CMAKE_SYSTEM_PROCESSOR})
+endif()
+
 function(AddLibrary lib_name lib_type)
     add_library(${lib_name} ${lib_type} ${ARGN})
 endfunction()
@@ -118,12 +122,11 @@ endfunction()
 
 function(DistributeLibPinggy libname dest)
     set(DIST_STAGE ${CMAKE_BINARY_DIR}/dist_stage)
-    set(ARCH ${CMAKE_SYSTEM_PROCESSOR})
-    string(TOLOWER ${CMAKE_SYSTEM_NAME} OS)
     if(WIN32)
-        set(ARCHIVE_NAME ${dest}/${libname}-${OS}-${ARCH}.zip)
+        set(ARCHIVE_NAME ${dest}/${libname}-${PINGGY_OS}-${PINGGY_BUILD_ARCH}.zip)
+        set(ARCHIVE_FORMAT --format=zip)
     else()
-        set(ARCHIVE_NAME ${dest}/${libname}-${OS}-${ARCH}.tgz)
+        set(ARCHIVE_NAME ${dest}/${libname}-${PINGGY_OS}-${PINGGY_BUILD_ARCH}.tgz)
         set(ARCHIVE_FORMAT --format=gnutar)
     endif()
     add_custom_command(
@@ -135,12 +138,28 @@ function(DistributeLibPinggy libname dest)
         COMMENT "Staging files for distribution"
     )
 
-    add_custom_command(
-        OUTPUT ${ARCHIVE_NAME}
-        DEPENDS ${DIST_STAGE}/.stamp
-        WORKING_DIRECTORY ${DIST_STAGE}
-        COMMAND ${CMAKE_COMMAND} -E tar "cfv" ${ARCHIVE_NAME} ${ARCHIVE_FORMAT} -- *
-    )
+    # if(WIN32)
+    #     set(FILES_TO_ARCHIVE "")
+    #     foreach(file IN LISTS ARGN)
+    #         file(TO_CMAKE_PATH "${file}" normalized)
+    #         get_filename_component(base "${normalized}" NAME)
+    #         list(APPEND FILES_TO_ARCHIVE "${base}")
+    #         message(STATUS "Base name: ${base}")
+    #     endforeach()
+    #     add_custom_command(
+    #         OUTPUT ${ARCHIVE_NAME}
+    #         DEPENDS ${DIST_STAGE}/.stamp
+    #         WORKING_DIRECTORY ${DIST_STAGE}
+    #         COMMAND ${CMAKE_COMMAND} -E tar "cfv" ${ARCHIVE_NAME} ${ARCHIVE_FORMAT} -- ${FILES_TO_ARCHIVE}
+    #     )
+    # else()
+        add_custom_command(
+            OUTPUT ${ARCHIVE_NAME}
+            DEPENDS ${DIST_STAGE}/.stamp
+            WORKING_DIRECTORY ${DIST_STAGE}
+            COMMAND ${CMAKE_COMMAND} -E tar "cfv" ${ARCHIVE_NAME} ${ARCHIVE_FORMAT} -- *
+        )
+    # endif()
 
     add_custom_target(distribute
         DEPENDS ${ARCHIVE_NAME}

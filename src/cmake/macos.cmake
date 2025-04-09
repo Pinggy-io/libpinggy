@@ -1,4 +1,7 @@
 
+set(PINGGY_OS "macos")
+
+#=================
 include(cmake/commonFuncDef.cmake)
 
 function(PlatformSpecificLinkings target)

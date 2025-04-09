@@ -94,6 +94,7 @@ mkdir -p "$RELEASE_PATH"
 #==========================
 
 try cmake -S . -B $BUILD_PATH/$ARCH/pinggy \
+    -DPINGGY_BUILD_ARCH=$ARCH \
     -DOPENSSL_ROOT_DIR="$OPENSSL_ROOT_PATH" \
     -DCMAKE_BUILD_SERVER=no \
     -DPINGGY_RELEASE_DIR="$RELEASE_PATH" \

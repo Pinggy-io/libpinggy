@@ -1,21 +1,21 @@
 @echo off
 
-if "%~2"=="" (
-    set buildDir=build
+if "%~1"=="" (
+    set opensslDir=""
 ) else (
-    set buildDir=%~2
+    set opensslDir=%~1
 )
 
-if "%~1"=="" (
+if "%~2"=="" (
     set releaseDir=releases
 ) else (
-    set releaseDir=%~1
+    set releaseDir=%~2
 )
 
 if "%~3"=="" (
-    set opensslDir=""
+    set buildDir=build
 ) else (
-    set opensslDir=%~3
+    set buildDir=%~3
 )
 
 set PROJECT_ROOT=%cd%
@@ -26,7 +26,7 @@ rmdir /s /q "%PROJECT_ROOT%\%buildDir%"
 rmdir /s /q "%PROJECT_ROOT%\%releaseDir%"
 
 for %%i in (i686 x86_64 armv7 aarch64) do (
-    call "%~dp0buildForSingleArch.bat" %%i "%releaseDir%" "%buildDir%" "%opensslDir%"
+    call "%~dp0buildForSingleArch.bat" %%i "%opensslDir%" "%buildDir%" "%releaseDir%"
     if errorlevel 1 (
         echo Failed while compiling
         exit /b 1

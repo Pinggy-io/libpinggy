@@ -39,6 +39,8 @@ else
   exit 1
 fi
 
+ARCH="$archArgv"
+
 SETUP_FILE="/opt/setup-${archArgv}.sh"
 TOOLCHAIN_FILE="/opt/toolchain-${archArgv}.cmake"
 OPENSSL_VERSION=3.3.1
@@ -109,6 +111,7 @@ mkdir -p "$RELEASE_PATH"
 
 try cmake -S . -B $BUILD_PATH/$ARCH/pinggy \
     -DCMAKE_TOOLCHAIN_FILE=$TOOLCHAIN_FILE \
+    -DPINGGY_BUILD_ARCH=$ARCH \
     -DOPENSSL_ROOT_DIR="$OPENSSL_ROOT_PATH" \
     -DCMAKE_BUILD_SERVER=no \
     -DPINGGY_RELEASE_DIR="$RELEASE_PATH" \

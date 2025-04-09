@@ -1,0 +1,44 @@
+name: Build with MSVC using bundled CMake
+
+on:
+  push:
+    branches: 
+      - main
+
+jobs:
+  build:
+    name: Build on Windows (${{ matrix.arch }})
+    runs-on: windows-latest
+
+    strategy:
+      matrix:
+        arch: [x86, x64, arm, arm64]
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up MSVC for ${{ matrix.arch }}
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: ${{ matrix.arch }}
+      
+      - name: Download and extract .tgz file
+        run: |
+          $url = "https://public-pre-built-libraries.s3.us-east-2.amazonaws.com/openssl/openssl_windows_all_arch.zip"
+          $zipPath = "$env:GITHUB_WORKSPACE\openssl_windows_all_arch.zip"
+          $extractPath = "$env:GITHUB_WORKSPACE"
+          Invoke-WebRequest -Uri $url -OutFile $zipPath
+          Expand-Archive -Path $zipPath -DestinationPath $extractPath
+
+      - name: Configure and build
+        run: |
+          "$env:GITHUB_WORKSPACE"
+
+      - name: Build with bundled CMake
+        run: |
+          "C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe" --build build --config Release
+
+      - name: List all files in workspace
+        run: |
+          Get-ChildItem -Path "$env:GITHUB_WORKSPACE" -Recurse
