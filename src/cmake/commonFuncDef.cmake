@@ -139,16 +139,8 @@ function(DistributeLibPinggy libname dest)
         OUTPUT ${ARCHIVE_NAME}
         DEPENDS ${DIST_STAGE}/.stamp
         WORKING_DIRECTORY ${DIST_STAGE}
-        # COMMAND ${CMAKE_COMMAND} -E chdir ${DIST_STAGE}
         COMMAND ${CMAKE_COMMAND} -E tar "cfv" ${ARCHIVE_NAME} ${ARCHIVE_FORMAT} -- *
-        # DEPENDS prepare_dist
-        # COMMENT "Creating ZIP archive"
     )
-        # add_custom_command(OUTPUT ${ARCHIVE_NAME}
-        #     COMMAND ${CMAKE_COMMAND} -E tar "cfv" ${ARCHIVE_NAME} --format=gnutar -- ${ARGN}
-        #     # DEPENDS prepare_dist
-        #     # COMMENT "Creating TGZ archive"
-        # )
 
     add_custom_target(distribute
         DEPENDS ${ARCHIVE_NAME}
@@ -183,9 +175,6 @@ function(ListRecursiveStaticLibraries target origTarget)
                 # Recurse into the dependency
                 ListRecursiveStaticLibraries(${lib} ${origTarget})
             endif()
-        # elseif(lib MATCHES "\\.a$")
-        #     # If it's a static library file, add it to the list
-        #     list(APPEND ${output_list} ${lib})
         endif()
 
         if(TARGET ${lib})
