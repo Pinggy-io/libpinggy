@@ -33,7 +33,24 @@ static const std::string ConnMode_TLS       = "tls";
 static const std::string ConnMode_TLSTCP    = "tlstcp";
 static const std::string ConnModeExt_UDP    = "udp";
 
-bool parseReverseTunnel(sdk::SDKConfigPtr sdkConfig, tString value)
+struct ClientConfig: virtual public pinggy::SharedObject
+{
+    ClientConfig() :
+            sdkConfig(sdk::NewSDKConfigPtr()),
+            WebDebuggerPort(4300),
+            EnableWebDebugger(false)
+                                {}
+
+    virtual ~ClientConfig()     {}
+
+    sdk::SDKConfigPtr           sdkConfig;
+    port_t                         WebDebuggerPort;
+    bool                        EnableWebDebugger;
+};
+DefineMakeSharedPtr(ClientConfig);
+
+bool
+parseReverseTunnel(ClientConfigPtr config, tString value)
 {
     auto values = SplitString(value, ":");
     if (value.length() < 2) {
@@ -41,33 +58,37 @@ bool parseReverseTunnel(sdk::SDKConfigPtr sdkConfig, tString value)
     }
     auto url =  values[values.size() - 2] + ":" + values[values.size() - 1];
     try {
-        sdkConfig->TcpForwardTo = NewUrlPtr(url);
+        config->sdkConfig->TcpForwardTo = NewUrlPtr(url);
     } catch(...) {
         return false;
     }
     return true;
 }
 
-bool parseForwardTunnel(sdk::SDKConfigPtr sdkConfig, tString value)
+bool
+parseForwardTunnel(ClientConfigPtr config, tString value)
 {
     auto values = SplitString(value, ":");
     if (values.size() < 2) {
         return false;
     }
 
-    // try {
-    //     sdkConfig->WebDebuggerPort = std::stoi(values[values.size() - 1]);
-    //     sdkConfig->EnableWebDebugger = true;
-    // } catch(...) {
-    //     return false;
-    // }
+    try {
+        config->WebDebuggerPort = std::stoi(values[values.size() - 1]);
+        config->EnableWebDebugger = true;
+    } catch(...) {
+        return false;
+    }
     return true;
 }
 
-bool parseUser(sdk::SDKConfigPtr sdkConfig, tString user)
+bool
+parseUser(ClientConfigPtr config, tString user)
 {
     auto values = SplitString(user, ":");
     tString token = "";
+
+    auto sdkConfig = config->sdkConfig;
 
     auto forwardingAddress = sdkConfig->TcpForwardTo;
     sdkConfig->TcpForwardTo  = nullptr;
@@ -97,7 +118,8 @@ bool parseUser(sdk::SDKConfigPtr sdkConfig, tString user)
     return true;
 }
 
-bool parseUserServer(sdk::SDKConfigPtr sdkConfig, tString value, tString port)
+bool
+parseUserServer(ClientConfigPtr config, tString value, tString port)
 {
     auto values = SplitString(value, "@");
     if (values.size() > 2) {
@@ -106,9 +128,9 @@ bool parseUserServer(sdk::SDKConfigPtr sdkConfig, tString value, tString port)
 
     bool success = true;
     try {
-        sdkConfig->ServerAddress = NewUrlPtr(values[values.size() - 1] + ":" + port);
+        config->sdkConfig->ServerAddress = NewUrlPtr(values[values.size() - 1] + ":" + port);
         if (values.size() > 1) {
-            success = parseUser(sdkConfig, values[values.size() - 2]);
+            success = parseUser(config, values[values.size() - 2]);
         }
     } catch(...) {
         return false;
@@ -116,10 +138,11 @@ bool parseUserServer(sdk::SDKConfigPtr sdkConfig, tString value, tString port)
     return success;
 }
 
-sdk::SDKConfigPtr parseArguments(int argc, char *argv[])
+ClientConfigPtr
+parseArguments(int argc, char *argv[])
 {
-    auto config = sdk::NewSDKConfigPtr();
-    config->AdvancedParsing = false;
+    auto config = NewClientConfigPtr();
+    config->sdkConfig->AdvancedParsing = false;
 
 
     int opt;
@@ -139,9 +162,12 @@ sdk::SDKConfigPtr parseArguments(int argc, char *argv[])
     };
     bool exitNow = false;
     tString serverPort = "443";
-    while ((opt = cli_getopt_long(argc, argv, "hvno:R:L:p:s:", longopts, &longindex)) != -1) {
+    while ((opt = cli_getopt_long(argc, argv, "ahvno:R:L:p:s:", longopts, &longindex)) != -1) {
         bool success = true;
         switch (opt) {
+            case 'a':
+                config->sdkConfig->AdvancedParsing = true;
+                break;
             case 'h':
                 printf("Help option\n");
                 exitNow = true;
@@ -159,14 +185,14 @@ sdk::SDKConfigPtr parseArguments(int argc, char *argv[])
             case 'R':
                 success = parseReverseTunnel(config, cli_optarg);
                 break;
-            // case 'L':
-            //     success = parseForwardTunnel(config, cli_optarg);
-                // break;
+            case 'L':
+                success = parseForwardTunnel(config, cli_optarg);
+                break;
             case 'n':
-                config->Ssl = false;
+                config->sdkConfig->Ssl = false;
                 break;
             case 's':
-                config->SniServerName = cli_optarg;
+                config->sdkConfig->SniServerName = cli_optarg;
                 break;
             case 256: // Handling for --config
                 printf("Config option with value: %s\n", cli_optarg);
@@ -196,19 +222,30 @@ sdk::SDKConfigPtr parseArguments(int argc, char *argv[])
     return config;
 }
 
-class ClientSdkEventHandler: virtual public sdk::SdkEventHandler
+struct ClientSdkEventHandler: virtual public sdk::SdkEventHandler
 {
-public:
-    virtual ~ClientSdkEventHandler(){}
-    virtual void PrimaryForwardingSucceeded(std::vector<std::string> urls);
+    ClientSdkEventHandler(ClientConfigPtr config):
+        config(config)          { }
+
+    virtual
+    ~ClientSdkEventHandler()    { }
+
+    virtual void
+    PrimaryForwardingSucceeded(std::vector<std::string> urls);
+
+    ClientConfigPtr             config;
+    sdk::SdkWPtr                sdk;
 };
 DefineMakeSharedPtr(ClientSdkEventHandler);
 
-int main(int argc, char *argv[]) {
+int
+main(int argc, char *argv[]) {
     WindowsSocketInitialize();
     InitLogWithCout();
     auto config = parseArguments(argc, argv);
-    auto sdk = sdk::NewSdkPtr(config, NewClientSdkEventHandlerPtr());
+    auto sdkEventHandler = NewClientSdkEventHandlerPtr(config);
+    auto sdk = sdk::NewSdkPtr(config->sdkConfig, sdkEventHandler);
+    sdkEventHandler->sdk = sdk;
 #ifndef __WINDOWS_OS__
     auto pollController = common::NewPollControllerLinuxPtr();
 #else
@@ -222,10 +259,14 @@ int main(int argc, char *argv[]) {
     return 0;
 }
 
-void ClientSdkEventHandler::PrimaryForwardingSucceeded(std::vector<std::string> urls)
+void
+ClientSdkEventHandler::PrimaryForwardingSucceeded(std::vector<std::string> urls)
 {
     std::cout << "Connection completed" << std::endl;
     for (auto url : urls) {
         std::cout << "   " << url << std::endl;
+    }
+    if (config->EnableWebDebugger && config->WebDebuggerPort > 0) {
+        thisPtr->sdk.lock()->StartWebDebugging(config->WebDebuggerPort);
     }
 }

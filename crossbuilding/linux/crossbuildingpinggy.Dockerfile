@@ -15,6 +15,7 @@ RUN apt-get update && \
     build-essential \
     wget \
     cmake \
+    git \
     libstdc++-10-dev \
     libgcc-10-dev \
     libstdc++-9-dev-arm64-cross \
@@ -38,126 +39,125 @@ ENV TARGET_ARCH_mingw=i686-w64-mingw32
 ENV TARGET_ARCH_mingw64=x86_64-w64-mingw32
 ENV OPENSSL_VERSION=3.3.1
 
-RUN cat <<EOF > /opt/setup-armv7.sh
-TARGET=\${TARGET_ARCH_armv7}
-export CC=\${TARGET}-gcc
-export CXX=\${TARGET}-g++
-export AR=\${TARGET}-ar
-export RUNLIB=\${TARGET}-runlib
-export LD=\${TARGET}-ld
-export ARCH=armv7
-export OPENSSL_ROOT_PATH=/opt/openssl/arm
-EOF
+RUN printf "%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n"   \
+    "TARGET=${TARGET_ARCH_armv7}"               \
+    "export CC=\${TARGET}-gcc"                  \
+    "export CXX=\${TARGET}-g++"                 \
+    "export AR=\${TARGET}-ar"                   \
+    "export RUNLIB=\${TARGET}-runlib"           \
+    "export LD=\${TARGET}-ld"                   \
+    "export ARCH=armv7"                         \
+    "export OPENSSL_ROOT_PATH=/opt/openssl/arm" \
+        > /opt/setup-armv7.sh
 
-RUN cat <<EOF >/opt/toolchain-armv7.cmake
-set(CMAKE_SYSTEM_NAME Linux)
-set(CMAKE_SYSTEM_PROCESSOR armv7)
-set(CMAKE_FIND_ROOT_PATH /usr/$TARGET_ARCH_armv7)
-set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE BOTH)
-set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY BOTH)
-EOF
-
-
-RUN cat <<EOF > /opt/setup-aarch64.sh
-TARGET=\${TARGET_ARCH_aarch64}
-export CC=\${TARGET}-gcc
-export CXX=\${TARGET}-g++
-export AR=\${TARGET}-ar
-export RUNLIB=\${TARGET}-runlib
-export LD=\${TARGET}-ld
-export ARCH=aarch64
-export OPENSSL_ROOT_PATH=/opt/openssl/aarch64
-EOF
-
-RUN cat <<EOF >/opt/toolchain-aarch64.cmake
-set(CMAKE_SYSTEM_NAME Linux)
-set(CMAKE_SYSTEM_PROCESSOR aarch64)
-set(CMAKE_FIND_ROOT_PATH /usr/$TARGET_ARCH_aarch64)
-set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE BOTH)
-set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY BOTH)
-EOF
+RUN printf "%s\n%s\n%s\n%s\n%s\n"                       \
+    "set(CMAKE_SYSTEM_NAME Linux)"                      \
+    "set(CMAKE_SYSTEM_PROCESSOR armv7)"                 \
+    "set(CMAKE_FIND_ROOT_PATH /usr/$TARGET_ARCH_armv7)" \
+    "set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE BOTH)"       \
+    "set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY BOTH)"       \
+        >/opt/toolchain-armv7.cmake
 
 
-RUN cat <<EOF >/opt/setup-i686.sh
-TARGET=\${TARGET_ARCH_i686}
-export CC=\${TARGET}-gcc-9
-export CXX=\${TARGET}-g++-9
-export AR=\${TARGET}-gcc-ar-9
-export RUNLIB=\${TARGET}-gcc-runlib-9
-export LD=\${TARGET}-ld
-export ARCH=i686
-export OPENSSL_ROOT_PATH=/opt/openssl/i686
-EOF
+RUN printf "%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n"       \
+    "TARGET=${TARGET_ARCH_aarch64}"                 \
+    "export CC=\${TARGET}-gcc"                      \
+    "export CXX=\${TARGET}-g++"                     \
+    "export AR=\${TARGET}-ar"                       \
+    "export RUNLIB=\${TARGET}-runlib"               \
+    "export LD=\${TARGET}-ld"                       \
+    "export ARCH=aarch64"                           \
+    "export OPENSSL_ROOT_PATH=/opt/openssl/aarch64" \
+        > /opt/setup-aarch64.sh
 
-RUN cat <<EOF >/opt/toolchain-i686.cmake
-set(CMAKE_SYSTEM_NAME Linux)
-set(CMAKE_SYSTEM_PROCESSOR i686)
-set(CMAKE_FIND_ROOT_PATH /usr/$TARGET_ARCH_i686)
-set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE BOTH)
-set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY BOTH)
-EOF
-
-
-RUN cat <<EOF >/opt/setup-x86_64.sh
-TARGET=""
-export CC=gcc
-export CXX=g++
-export AR=ar
-export RUNLIB=runlib
-export LD=ld
-export ARCH=x86_64
-export OPENSSL_ROOT_PATH=/opt/openssl/x86_64
-EOF
-
-RUN cat <<EOF >/opt/toolchain-x86_64.cmake
-set(CMAKE_SYSTEM_NAME Linux)
-set(CMAKE_SYSTEM_PROCESSOR x86_64)
-set(CMAKE_FIND_ROOT_PATH /usr)
-set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE BOTH)
-set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY BOTH)
-EOF
+RUN printf "%s\n%s\n%s\n%s\n%s\n"                          \
+    "set(CMAKE_SYSTEM_NAME Linux)"                         \
+    "set(CMAKE_SYSTEM_PROCESSOR aarch64)"                  \
+    "set(CMAKE_FIND_ROOT_PATH /usr/$TARGET_ARCH_aarch64)"  \
+    "set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE BOTH)"          \
+    "set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY BOTH)"          \
+        >/opt/toolchain-aarch64.cmake
 
 
-RUN cat <<EOF >/opt/setup-mingw.sh
-export CC=${TARGET_ARCH_mingw}-gcc-9.3-win32
-export CXX=${TARGET_ARCH_mingw}-g++-win32
-export AR=${TARGET_ARCH_mingw}-gcc-ar-win32
-export RUNLIB=${TARGET_ARCH_mingw}-gcc-ranlib-win32
-export LD=${TARGET_ARCH_mingw}-ld
-export WINDRES=${TARGET_ARCH_mingw}-windres
-export WINDMC=${TARGET_ARCH_mingw}-windmc
-export ARCH=mingw
-export OPENSSL_ROOT_PATH=/opt/openssl/mingw
-EOF
+RUN printf "%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n"              \
+    "TARGET=${TARGET_ARCH_i686}"                           \
+    "export CC=\${TARGET}-gcc-9"                           \
+    "export CXX=\${TARGET}-g++-9"                          \
+    "export AR=\${TARGET}-gcc-ar-9"                        \
+    "export RUNLIB=\${TARGET}-gcc-runlib-9"                \
+    "export LD=\${TARGET}-ld"                              \
+    "export ARCH=i686"                                     \
+    "export OPENSSL_ROOT_PATH=/opt/openssl/i686"           \
+        >/opt/setup-i686.sh
 
-RUN cat <<EOF >/opt/toolchain-mingw.cmake
-set(CMAKE_SYSTEM_NAME Windows)
-set(CMAKE_SYSTEM_PROCESSOR i686)  # Or i686 for 32-bit
-set(CMAKE_FIND_ROOT_PATH /usr/${TARGET_ARCH_mingw})
-set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE BOTH)
-set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY BOTH)
-EOF
+RUN printf "%s\n%s\n%s\n%s\n%s\n"                          \
+    "set(CMAKE_SYSTEM_NAME Linux)"                         \
+    "set(CMAKE_SYSTEM_PROCESSOR i686)"                     \
+    "set(CMAKE_FIND_ROOT_PATH /usr/$TARGET_ARCH_i686)"     \
+    "set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE BOTH)"          \
+    "set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY BOTH)"          \
+        >/opt/toolchain-i686.cmake
 
 
-RUN cat <<EOF >/opt/setup-mingw64.sh
-export CC=${TARGET_ARCH_mingw64}-gcc-9.3-win32
-export CXX=${TARGET_ARCH_mingw64}-g++-win32
-export AR=${TARGET_ARCH_mingw64}-gcc-ar-win32
-export RUNLIB=${TARGET_ARCH_mingw64}-gcc-ranlib-win32
-export LD=${TARGET_ARCH_mingw64}-ld
-export WINDRES=${TARGET_ARCH_mingw64}-windres
-export WINDMC=${TARGET_ARCH_mingw64}-windmc
-export ARCH=mingw64
-export OPENSSL_ROOT_PATH=/opt/openssl/mingw64
-EOF
+RUN printf "%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n"              \
+    "TARGET=\"\""                                          \
+    "export CC=gcc"                                        \
+    "export CXX=g++"                                       \
+    "export AR=ar"                                         \
+    "export RUNLIB=runlib"                                 \
+    "export LD=ld"                                         \
+    "export ARCH=x86_64"                                   \
+    "export OPENSSL_ROOT_PATH=/opt/openssl/x86_64"         \
+        >/opt/setup-x86_64.sh
 
-RUN cat <<EOF >/opt/toolchain-mingw64.cmake
-set(CMAKE_SYSTEM_NAME Windows)
-set(CMAKE_SYSTEM_PROCESSOR x86_64)  # Or i686 for 32-bit
-set(CMAKE_FIND_ROOT_PATH /usr/${TARGET_ARCH_mingw64})
-set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE BOTH)
-set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY BOTH)
-EOF
+RUN printf "%s\n%s\n%s\n%s\n%s\n"                          \
+    "set(CMAKE_SYSTEM_NAME Linux)"                         \
+    "set(CMAKE_SYSTEM_PROCESSOR x86_64)"                   \
+    "set(CMAKE_FIND_ROOT_PATH /usr)"                       \
+    "set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE BOTH)"          \
+    "set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY BOTH)"          \
+        >/opt/toolchain-x86_64.cmake
+
+
+RUN printf "%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n"          \
+    "export CC=${TARGET_ARCH_mingw}-gcc-9.3-win32"         \
+    "export CXX=${TARGET_ARCH_mingw}-g++-win32"            \
+    "export AR=${TARGET_ARCH_mingw}-gcc-ar-win32"          \
+    "export RUNLIB=${TARGET_ARCH_mingw}-gcc-ranlib-win32"  \
+    "export LD=${TARGET_ARCH_mingw}-ld"                    \
+    "export WINDRES=${TARGET_ARCH_mingw}-windres"          \
+    "export WINDMC=${TARGET_ARCH_mingw}-windmc"            \
+    "export ARCH=mingw"                                    \
+    "export OPENSSL_ROOT_PATH=/opt/openssl/mingw"          \
+        >/opt/setup-mingw.sh
+
+RUN printf "%s\n%s\n%s\n%s\n%s\n"                          \
+    "set(CMAKE_SYSTEM_NAME Windows)"                       \
+    "set(CMAKE_SYSTEM_PROCESSOR i686)"                     \
+    "set(CMAKE_FIND_ROOT_PATH /usr/${TARGET_ARCH_mingw})"  \
+    "set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE BOTH)"          \
+    "set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY BOTH)"          \
+        >/opt/toolchain-mingw.cmake
+
+RUN printf "%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n"           \
+    "export CC=${TARGET_ARCH_mingw64}-gcc-9.3-win32"        \
+    "export CXX=${TARGET_ARCH_mingw64}-g++-win32"           \
+    "export AR=${TARGET_ARCH_mingw64}-gcc-ar-win32"         \
+    "export RUNLIB=${TARGET_ARCH_mingw64}-gcc-ranlib-win32" \
+    "export LD=${TARGET_ARCH_mingw64}-ld"                   \
+    "export WINDRES=${TARGET_ARCH_mingw64}-windres"         \
+    "export WINDMC=${TARGET_ARCH_mingw64}-windmc"           \
+    "export ARCH=mingw64"                                   \
+    "export OPENSSL_ROOT_PATH=/opt/openssl/mingw64"         \
+        >/opt/setup-mingw64.sh
+
+RUN printf "%s\n%s\n%s\n%s\n%s\n"                           \
+    "set(CMAKE_SYSTEM_NAME Windows)"                        \
+    "set(CMAKE_SYSTEM_PROCESSOR x86_64)"                    \
+    "set(CMAKE_FIND_ROOT_PATH /usr/${TARGET_ARCH_mingw64})" \
+    "set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE BOTH)"           \
+    "set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY BOTH)"           \
+        >/opt/toolchain-mingw64.cmake
 
 
 SHELL ["/bin/bash", "-c"]
@@ -219,34 +219,34 @@ RUN wget https://www.openssl.org/source/openssl-${OPENSSL_VERSION}.tar.gz \
     && rm openssl-${OPENSSL_VERSION}.tar.gz \
     && ln -sfn lib64 ${OPENSSL_ROOT_PATH}/lib
 
-RUN wget https://www.openssl.org/source/openssl-${OPENSSL_VERSION}.tar.gz \
-    && tar -xf openssl-${OPENSSL_VERSION}.tar.gz \
-    && cd openssl-${OPENSSL_VERSION} \
-    && source /opt/setup-mingw.sh \
-    && ./config mingw shared no-unit-test no-tests \
-            --cross-compile-prefix="" \
-            --prefix=$OPENSSL_ROOT_PATH --openssldir=$OPENSSL_ROOT_PATH \
-    && make -j \
-    && make install_sw \
-    && make clean \
-    && cd .. \
-    && rm -rf openssl-${OPENSSL_VERSION} \
-    && rm openssl-${OPENSSL_VERSION}.tar.gz
+# RUN wget https://www.openssl.org/source/openssl-${OPENSSL_VERSION}.tar.gz \
+#     && tar -xf openssl-${OPENSSL_VERSION}.tar.gz \
+#     && cd openssl-${OPENSSL_VERSION} \
+#     && source /opt/setup-mingw.sh \
+#     && ./config mingw shared no-unit-test no-tests \
+#             --cross-compile-prefix="" \
+#             --prefix=$OPENSSL_ROOT_PATH --openssldir=$OPENSSL_ROOT_PATH \
+#     && make -j \
+#     && make install_sw \
+#     && make clean \
+#     && cd .. \
+#     && rm -rf openssl-${OPENSSL_VERSION} \
+#     && rm openssl-${OPENSSL_VERSION}.tar.gz
 
-RUN wget https://www.openssl.org/source/openssl-${OPENSSL_VERSION}.tar.gz \
-    && tar -xf openssl-${OPENSSL_VERSION}.tar.gz \
-    && cd openssl-${OPENSSL_VERSION} \
-    && source /opt/setup-mingw64.sh \
-    && ./config mingw64 shared no-unit-test no-tests \
-            --cross-compile-prefix="" \
-            --prefix=$OPENSSL_ROOT_PATH --openssldir=$OPENSSL_ROOT_PATH \
-    && make -j \
-    && make install_sw \
-    && make clean \
-    && cd .. \
-    && rm -rf openssl-${OPENSSL_VERSION} \
-    && rm openssl-${OPENSSL_VERSION}.tar.gz \
-    && ln -sfn lib64 ${OPENSSL_ROOT_PATH}/lib
+# RUN wget https://www.openssl.org/source/openssl-${OPENSSL_VERSION}.tar.gz \
+#     && tar -xf openssl-${OPENSSL_VERSION}.tar.gz \
+#     && cd openssl-${OPENSSL_VERSION} \
+#     && source /opt/setup-mingw64.sh \
+#     && ./config mingw64 shared no-unit-test no-tests \
+#             --cross-compile-prefix="" \
+#             --prefix=$OPENSSL_ROOT_PATH --openssldir=$OPENSSL_ROOT_PATH \
+#     && make -j \
+#     && make install_sw \
+#     && make clean \
+#     && cd .. \
+#     && rm -rf openssl-${OPENSSL_VERSION} \
+#     && rm openssl-${OPENSSL_VERSION}.tar.gz \
+#     && ln -sfn lib64 ${OPENSSL_ROOT_PATH}/lib
 
 # Set up a default working directory
 WORKDIR /workspace
