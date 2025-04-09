@@ -120,8 +120,10 @@ function(AddSslCopyTarget target anotherTarget dest cmnt)
     endif()
 endfunction()
 
+#=================================
 function(DistributeLibPinggy libname dest)
     set(DIST_STAGE ${CMAKE_BINARY_DIR}/dist_stage)
+
     if(WIN32)
         set(ARCHIVE_NAME ${dest}/${libname}-${PINGGY_OS}-${PINGGY_BUILD_ARCH}.zip)
         set(ARCHIVE_FORMAT --format=zip)
@@ -129,38 +131,46 @@ function(DistributeLibPinggy libname dest)
         set(ARCHIVE_NAME ${dest}/${libname}-${PINGGY_OS}-${PINGGY_BUILD_ARCH}.tgz)
         set(ARCHIVE_FORMAT --format=gnutar)
     endif()
+
+    set(FILES_TO_COPY "")
+    set(FILES_TO_ARCHIVE "")
+
+    foreach(item IN LISTS ARGN)
+        # Try to treat as target first
+        if(TARGET ${item})
+            # This generator expression will be evaluated at build time
+            set(out "$<TARGET_FILE:${item}>")
+            set(base "$<TARGET_FILE_NAME:${item}>")
+        else()
+            set(out "${item}")
+            file(TO_CMAKE_PATH "${out}" norm)
+            get_filename_component(base "${norm}" NAME)
+        endif()
+
+        list(APPEND FILES_TO_COPY "${out}")
+        list(APPEND FILES_TO_ARCHIVE "${base}")
+    endforeach()
+
+    # Copy files to dist_stage
     add_custom_command(
-    OUTPUT ${DIST_STAGE}/.stamp
+        OUTPUT ${DIST_STAGE}/.stamp
         COMMAND ${CMAKE_COMMAND} -E remove_directory ${DIST_STAGE}
         COMMAND ${CMAKE_COMMAND} -E make_directory ${DIST_STAGE}
-        COMMAND ${CMAKE_COMMAND} -E copy ${ARGN} ${DIST_STAGE}
+        COMMAND ${CMAKE_COMMAND} -E copy ${FILES_TO_COPY} ${DIST_STAGE}
         COMMAND ${CMAKE_COMMAND} -E touch ${DIST_STAGE}/.stamp
         COMMENT "Staging files for distribution"
     )
 
-    # if(WIN32)
-    #     set(FILES_TO_ARCHIVE "")
-    #     foreach(file IN LISTS ARGN)
-    #         file(TO_CMAKE_PATH "${file}" normalized)
-    #         get_filename_component(base "${normalized}" NAME)
-    #         list(APPEND FILES_TO_ARCHIVE "${base}")
-    #         message(STATUS "Base name: ${base}")
-    #     endforeach()
-    #     add_custom_command(
-    #         OUTPUT ${ARCHIVE_NAME}
-    #         DEPENDS ${DIST_STAGE}/.stamp
-    #         WORKING_DIRECTORY ${DIST_STAGE}
-    #         COMMAND ${CMAKE_COMMAND} -E tar "cfv" ${ARCHIVE_NAME} ${ARCHIVE_FORMAT} -- ${FILES_TO_ARCHIVE}
-    #     )
-    # else()
-        add_custom_command(
-            OUTPUT ${ARCHIVE_NAME}
-            DEPENDS ${DIST_STAGE}/.stamp
-            WORKING_DIRECTORY ${DIST_STAGE}
-            COMMAND ${CMAKE_COMMAND} -E tar "cfv" ${ARCHIVE_NAME} ${ARCHIVE_FORMAT} -- *
-        )
-    # endif()
+    # Create archive
+    add_custom_command(
+        OUTPUT ${ARCHIVE_NAME}
+        DEPENDS ${DIST_STAGE}/.stamp
+        WORKING_DIRECTORY ${DIST_STAGE}
+        COMMAND ${CMAKE_COMMAND} -E tar "cfv" ${ARCHIVE_NAME} ${ARCHIVE_FORMAT} -- ${FILES_TO_ARCHIVE}
+        COMMENT "Creating archive ${ARCHIVE_NAME}"
+    )
 
+    # Final target
     add_custom_target(distribute
         DEPENDS ${ARCHIVE_NAME}
         COMMENT "Packaging complete"

@@ -22,7 +22,7 @@ if(BUILD_MODE_STATIC STREQUAL "yes")
     TargetLinkLibraries(pinggyapi_static PUBLIC pinggysdk)
     LinkSSL(pinggyapi_static)
     AddCopyTarget(copyPinggyApi_static pinggyapi_static ${PINGGY_RELEASE_DIR} "Copying sdk to base dir")
-    list(APPEND ARCHIVE_TARGETS $<TARGET_FILE:pinggyapi_static>)
+    list(APPEND ARCHIVE_TARGETS pinggyapi_static)
 
     install(TARGETS pinggyapi_static
         LIBRARY DESTINATION lib
@@ -55,7 +55,7 @@ if(NOT BUILD_MODE_DLL STREQUAL "no")
 
     set(CopyHeaderTarget copyPinggyApi_shared)
     AddSslCopyTarget(copyOpenSsl_shared copyPinggyApi_shared ${PINGGY_RELEASE_DIR} "Copying openssl to base dir")
-    list(APPEND ARCHIVE_TARGETS $<TARGET_FILE:pinggyapi_shared>)
+    list(APPEND ARCHIVE_TARGETS pinggyapi_shared)
 endif()
 
 if(NOT PINGGY_HEADER_RELEASE_DIR)
