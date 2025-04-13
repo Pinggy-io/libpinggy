@@ -22,9 +22,9 @@ jobs:
         Invoke-WebRequest -Uri $url -OutFile $zipPath
         Expand-Archive -Path $zipPath -DestinationPath $extractPath
 
-    - name: List all files in workspace
-      run: |
-        Get-ChildItem -Path "$env:GITHUB_WORKSPACE" -Recurse
+    # - name: List all files in workspace
+    #   run: |
+    #     Get-ChildItem -Path "$env:GITHUB_WORKSPACE" -Recurse
 
     - name: Configure and build
       run: |
@@ -33,7 +33,6 @@ jobs:
     - name: Build with bundled CMake
       run: |
         "crossbuilding\windows\buildForWindows.bat" $env:DIR_PATH build releases
-    #    "C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe" --build build --config Release
 
     - name: List all files in workspace
       run: |
