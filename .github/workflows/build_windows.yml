@@ -38,9 +38,9 @@ jobs:
     #   run: |
     #     Get-ChildItem -Path "$env:GITHUB_WORKSPACE" -Recurse
 
-    - name: Configure and build
-      run: |
-        dir %cd%\releases
+    # - name: Configure and build
+    #   run: |
+    #     dir %cd%\releases
 
 
     - name: Upload releases folder to release
