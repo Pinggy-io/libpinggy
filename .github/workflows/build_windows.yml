@@ -1,4 +1,4 @@
-name: Build in Container
+name: Build in Runner (Windows)
 
 on:
   push:
@@ -28,7 +28,8 @@ jobs:
 
     - name: Build with bundled CMake
       run: |
-        "crossbuilding\windows\buildForWindows.bat" "$env:GITHUB_WORKSPACE\OpenSSL" build releases
+        $opensslPath = "$env:GITHUB_WORKSPACE\OpenSSL"
+        "crossbuilding\windows\buildForWindows.bat" $opensslPath build releases
     #    "C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe" --build build --config Release
 
     - name: List all files in workspace
