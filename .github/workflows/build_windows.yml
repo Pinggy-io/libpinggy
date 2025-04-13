@@ -31,7 +31,7 @@ jobs:
         echo "OPENSSL_DIR=${{ github.workspace }}\\OpenSSL" >> $env:GITHUB_ENV
 
     - name: Build with bundled CMake
-      run: cmd.exe /c "crossbuilding\windows\buildForWindows.bat %OPENSSL_DIR% build releases"
+      run: cmd.exe /c "crossbuilding\windows\buildForWindows.bat %OPENSSL_DIR% %cd%\build %cd%\releases"
       shell: cmd
 
     # - name: List all files in workspace
@@ -40,4 +40,4 @@ jobs:
 
     - name: Configure and build
       run: |
-        dir
+        dir %cd%\releases
