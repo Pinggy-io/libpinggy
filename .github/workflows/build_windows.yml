@@ -32,7 +32,7 @@ jobs:
 
     - name: Build with bundled CMake
       run: |
-        "crossbuilding\windows\buildForWindows.bat" "%DIR_PATH%" build releases
+        "crossbuilding\windows\buildForWindows.bat" $env:DIR_PATH build releases
     #    "C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe" --build build --config Release
 
     - name: List all files in workspace
