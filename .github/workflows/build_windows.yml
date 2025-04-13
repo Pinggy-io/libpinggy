@@ -22,10 +22,13 @@ jobs:
         Invoke-WebRequest -Uri $url -OutFile $zipPath
         Expand-Archive -Path $zipPath -DestinationPath $extractPath
 
+    - name: List all files in workspace
+      run: |
+        Get-ChildItem -Path "$env:GITHUB_WORKSPACE" -Recurse
+
     - name: Configure and build
       run: |
-        id: get-path
-        run: echo "DIR_PATH=${{ github.workspace }}\\OpenSSL" >> $env:GITHUB_ENV
+        echo "DIR_PATH=${{ github.workspace }}\\OpenSSL" >> $env:GITHUB_ENV
 
     - name: Build with bundled CMake
       run: |
