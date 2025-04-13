@@ -24,12 +24,12 @@ jobs:
 
     - name: Configure and build
       run: |
-        "$env:GITHUB_WORKSPACE"
+        id: get-path
+        run: echo "DIR_PATH=${{ github.workspace }}\\OpenSSL" >> $env:GITHUB_ENV
 
     - name: Build with bundled CMake
       run: |
-        $opensslPath = "$env:GITHUB_WORKSPACE\OpenSSL"
-        "crossbuilding\windows\buildForWindows.bat" $opensslPath build releases
+        "crossbuilding\windows\buildForWindows.bat" "%DIR_PATH%" build releases
     #    "C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe" --build build --config Release
 
     - name: List all files in workspace
