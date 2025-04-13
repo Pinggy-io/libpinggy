@@ -41,3 +41,12 @@ jobs:
     - name: Configure and build
       run: |
         dir %cd%\releases
+
+
+    - name: Upload releases folder to release
+      if: steps.check_files.outputs.releases_folder_exists == 'true'
+      uses: softprops/action-gh-release@v1
+      with:
+        files: releases/*.zip
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
