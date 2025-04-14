@@ -43,17 +43,15 @@ jobs:
     #   run: |
     #     dir %cd%\releases
 
-
-    # - name: Upload releases folder to release
-    #   if: steps.check_files.outputs.releases_folder_exists == 'true'
-    #   uses: softprops/action-gh-release@v1
-    #   with:
-    #     files: releases\*.zip
-    #   env:
-    #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-    - name: Upload release zip files
-      uses: actions/upload-artifact@v4
+    - name: Upload releases folder to release
+      uses: softprops/action-gh-release@v1
       with:
-        name: release-zips
-        path: releases/*.zip
+        files: releases\*.zip
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    # - name: Upload release zip files
+    #   uses: actions/upload-artifact@v4
+    #   with:
+    #     name: release-zips
+    #     path: releases/*.zip
