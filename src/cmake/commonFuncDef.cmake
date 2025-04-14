@@ -125,12 +125,14 @@ function(DistributeLibPinggy libname dest)
     set(DIST_STAGE ${CMAKE_BINARY_DIR}/dist_stage)
 
     if(WIN32)
-        set(ARCHIVE_NAME ${dest}/${libname}-${PINGGY_OS}-${PINGGY_BUILD_ARCH}.zip)
+        set(ARCHIVE_NAME_dirty ${dest}/${libname}-${PINGGY_OS}-${PINGGY_BUILD_ARCH}.zip)
         set(ARCHIVE_FORMAT --format=zip)
     else()
-        set(ARCHIVE_NAME ${dest}/${libname}-${PINGGY_OS}-${PINGGY_BUILD_ARCH}.tgz)
+        set(ARCHIVE_NAME_dirty ${dest}/${libname}-${PINGGY_OS}-${PINGGY_BUILD_ARCH}.tgz)
         set(ARCHIVE_FORMAT --format=gnutar)
     endif()
+
+    file(TO_NATIVE_PATH "${ARCHIVE_NAME_dirty}" ARCHIVE_NAME)
 
     set(FILES_TO_COPY "")
     set(FILES_TO_ARCHIVE "")
