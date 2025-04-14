@@ -1,4 +1,4 @@
-name: Build in Container
+name: Build in Linux (container)
 
 on:
   push:

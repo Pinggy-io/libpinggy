@@ -1,4 +1,4 @@
-@echo off
+@echo on
 
 set ARCH=%~1
 
