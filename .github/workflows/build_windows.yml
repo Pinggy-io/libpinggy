@@ -32,7 +32,7 @@ jobs:
         echo "RELEASE_DIR=${{ github.workspace }}\releases" >> $env:GITHUB_ENV
 
     - name: Build with bundled CMake
-      run: cmd.exe /c "crossbuilding\windows\buildForWindows.bat %OPENSSL_DIR% %RELEASE_DIR%
+      run: cmd.exe /c "crossbuilding\windows\buildForWindows.bat %OPENSSL_DIR% releases
       shell: cmd
 
     - name: List all files in workspace
