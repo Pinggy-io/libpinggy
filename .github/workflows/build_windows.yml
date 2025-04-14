@@ -29,14 +29,15 @@ jobs:
     - name: Configure and build
       run: |
         echo "OPENSSL_DIR=${{ github.workspace }}\\OpenSSL" >> $env:GITHUB_ENV
+        echo "RELEASE_DIR=${{ github.workspace }}\\releases" >> $env:GITHUB_ENV
 
     - name: Build with bundled CMake
       run: cmd.exe /c "crossbuilding\windows\buildForWindows.bat %OPENSSL_DIR%
       shell: cmd
 
-    # - name: List all files in workspace
-    #   run: |
-    #     Get-ChildItem -Path "$env:GITHUB_WORKSPACE" -Recurse
+    - name: List all files in workspace
+      run: |
+        Get-ChildItem -Path "$env:GITHUB_WORKSPACE"
 
     # - name: Configure and build
     #   run: |
