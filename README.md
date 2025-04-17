@@ -27,7 +27,7 @@ Run the script `crossbuilding/windows/opensslbuild.bat`
 ## Building  libpinggy from source
 
 
-`.\crossbuilding\windows\buildForWindows.bat build releases C:\OpenSSL\`
+`.\crossbuilding\windows\buildForWindows.bat C:\OpenSSL\ releases build`
 
 
 # Manual building

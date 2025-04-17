@@ -27,7 +27,8 @@ RUN apt-get update && \
     gcc-9-multilib-i686-linux-gnu \
     g++-9-multilib-i686-linux-gnu \
     mingw-w64 \
-    vim && \
+    vim \
+    openjdk-11-jdk && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
@@ -37,6 +38,7 @@ ENV TARGET_ARCH_aarch64=aarch64-linux-gnu
 ENV TARGET_ARCH_i686=i686-linux-gnu
 ENV TARGET_ARCH_mingw=i686-w64-mingw32
 ENV TARGET_ARCH_mingw64=x86_64-w64-mingw32
+ENV JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
 ENV OPENSSL_VERSION=3.3.1
 
 RUN printf "%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n"   \
