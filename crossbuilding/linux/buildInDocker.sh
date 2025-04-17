@@ -4,6 +4,19 @@ SCRIPTPATH="$( cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
 BUILD_PATH_ALL="$SCRIPTPATH/../../build/cross"
 BUILD_PATH=$SCRIPTPATH/"../../build/cross/linux"
 
+
+if [ "$RELEASE_DIR_NAME" == "" ]
+then
+  releaseDir=releases
+else
+  releaseDir="$RELEASE_DIR_NAME"
+fi
+
+RELEASE_PATH="$SCRIPTPATH/../../$releaseDir/linux/$ARCH"
+RELEASE_HEADER_PATH="$SCRIPTPATH/../../$releaseDir"
+RELEASE_ARCHIVE_PATH="$SCRIPTPATH/../../$releaseDir"
+
+
 if [ $# -eq 0 ]
 then
   echo you have to pass architecture type
@@ -54,6 +67,10 @@ try() {
   e=$?
   if [[ $e -ne 0 ]]; then
     echo "$@" > /dev/stderr
+    if [ "$HOST_GID" != "" ] && [ "$HOST_UID" != "" ]
+      then
+          chown -R "$HOST_UID":"$HOST_GID" "$SCRIPTPATH/../../build" $RELEASE_PATH $RELEASE_HEADER_PATH
+      fi
     exit $e
   fi
 }
@@ -94,18 +111,6 @@ then
   fi
 
 fi
-
-
-if [ "$RELEASE_DIR_NAME" == "" ]
-then
-  releaseDir=releases
-else
-  releaseDir="$RELEASE_DIR_NAME"
-fi
-
-RELEASE_PATH="$SCRIPTPATH/../../$releaseDir/linux/$ARCH"
-RELEASE_HEADER_PATH="$SCRIPTPATH/../../$releaseDir"
-RELEASE_ARCHIVE_PATH="$SCRIPTPATH/../../$releaseDir"
 
 mkdir -p "$RELEASE_PATH"
 
