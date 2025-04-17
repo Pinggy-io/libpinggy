@@ -12,11 +12,6 @@ else
   releaseDir="$RELEASE_DIR_NAME"
 fi
 
-RELEASE_PATH="$SCRIPTPATH/../../$releaseDir/linux/$ARCH"
-RELEASE_HEADER_PATH="$SCRIPTPATH/../../$releaseDir"
-RELEASE_ARCHIVE_PATH="$SCRIPTPATH/../../$releaseDir"
-
-
 if [ $# -eq 0 ]
 then
   echo you have to pass architecture type
@@ -53,6 +48,12 @@ else
 fi
 
 ARCH="$archArgv"
+
+
+RELEASE_PATH="$SCRIPTPATH/../../$releaseDir/linux/$ARCH"
+RELEASE_HEADER_PATH="$SCRIPTPATH/../../$releaseDir"
+RELEASE_ARCHIVE_PATH="$SCRIPTPATH/../../$releaseDir"
+
 
 SETUP_FILE="/opt/setup-${archArgv}.sh"
 TOOLCHAIN_FILE="/opt/toolchain-${archArgv}.cmake"
@@ -126,6 +127,7 @@ try cmake -S . -B $BUILD_PATH/$ARCH/pinggy \
     -DCMAKE_BUILD_TYPE=Release
 try cmake --build $BUILD_PATH/$ARCH/pinggy -j --config Release
 try cmake --build $BUILD_PATH/$ARCH/pinggy --target distribute
+try cmake --build $BUILD_PATH/$ARCH/pinggy --target releaselib
 # try cmake --install $BUILD_PATH/$ARCH/pinggy
 
 if [ "$HOST_GID" != "" ] && [ "$HOST_UID" != "" ]

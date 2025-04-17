@@ -24,7 +24,6 @@ function(TargetLinkLibraries target linkType)
     endif()
 
     foreach(lib IN LISTS ARGN)
-        # message(STATUS "Linking ${lib} to target ${target}")
         target_link_libraries(${target} ${linkType} ${lib})
     endforeach()
 endfunction()
