@@ -33,7 +33,7 @@ then
   if [ ! -f $OPENSSL_ROOT_PARENT/openssl-${OPENSSL_VERSION}.tar.gz ]
   then
     pushd $OPENSSL_ROOT_PARENT
-    try wget https://www.openssl.org/source/openssl-${OPENSSL_VERSION}.tar.gz
+    try curl -o openssl-${OPENSSL_VERSION}.tar.gz https://www.openssl.org/source/openssl-${OPENSSL_VERSION}.tar.gz
     popd
   fi
 
@@ -106,3 +106,13 @@ try cmake -S . -B $BUILD_PATH/$ARCH/pinggy \
     -DCMAKE_BUILD_TYPE=Release
 try cmake --build $BUILD_PATH/$ARCH/pinggy -j --config Release
 try cmake --build $BUILD_PATH/$ARCH/pinggy --target distribute
+
+if [ "$RELEASE_SO" == "yes" ]
+then
+  try cmake --build $BUILD_PATH/$ARCH/pinggy --target releaselib
+fi
+
+if [ "$RELEASE_SSL" == "yes" ]
+then
+  try cmake --build $BUILD_PATH/$ARCH/pinggy --target releasessl
+fi

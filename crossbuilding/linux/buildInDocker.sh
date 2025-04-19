@@ -127,7 +127,16 @@ try cmake -S . -B $BUILD_PATH/$ARCH/pinggy \
     -DCMAKE_BUILD_TYPE=Release
 try cmake --build $BUILD_PATH/$ARCH/pinggy -j --config Release
 try cmake --build $BUILD_PATH/$ARCH/pinggy --target distribute
-try cmake --build $BUILD_PATH/$ARCH/pinggy --target releaselib
+
+if [ "$RELEASE_SO" == "yes" ]
+then
+  try cmake --build $BUILD_PATH/$ARCH/pinggy --target releaselib
+fi
+
+if [ "$RELEASE_SSL" == "yes" ]
+then
+  try cmake --build $BUILD_PATH/$ARCH/pinggy --target releasessl
+fi
 # try cmake --install $BUILD_PATH/$ARCH/pinggy
 
 if [ "$HOST_GID" != "" ] && [ "$HOST_UID" != "" ]
