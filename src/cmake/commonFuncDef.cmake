@@ -129,13 +129,16 @@ function(DistributeLibPinggy libname dest)
 
     if(WIN32)
         set(ARCHIVE_NAME_dirty ${dest}/${libname}-${PINGGY_OS}-${PINGGY_BUILD_ARCH}.zip)
+        set(WITH_SSL_ARCHIVE_NAME_dirty ${dest}/${libname}-ssl-${PINGGY_OS}-${PINGGY_BUILD_ARCH}.zip)
         set(ARCHIVE_FORMAT --format=zip)
     else()
         set(ARCHIVE_NAME_dirty ${dest}/${libname}-${PINGGY_OS}-${PINGGY_BUILD_ARCH}.tgz)
+        set(WITH_SSL_ARCHIVE_NAME_dirty ${dest}/${libname}-ssl-${PINGGY_OS}-${PINGGY_BUILD_ARCH}.tgz)
         set(ARCHIVE_FORMAT --format=gnutar)
     endif()
 
     file(TO_NATIVE_PATH "${ARCHIVE_NAME_dirty}" ARCHIVE_NAME)
+    file(TO_NATIVE_PATH "${WITH_SSL_ARCHIVE_NAME_dirty}" WITH_SSL_ARCHIVE_NAME)
 
     set(FILES_TO_COPY "")
     set(FILES_TO_ARCHIVE "")
@@ -156,8 +159,6 @@ function(DistributeLibPinggy libname dest)
         list(APPEND FILES_TO_ARCHIVE "${base}")
     endforeach()
 
-    set(archiveDependent, ${DIST_STAGE}/.stamp)
-
     # Copy files to dist_stage
     add_custom_command(
         OUTPUT ${DIST_STAGE}/.stamp
@@ -168,37 +169,47 @@ function(DistributeLibPinggy libname dest)
         COMMENT "Staging files for distribution"
     )
 
-    if(DEFINED OPENSSL_ROOT_DIR)
-        list(APPEND FILES_TO_ARCHIVE "openssl")
-        add_custom_command(
-            OUTPUT ${DIST_STAGE}/openssl
-            DEPENDS ${DIST_STAGE}/.stamp
-            COMMAND ${CMAKE_COMMAND} -E copy_directory "${OPENSSL_ROOT_DIR}" ${DIST_STAGE}/openssl
-            COMMENT "coping ${OPENSSL_ROOT_DIR} ${DIST_STAGE}/openssl"
-        )
-        set(archiveDependent, ${DIST_STAGE}/openssl)
-    else()
-        add_custom_command(
-            OUTPUT ${DIST_STAGE}/openssl
-            DEPENDS ${DIST_STAGE}/.stamp
-            COMMAND ${CMAKE_COMMAND} -E touch "${OPENSSL_ROOT_DIR}" ${DIST_STAGE}/openssl
-        )
-    endif()
-
     # Create archive
     add_custom_command(
         OUTPUT ${ARCHIVE_NAME}
-        DEPENDS ${DIST_STAGE}/openssl
+        DEPENDS ${DIST_STAGE}/.stamp
         WORKING_DIRECTORY ${DIST_STAGE}
         COMMAND ${CMAKE_COMMAND} -E tar "cfv" ${ARCHIVE_NAME} ${ARCHIVE_FORMAT} -- ${FILES_TO_ARCHIVE}
         COMMENT "Creating archive ${ARCHIVE_NAME}"
     )
 
+    if(DEFINED OPENSSL_ROOT_DIR)
+        list(APPEND FILES_TO_ARCHIVE "openssl")
+        add_custom_command(
+            OUTPUT ${DIST_STAGE}/openssl
+            DEPENDS ${ARCHIVE_NAME}
+            COMMAND ${CMAKE_COMMAND} -E copy_directory "${OPENSSL_ROOT_DIR}" ${DIST_STAGE}/openssl
+            COMMENT "coping ${OPENSSL_ROOT_DIR} ${DIST_STAGE}/openssl"
+        )
+
+        add_custom_command(
+            OUTPUT ${WITH_SSL_ARCHIVE_NAME}
+            DEPENDS ${DIST_STAGE}/openssl
+            WORKING_DIRECTORY ${DIST_STAGE}
+            COMMAND ${CMAKE_COMMAND} -E tar "cfv" ${WITH_SSL_ARCHIVE_NAME} ${ARCHIVE_FORMAT} -- ${FILES_TO_ARCHIVE}
+            COMMENT "Creating archive ${WITH_SSL_ARCHIVE_NAME}"
+        )
+
+        add_custom_target(distribute
+            DEPENDS ${WITH_SSL_ARCHIVE_NAME}
+            COMMENT "Packaging complete"
+        )
+    else()
+        add_custom_target(distribute
+            DEPENDS ${ARCHIVE_NAME}
+            COMMENT "Packaging complete"
+        )
+    endif()
+
     # Final target
-    add_custom_target(distribute
-        DEPENDS ${ARCHIVE_NAME}
-        COMMENT "Packaging complete"
-    )
+    if(DEFINED OPENSSL_ROOT_DIR)
+    else()
+    endif()
 endfunction()
 
 #=================================
