@@ -19,9 +19,11 @@ endfunction()
 
 # if(NOT BUILD_MODE_DLL STREQUAL "yes")
 if(NOT CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE Debug CACHE STRING "Debug" FORCE)
+    set(CMAKE_BUILD_TYPE Debug CACHE STRING "Build type")
 endif()
 # endif()
+
+
 
 #===============
 
@@ -49,7 +51,6 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 set(gcc_like_cxx "$<COMPILE_LANG_AND_ID:CXX,ARMClang,AppleClang,Clang,GNU,LCC>")
 set(msvc_cxx "$<COMPILE_LANG_AND_ID:CXX,MSVC>")
-
 
 target_compile_options(compiler_flags INTERFACE -DLOG_LEVEL=${LOG_LEVEL})
 

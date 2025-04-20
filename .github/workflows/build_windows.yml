@@ -13,10 +13,11 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v3
 
-    - name: Download and extract .tgz file
+      # $url = "https://public-pre-built-libraries.s3.us-east-2.amazonaws.com/openssl/openssl_windows_all_arch.zip"
+    - name: Download and extract .zip file
       run: |
-        $url = "https://public-pre-built-libraries.s3.us-east-2.amazonaws.com/openssl/openssl_windows_all_arch.zip"
-        $zipPath = "$env:GITHUB_WORKSPACE\openssl_windows_all_arch.zip"
+        $url = "https://8000.lvpn.abhijitmondal.in/OpenSSL-3.3.1-windows.zip"
+        $zipPath = "$env:GITHUB_WORKSPACE\OpenSSL-3.3.1-windows.zip"
         $extractPath = "$env:GITHUB_WORKSPACE"
         Invoke-WebRequest -Uri $url -OutFile $zipPath
         Expand-Archive -Path $zipPath -DestinationPath $extractPath

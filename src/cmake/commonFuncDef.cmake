@@ -41,11 +41,20 @@ function(AddExecutable target exeType)
 endfunction()
 
 function(AddCopyTarget target anotherTarget dest cmnt)
-    add_custom_target(${target}
-        ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:${anotherTarget}> ${dest}
-        DEPENDS ${anotherTarget}
-        COMMENT ${cmnt}
-    )
+    if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
+        add_custom_target(${target}
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:${anotherTarget}> ${dest}
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_LINKER_FILE:${anotherTarget}> ${dest}
+            DEPENDS ${anotherTarget}
+            COMMENT ${cmnt}
+        )
+    else()
+        add_custom_target(${target}
+            ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:${anotherTarget}> ${dest}
+            DEPENDS ${anotherTarget}
+            COMMENT ${cmnt}
+        )
+    endif()
     add_dependencies(releaselib ${target})
 endfunction()
 
@@ -98,6 +107,11 @@ function(LinkSSL target)
     # message(STATUS "Linking OPENSSL_VERSION ${OPENSSL_VERSION}")
     # message(STATUS "Linking OPENSSL_APPLINK_SOURCE ${OPENSSL_APPLINK_SOURCE}")
     target_link_libraries(${target}  PRIVATE OpenSSL::SSL OpenSSL::Crypto)
+    if(MSVC)
+        if(PINGGY_MSVC_RT STREQUAL "MTd" OR PINGGY_MSVC_RT STREQUAL "MT")
+        target_link_libraries(${target} PRIVATE Crypt32 advapi32)
+        endif()
+    endif()
     set_target_properties(${target} PROPERTIES
         BUILD_WITH_INSTALL_RPATH TRUE
         INSTALL_RPATH "@loader_path/openssl/lib"  # or "@rpath"
@@ -127,9 +141,9 @@ endfunction()
 function(DistributeLibPinggy libname dest)
     set(DIST_STAGE ${CMAKE_BINARY_DIR}/dist_stage)
 
-    if(WIN32)
-        set(ARCHIVE_NAME_dirty ${dest}/${libname}-${PINGGY_OS}-${PINGGY_BUILD_ARCH}.zip)
-        set(WITH_SSL_ARCHIVE_NAME_dirty ${dest}/${libname}-ssl-${PINGGY_OS}-${PINGGY_BUILD_ARCH}.zip)
+    if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
+        set(ARCHIVE_NAME_dirty ${dest}/${libname}-${PINGGY_OS}-${PINGGY_BUILD_ARCH}-${CMAKE_MSVC_RUNTIME_LIBRARY}.zip)
+        set(WITH_SSL_ARCHIVE_NAME_dirty ${dest}/${libname}-ssl-${PINGGY_OS}-${PINGGY_BUILD_ARCH}-${CMAKE_MSVC_RUNTIME_LIBRARY}.zip)
         set(ARCHIVE_FORMAT --format=zip)
     else()
         set(ARCHIVE_NAME_dirty ${dest}/${libname}-${PINGGY_OS}-${PINGGY_BUILD_ARCH}.tgz)
@@ -142,6 +156,7 @@ function(DistributeLibPinggy libname dest)
 
     set(FILES_TO_COPY "")
     set(FILES_TO_ARCHIVE "")
+    set(FILES_TO_ARCHIVE_WITH_SSL "openssl")
 
     foreach(item IN LISTS ARGN)
         # Try to treat as target first
@@ -149,6 +164,11 @@ function(DistributeLibPinggy libname dest)
             # This generator expression will be evaluated at build time
             set(out "$<TARGET_FILE:${item}>")
             set(base "$<TARGET_FILE_NAME:${item}>")
+            if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
+                list(APPEND FILES_TO_COPY "$<TARGET_LINKER_FILE:${item}>")
+                list(APPEND FILES_TO_ARCHIVE "$<TARGET_LINKER_FILE_NAME:${item}>")
+                list(APPEND FILES_TO_ARCHIVE_WITH_SSL "$<TARGET_LINKER_FILE_NAME:${item}>")
+            endif()
         else()
             set(out "${item}")
             file(TO_CMAKE_PATH "${out}" norm)
@@ -157,6 +177,7 @@ function(DistributeLibPinggy libname dest)
 
         list(APPEND FILES_TO_COPY "${out}")
         list(APPEND FILES_TO_ARCHIVE "${base}")
+        list(APPEND FILES_TO_ARCHIVE_WITH_SSL "${base}")
     endforeach()
 
     # Copy files to dist_stage
@@ -179,7 +200,6 @@ function(DistributeLibPinggy libname dest)
     )
 
     if(DEFINED OPENSSL_ROOT_DIR)
-        list(APPEND FILES_TO_ARCHIVE "openssl")
         add_custom_command(
             OUTPUT ${DIST_STAGE}/openssl
             DEPENDS ${ARCHIVE_NAME}
@@ -191,7 +211,7 @@ function(DistributeLibPinggy libname dest)
             OUTPUT ${WITH_SSL_ARCHIVE_NAME}
             DEPENDS ${DIST_STAGE}/openssl
             WORKING_DIRECTORY ${DIST_STAGE}
-            COMMAND ${CMAKE_COMMAND} -E tar "cfv" ${WITH_SSL_ARCHIVE_NAME} ${ARCHIVE_FORMAT} -- ${FILES_TO_ARCHIVE}
+            COMMAND ${CMAKE_COMMAND} -E tar "cfv" ${WITH_SSL_ARCHIVE_NAME} ${ARCHIVE_FORMAT} -- ${FILES_TO_ARCHIVE_WITH_SSL}
             COMMENT "Creating archive ${WITH_SSL_ARCHIVE_NAME}"
         )
 
@@ -204,11 +224,6 @@ function(DistributeLibPinggy libname dest)
             DEPENDS ${ARCHIVE_NAME}
             COMMENT "Packaging complete"
         )
-    endif()
-
-    # Final target
-    if(DEFINED OPENSSL_ROOT_DIR)
-    else()
     endif()
 endfunction()
 
@@ -243,8 +258,6 @@ function(ListRecursiveStaticLibraries target origTarget)
 
         if(TARGET ${lib})
             get_target_property(lib_type ${lib} TYPE)
-            if(lib_type STREQUAL "STATIC_LIBRARY")
-            endif()
         endif()
     endforeach()
 

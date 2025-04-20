@@ -11,7 +11,7 @@ if "%ARCH%"=="" (
 
 if "%ARCH%"=="i686" (
     set CONFIG=VC-WIN32
-    set VAR_TYPE=x86
+    set VAR_TYPE=x64_x86
 ) else if "%ARCH%"=="x86_64" (
     set CONFIG=VC-WIN64A
     set VAR_TYPE=x64
@@ -25,8 +25,6 @@ if "%ARCH%"=="i686" (
     echo Invalid architecture specified. %ARCH%
     exit /b 1
 )
-
-echo "THis is done"
 
 if "%VCRUNTIME%"=="MT" (
     set "RTFLAG=no-shared --release"

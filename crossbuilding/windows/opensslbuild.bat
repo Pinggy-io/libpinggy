@@ -37,7 +37,7 @@ if exist "%OPENSSL_SOURCE_DIR%" (
     rmdir /s /q "%OPENSSL_SOURCE_DIR%"
 )
 
-for %%i in (x86_64 i686 armv7 aarch64) do (
+for %%i in (x86_64 i686 aarch64 armv7) do (
     for %%j in (MTd MT MDd MD) do (
 
         cd "%PROJECT_ROOT%"
