@@ -13,14 +13,15 @@ print(f"pinggy_build_os:            {pinggy.build_os()}")
 class TunnelHandler(pinggy.BaseTunnelHandler):
     def primary_forwarding_succeeded(self):
         tunnel:pinggy.Tunnel = self.get_tunnel()
-        tunnel.request_additional_forwarding("y.example.com:0", "l:3000")
+        print(tunnel.urls)
+        # tunnel.request_additional_forwarding("y.example.com:0", "l:3000")
 
 
 tunnel = pinggy.Tunnel("t.pinggy.io:443", TunnelHandler)
 tunnel.server_address = "t.pinggy.io:443"
 tunnel.sni_server_name = "t.pinggy.io"
-tunnel.server_address = "localhost:7878"
-tunnel.sni_server_name = "example.com"
+# tunnel.server_address = "localhost:7878"
+# tunnel.sni_server_name = "example.com"
 tunnel.insecure = True
 tunnel.advanced_parsing = True
 tunnel.tcp_forward_to = "l:4000"
@@ -50,6 +51,8 @@ def starttune(tunnel: pinggy.Tunnel):
     tunnel.serve_tunnel()
     # tunnel.start_with_c()
 
+starttune(tunnel)
+
 # tunnel.start_with_c()
 
 # tunnel2 = pinggy.Tunnel()
@@ -58,17 +61,17 @@ def starttune(tunnel: pinggy.Tunnel):
 # tunnel2.tcp_forward_to = "l:4000"
 
 
-t = threading.Thread(target=starttune, args=(tunnel,))
+# t = threading.Thread(target=starttune, args=(tunnel,))
 # t2 = threading.Thread(target=starttune, args=(tunnel2,))
-t.start()
+# t.start()
 # t2.start()
 
-print("going to sleep")
+# print("going to sleep")
 
-time.sleep(15)
+# time.sleep(15)
 
-print("stoping tunnel")
+# print("stoping tunnel")
 
-tunnel.stop()
+# tunnel.stop()
 
-t.join()
+# t.join()
