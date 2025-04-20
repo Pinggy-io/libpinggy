@@ -1,10 +1,13 @@
 @echo on
 set ARCH=%~1
-set OPENSSL_SOURCE_DIR=%~2
+set VCRUNTIME=%~2
+set OPENSSL_SOURCE_DIR=%~3
+
 if "%ARCH%"=="" (
     echo Please specify the architecture: x86, x64, arm, or arm64
     exit /b 1
 )
+
 
 if "%ARCH%"=="i686" (
     set CONFIG=VC-WIN32
@@ -23,6 +26,21 @@ if "%ARCH%"=="i686" (
     exit /b 1
 )
 
+echo "THis is done"
+
+if "%VCRUNTIME%"=="MT" (
+    set "RTFLAG=no-shared --release"
+) else if "%VCRUNTIME%"=="MTd" (
+    set "RTFLAG=no-shared --debug"
+) else if "%VCRUNTIME%"=="MD" (
+    set "RTFLAG=--release"
+) else if "%VCRUNTIME%"=="MDd" (
+    set "RTFLAG=--debug"
+) else (
+    echo Invalid runtime specified. %VCRUNTIME%
+    exit /b 1
+)
+
 call "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvarsall.bat" %VAR_TYPE%
 
 
@@ -30,13 +48,13 @@ if errorlevel 1 (
     echo environment failed
     exit /b 1
 )
-
+@echo on
 cd %OPENSSL_SOURCE_DIR%
 
-set RELEASE_DIR=%HOMEDRIVE%\OpenSSL\%ARCH%
+set RELEASE_DIR=%HOMEDRIVE%\OpenSSL\%ARCH%\%VCRUNTIME%
 
 perl Configure %CONFIG% ^
-        shared no-unit-test no-tests ^
+        %RTFLAG% no-unit-test no-tests ^
         --prefix="%RELEASE_DIR%" ^
         --openssldir="%RELEASE_DIR%"
 

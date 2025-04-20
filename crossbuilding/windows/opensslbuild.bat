@@ -1,4 +1,4 @@
-@echo on
+@echo off
 
 set CURDIR=%cd%
 set PROJECT_ROOT=%USERPROFILE%\pinggy
@@ -37,22 +37,24 @@ if exist "%OPENSSL_SOURCE_DIR%" (
     rmdir /s /q "%OPENSSL_SOURCE_DIR%"
 )
 
-for %%i in (i686 x86_64 armv7 aarch64) do (
-    
-    cd "%PROJECT_ROOT%"
+for %%i in (x86_64 i686 armv7 aarch64) do (
+    for %%j in (MTd MT MDd MD) do (
 
-    rmdir /s /q "%OPENSSL_SOURCE_DIR%"
-    if not exist "%OPENSSL_SOURCE_DIR%" mkdir "%OPENSSL_SOURCE_DIR%"
-    tar -xzf "%DOWNLOAD_DIR%\openssl-%OPENSSL_VERSION%.tar.gz" -C "%OPENSSL_SOURCE_DIR%" --strip-components=1
-    if errorlevel 1 (
-        echo Extraction failed. Please ensure tar is available in your PATH.
-        exit /b 1
-    )
+        cd "%PROJECT_ROOT%"
 
-    call "%~dp0buildIndividualSsl.bat" %%i "%OPENSSL_SOURCE_DIR%"
-    if errorlevel 1 (
-        echo Failed while compiling
-        exit /b 1
+        rmdir /s /q "%OPENSSL_SOURCE_DIR%"
+        if not exist "%OPENSSL_SOURCE_DIR%" mkdir "%OPENSSL_SOURCE_DIR%"
+        tar -xzf "%DOWNLOAD_DIR%\openssl-%OPENSSL_VERSION%.tar.gz" -C "%OPENSSL_SOURCE_DIR%" --strip-components=1
+        if errorlevel 1 (
+            echo Extraction failed. Please ensure tar is available in your PATH.
+            exit /b 1
+        )
+
+        cmd /c call "%~dp0buildIndividualSsl.bat" %%i %%j "%OPENSSL_SOURCE_DIR%"
+        if errorlevel 1 (
+            echo Failed while compiling
+            exit /b 1
+        )
     )
 )
 
