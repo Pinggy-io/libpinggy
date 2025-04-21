@@ -16,7 +16,7 @@ jobs:
 
     - name: Download OpenSSL
       run: |
-        curl -o OpenSSL-3.3.1-macos.tgz https://8000.lvpn.abhijitmondal.in/OpenSSL-3.3.1-macos.tgz
+        curl -o OpenSSL-3.3.1-macos.tgz https://public-pre-built-libraries.s3.us-east-2.amazonaws.com/openssl/OpenSSL-3.3.1-macos.tgz
         tar -xzf OpenSSL-3.3.1-macos.tgz
 
     - name: LS

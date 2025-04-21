@@ -13,18 +13,13 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v3
 
-      # $url = "https://public-pre-built-libraries.s3.us-east-2.amazonaws.com/openssl/openssl_windows_all_arch.zip"
     - name: Download and extract .zip file
       run: |
-        $url = "https://8000.lvpn.abhijitmondal.in/OpenSSL-3.3.1-windows.zip"
+        $url = "https://public-pre-built-libraries.s3.us-east-2.amazonaws.com/openssl/OpenSSL-3.3.1-windows.zip"
         $zipPath = "$env:GITHUB_WORKSPACE\OpenSSL-3.3.1-windows.zip"
         $extractPath = "$env:GITHUB_WORKSPACE"
         Invoke-WebRequest -Uri $url -OutFile $zipPath
         Expand-Archive -Path $zipPath -DestinationPath $extractPath
-
-    # - name: List all files in workspace
-    #   run: |
-    #     Get-ChildItem -Path "$env:GITHUB_WORKSPACE" -Recurse
 
     - name: Configure and build
       run: |
@@ -38,20 +33,3 @@ jobs:
     - name: List all files in workspace
       run: |
         Get-ChildItem -Path "$env:GITHUB_WORKSPACE\releases" -Recurse
-
-    # - name: Configure and build
-    #   run: |
-    #     dir %cd%\releases
-
-    # - name: Upload releases folder to release
-    #   uses: softprops/action-gh-release@v1
-    #   with:
-    #     files: releases\*.zip
-    #   env:
-    #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-    # - name: Upload release zip files
-    #   uses: actions/upload-artifact@v4
-    #   with:
-    #     name: release-zips
-    #     path: releases/*.zip
