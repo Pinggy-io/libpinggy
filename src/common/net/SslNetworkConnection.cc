@@ -350,7 +350,7 @@ SslNetworkConnection::GetServerName()
 {
     auto name = SSL_get_servername(ssl, TLSEXT_NAMETYPE_host_name);
     if (name)
-        return tString(name);
+        return NormalizeDomainName(tString(name));
     return "";
 }
 

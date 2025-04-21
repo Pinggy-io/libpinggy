@@ -403,7 +403,7 @@ SocketAddress::SocketAddress(const ip_addr addr, tUint16 port): port(port), addr
         sockAddr.inaddr.sin_addr = addr.v4;
     } else {
         char buf[INET6_ADDRSTRLEN];
-        if(app_inet_ntop(AF_INET6, &addr.v4, buf, INET6_ADDRSTRLEN) == NULL) {
+        if(app_inet_ntop(AF_INET6, &addr.v6, buf, INET6_ADDRSTRLEN) == NULL) {
             LOGEE("inet_ntop");
             return;
         }

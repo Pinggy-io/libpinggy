@@ -589,11 +589,12 @@ SslConnectionListner::ServerNameCallback(SSL *ssl, int *)
         return SSL_TLSEXT_ERR_OK;
 
     const char* sn = SSL_get_servername(ssl, TLSEXT_NAMETYPE_host_name);
+
     if (!sn || !sn[0]) {
         LOGE("Server name not found. using default certificate");
         return SSL_TLSEXT_ERR_OK;
     }
-    auto serverName = tString(sn);
+    auto serverName = NormalizeDomainName(tString(sn));
     bool found = false;
     reloadMutex.lock();
     if (sslCtxs.find(serverName) != sslCtxs.end()) {

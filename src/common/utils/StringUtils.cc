@@ -32,15 +32,16 @@
 /// @param limit No token parse before stoping
 /// @param keep whether or not keep the token
 /// @return Splitted string
-std::vector<std::string> SplitString(std::string str, std::string deli,
-                                     int16_t limit, bool keep, bool empty)
+std::vector<tString>
+SplitString(tString str, tString deli,
+            int16_t limit, bool keep, bool empty)
 {
     auto valueStr = str;
-    std::string::size_type start = 0;
-    std::string::size_type end = valueStr.find(deli);
-    std::vector<std::string> ret;
-    std::string::size_type len = 0;
-    for(std::string::size_type l = limit; end != std::string::npos && l;) {
+    tString::size_type start = 0;
+    tString::size_type end = valueStr.find(deli);
+    std::vector<tString> ret;
+    tString::size_type len = 0;
+    for(tString::size_type l = limit; end != tString::npos && l;) {
         len = end - start;
         if(keep)
             len += deli.length();
@@ -53,7 +54,7 @@ std::vector<std::string> SplitString(std::string str, std::string deli,
     }
 
     if (start < valueStr.length()) {
-        while(!empty && end != std::string::npos) {
+        while(!empty && end != tString::npos) {
             len = end - start;
             if (len > 0)
                 break;
@@ -66,9 +67,10 @@ std::vector<std::string> SplitString(std::string str, std::string deli,
     return ret;
 }
 
-std::string JoinString(std::vector<std::string> strings, std::string deli)
+tString
+JoinString(std::vector<tString> strings, tString deli)
 {
-    std::string joinedString;
+    tString joinedString;
     bool addDeli = false;
     for(auto str : strings) {
         if (addDeli)
@@ -80,7 +82,9 @@ std::string JoinString(std::vector<std::string> strings, std::string deli)
     return joinedString;
 }
 
-std::string StripString(const std::string& str) {
+tString
+StripString(const tString& str)
+{
     // Find the first non-whitespace character
     size_t start = 0;
     while (start < str.length() && std::isspace(str[start])) {
@@ -97,21 +101,43 @@ std::string StripString(const std::string& str) {
     return str.substr(start, end - start);
 }
 
-std::string StringToUpper(std::string str)
+tString
+StripStringChar(const tString& str, char c)
 {
-    std::string dest = str;
+    // Find the first non-whitespace character
+    size_t start = 0;
+    while (start < str.length() && str[start] == c) {
+        start++;
+    }
+
+    // Find the last non-whitespace character
+    size_t end = str.length();
+    while (end > start && str[end - 1] == c) {
+        end--;
+    }
+
+    // Return the substring without leading and trailing whitespaces
+    return str.substr(start, end - start);
+}
+
+tString
+StringToUpper(tString str)
+{
+    tString dest = str;
     std::transform(dest.begin(), dest.end(), dest.begin(), ::toupper);
     return dest;
 }
 
-std::string StringToLower(std::string str)
+tString StringToLower(tString str)
 {
-    std::string dest = str;
+    tString dest = str;
     std::transform(dest.begin(), dest.end(), dest.begin(), ::tolower);
     return dest;
 }
 
-bool EndsWith (std::string const &fullString, std::string const &ending, bool caseSensitive) {
+bool
+EndsWith(tString const &fullString, tString const &ending, bool caseSensitive)
+{
     if (fullString.length() >= ending.length()) {
         if (caseSensitive)
             return (0 == fullString.compare (fullString.length() - ending.length(), ending.length(), ending));
@@ -123,7 +149,9 @@ bool EndsWith (std::string const &fullString, std::string const &ending, bool ca
     }
 }
 
-bool StartsWith (std::string const &fullString, std::string const &starting, bool caseSensitive) {
+bool
+StartsWith(tString const &fullString, tString const &starting, bool caseSensitive)
+{
     if (fullString.length() >= starting.length()) {
         if (caseSensitive)
             return (0 == fullString.compare (0, starting.length(), starting));
@@ -136,9 +164,10 @@ bool StartsWith (std::string const &fullString, std::string const &starting, boo
 }
 
 
-std::vector<std::string> ShlexSplitString(const std::string &input)
+std::vector<tString>
+ShlexSplitString(const tString &input)
 {
-    std::vector<std::string> tokens;
+    std::vector<tString> tokens;
     size_t i = 0;
     size_t len = input.length();
 
@@ -157,7 +186,7 @@ std::vector<std::string> ShlexSplitString(const std::string &input)
                 i++;
             }
 
-            std::string token;
+            tString token;
             bool in_quotes = (quote_char != '\0');
 
             while (i < len && (in_quotes || !std::isspace(input[i]))) {
@@ -184,7 +213,7 @@ std::vector<std::string> ShlexSplitString(const std::string &input)
             }
 
             if (in_quotes) {
-                throw ShlexError("Unmatched quote detected: " + std::string(1, quote_char));
+                throw ShlexError("Unmatched quote detected: " + tString(1, quote_char));
             }
 
             // Only add non-empty tokens
@@ -204,8 +233,10 @@ std::vector<std::string> ShlexSplitString(const std::string &input)
 
     return tokens;
 }
-bool CaseInsensitiveStringCompare(std::string const &a, std::string const &b) {
-    std::string aLower, bLower;
+bool
+CaseInsensitiveStringCompare(tString const &a, tString const &b)
+{
+    tString aLower, bLower;
     aLower.resize(a.size());
     bLower.resize(b.size());
     std::transform(a.begin(), a.end(), aLower.begin(), ::tolower);
@@ -213,21 +244,23 @@ bool CaseInsensitiveStringCompare(std::string const &a, std::string const &b) {
     return aLower == bLower;
 }
 
-tString StringReplace(tString orig, tString search, tString replacement)
+tString
+StringReplace(tString orig, tString search, tString replacement)
 {
     size_t pos = 0;
-    while ((pos = orig.find(search, pos)) != std::string::npos) {
+    while ((pos = orig.find(search, pos)) != tString::npos) {
         orig.replace(pos, search.length(), replacement);
         pos += replacement.length();  // Move past the last replacement
     }
     return orig;
 }
 
-bool CaseInsensitiveStringComparator::operator ()(const std::string &a,
-        const std::string &b) const
+bool
+CaseInsensitiveStringComparator::operator ()(const tString &a,
+        const tString &b) const
 {
     // Convert strings to lowercase for comparison
-    std::string aLower, bLower;
+    tString aLower, bLower;
     aLower.resize(a.size());
     bLower.resize(b.size());
     std::transform(a.begin(), a.end(), aLower.begin(), ::tolower);
