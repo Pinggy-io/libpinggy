@@ -15,7 +15,7 @@ jobs:
     - name: Checkout source
       uses: actions/checkout@v4
       with:
-        fetch-depth: 1  # Only fetch latest commit (faster)
+        fetch-depth: 0  # Only fetch latest commit (faster)
 
     - name: Fetch tags separately
       run: git fetch --tags
