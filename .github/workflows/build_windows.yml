@@ -11,7 +11,12 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Only fetch latest commit (faster)
+
+    - name: Fetch tags separately
+      run: git fetch --tags
 
     - name: Download and extract .zip file
       run: |
