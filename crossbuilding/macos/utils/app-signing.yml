@@ -1,0 +1,60 @@
+name: macOS Release Build and Notarization
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  build-macos:
+    runs-on: macos-latest
+    steps:
+    - name: Checkout source
+      uses: actions/checkout@v4
+
+    - name: Make script executable
+      run: chmod +x ./build_macos.sh
+
+    - name: Run build script
+      run: ./build_macos.sh "${{ github.event.release.tag_name }}"
+
+    - name: Import signing certificate
+      if: secrets.MACOS_CERT_P12 != ''
+      run: |
+        echo "$MACOS_CERT_P12" | base64 --decode > signing.p12
+        security create-keychain -p "" build.keychain
+        security default-keychain -s build.keychain
+        security unlock-keychain -p "" build.keychain
+        security import signing.p12 -k build.keychain -P "$MACOS_CERT_PASSWORD" -T /usr/bin/codesign
+        security set-key-partition-list -S apple-tool:,apple: -s -k "" build.keychain
+      env:
+        MACOS_CERT_P12: ${{ secrets.MACOS_CERT_P12 }}
+        MACOS_CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
+
+    - name: Sign dylib
+      run: |
+        for file in dist/*.dylib; do
+          codesign --sign "${MACOS_SIGN_IDENTITY}" --options runtime --timestamp "$file"
+        done
+      env:
+        MACOS_SIGN_IDENTITY: ${{ secrets.MACOS_SIGN_IDENTITY }}
+
+    - name: Notarize archive with Apple
+      run: |
+        xcrun notarytool submit dist/mylib-darwin-x86_64-${{ github.event.release.tag_name }}.tgz \
+          --apple-id "$AC_USERNAME" \
+          --password "$AC_PASSWORD" \
+          --team-id "$AC_TEAM_ID" \
+          --wait
+      env:
+        AC_USERNAME: ${{ secrets.AC_USERNAME }}
+        AC_PASSWORD: ${{ secrets.AC_PASSWORD }}
+        AC_TEAM_ID: ${{ secrets.AC_TEAM_ID }}
+
+    - name: Staple ticket (optional, but nice!)
+      run: |
+        xcrun stapler staple dist/mylib-darwin-x86_64-${{ github.event.release.tag_name }}.tgz
+
+    - name: Upload notarized archive to GitHub Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: dist/*.tgz

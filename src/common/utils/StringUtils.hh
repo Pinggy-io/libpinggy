@@ -23,26 +23,54 @@
 #include <platform/platform.h>
 
 
-std::vector<std::string> SplitString(std::string str, std::string deli, int16_t limit=-1, bool keep=false, bool empty=true);
-std::string JoinString(std::vector<std::string> strs, std::string deli);
-std::string StripString(const std::string& str);
-std::string StringToUpper(std::string str);
-std::string StringToLower(std::string str);
-bool EndsWith (std::string const &fullString, std::string const &ending, bool caseSensitive = true);
-bool StartsWith (std::string const &fullString, std::string const &starting, bool caseSensitive = true);
-bool CaseInsensitiveStringCompare(std::string const &a, std::string const &b);
-tString StringReplace(tString orig, tString search, tString replace);
+std::vector<tString>
+SplitString(tString str, tString deli, int16_t limit=-1, bool keep=false, bool empty=true);
 
-struct CaseInsensitiveStringComparator {
-    bool operator()(const std::string& a, const std::string& b) const;
+tString
+JoinString(std::vector<tString> strs, tString deli);
+
+tString
+StripString(const tString& str);
+
+tString
+StripStringChar(const tString& str, char c);
+
+#define NormalizeDomainName(domain) \
+    StripStringChar(domain, '.')
+
+tString
+StringToUpper(tString str);
+
+tString
+StringToLower(tString str);
+
+bool
+EndsWith (tString const &fullString, tString const &ending, bool caseSensitive = true);
+
+bool
+StartsWith (tString const &fullString, tString const &starting, bool caseSensitive = true);
+
+bool
+CaseInsensitiveStringCompare(tString const &a, tString const &b);
+
+tString
+StringReplace(tString orig, tString search, tString replace);
+
+struct CaseInsensitiveStringComparator
+{
+    bool
+    operator()(const tString& a, const tString& b) const;
 };
 
 class ShlexError : public std::runtime_error {
 public:
-    explicit ShlexError(const std::string& message) : std::runtime_error(message) {}
+    explicit
+    ShlexError(const tString& message) : std::runtime_error(message)
+                                { }
 };
 
-std::vector<std::string> ShlexSplitString(const std::string &input);
+std::vector<tString>
+ShlexSplitString(const tString &input);
 
 #if 0
 // Case insensetive string

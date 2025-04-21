@@ -4,6 +4,14 @@ SCRIPTPATH="$( cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
 BUILD_PATH_ALL="$SCRIPTPATH/../../build/cross"
 BUILD_PATH=$SCRIPTPATH/"../../build/cross/linux"
 
+
+if [ "$RELEASE_DIR_NAME" == "" ]
+then
+  releaseDir=releases
+else
+  releaseDir="$RELEASE_DIR_NAME"
+fi
+
 if [ $# -eq 0 ]
 then
   echo you have to pass architecture type
@@ -39,6 +47,14 @@ else
   exit 1
 fi
 
+ARCH="$archArgv"
+
+
+RELEASE_PATH="$SCRIPTPATH/../../$releaseDir/linux/$ARCH"
+RELEASE_HEADER_PATH="$SCRIPTPATH/../../$releaseDir"
+RELEASE_ARCHIVE_PATH="$SCRIPTPATH/../../$releaseDir"
+
+
 SETUP_FILE="/opt/setup-${archArgv}.sh"
 TOOLCHAIN_FILE="/opt/toolchain-${archArgv}.cmake"
 OPENSSL_VERSION=3.3.1
@@ -52,6 +68,10 @@ try() {
   e=$?
   if [[ $e -ne 0 ]]; then
     echo "$@" > /dev/stderr
+    if [ "$HOST_GID" != "" ] && [ "$HOST_UID" != "" ]
+      then
+          chown -R "$HOST_UID":"$HOST_GID" "$SCRIPTPATH/../../build" $RELEASE_PATH $RELEASE_HEADER_PATH
+      fi
     exit $e
   fi
 }
@@ -93,28 +113,30 @@ then
 
 fi
 
-
-if [ "$RELEASE_DIR_NAME" == "" ]
-then
-  releaseDir=releases
-else
-  releaseDir="$RELEASE_DIR_NAME"
-fi
-
-RELEASE_PATH="$SCRIPTPATH/../../$releaseDir/linux/$ARCH"
-RELEASE_HEADER_PATH="$SCRIPTPATH/../../$releaseDir"
-
 mkdir -p "$RELEASE_PATH"
 
 try cmake -S . -B $BUILD_PATH/$ARCH/pinggy \
     -DCMAKE_TOOLCHAIN_FILE=$TOOLCHAIN_FILE \
+    -DPINGGY_BUILD_ARCH=$ARCH \
     -DOPENSSL_ROOT_DIR="$OPENSSL_ROOT_PATH" \
     -DCMAKE_BUILD_SERVER=no \
     -DPINGGY_RELEASE_DIR="$RELEASE_PATH" \
     -DPINGGY_HEADER_RELEASE_DIR="$RELEASE_HEADER_PATH" \
+    -DPINGGY_ARCHIVE_RELEASE_DIR="$RELEASE_ARCHIVE_PATH" \
     -DCMAKE_INSTALL_PREFIX="$RELEASE_PATH" \
     -DCMAKE_BUILD_TYPE=Release
 try cmake --build $BUILD_PATH/$ARCH/pinggy -j --config Release
+try cmake --build $BUILD_PATH/$ARCH/pinggy --target distribute
+
+if [ "$RELEASE_SO" == "yes" ]
+then
+  try cmake --build $BUILD_PATH/$ARCH/pinggy --target releaselib
+fi
+
+if [ "$RELEASE_SSL" == "yes" ]
+then
+  try cmake --build $BUILD_PATH/$ARCH/pinggy --target releasessl
+fi
 # try cmake --install $BUILD_PATH/$ARCH/pinggy
 
 if [ "$HOST_GID" != "" ] && [ "$HOST_UID" != "" ]

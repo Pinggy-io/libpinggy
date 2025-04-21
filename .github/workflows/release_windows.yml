@@ -1,0 +1,55 @@
+name: Build and upload release artifacts for Windows
+
+on:
+  release:
+    types: [created]
+
+jobs:
+  build:
+    runs-on: [self-hosted, Windows]
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Download and extract .zip file
+      run: |
+        $url = "https://public-pre-built-libraries.s3.us-east-2.amazonaws.com/openssl/OpenSSL-3.3.1-windows.zip"
+        $zipPath = "$env:GITHUB_WORKSPACE\OpenSSL-3.3.1-windows.zip"
+        $extractPath = "$env:GITHUB_WORKSPACE"
+        Invoke-WebRequest -Uri $url -OutFile $zipPath
+        Expand-Archive -Path $zipPath -DestinationPath $extractPath
+
+    # - name: List all files in workspace
+    #   run: |
+    #     Get-ChildItem -Path "$env:GITHUB_WORKSPACE" -Recurse
+
+    - name: Configure and build
+      run: |
+        echo "OPENSSL_DIR=${{ github.workspace }}\OpenSSL" >> $env:GITHUB_ENV
+        echo "RELEASE_DIR=${{ github.workspace }}\releases" >> $env:GITHUB_ENV
+
+    - name: Build with bundled CMake
+      run: cmd.exe /c "crossbuilding\windows\buildForWindows.bat %OPENSSL_DIR% releases
+      shell: cmd
+
+    - name: List all files in workspace
+      run: |
+        Get-ChildItem -Path "$env:GITHUB_WORKSPACE\releases" -Recurse
+
+    # - name: Configure and build
+    #   run: |
+    #     dir %cd%\releases
+
+    - name: Upload releases folder to release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: releases\*.zip
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    # - name: Upload release zip files
+    #   uses: actions/upload-artifact@v4
+    #   with:
+    #     name: release-zips
+    #     path: releases/*.zip

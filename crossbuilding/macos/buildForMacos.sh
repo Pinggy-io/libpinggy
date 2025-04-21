@@ -5,6 +5,8 @@ BUILD_PATH_ALL="$SCRIPTPATH/../../build/cross"
 BUILD_PATH="$SCRIPTPATH/../../build/cross/macos"
 OPENSSL_VERSION=3.3.1
 
+set -x
+
 if [ "$OPENSSL_ROOT_PARENT" == "" ]
 then
   OPENSSL_ROOT_PARENT="${SCRIPTPATH}/../../../OpenSSL"
@@ -33,7 +35,7 @@ then
   if [ ! -f $OPENSSL_ROOT_PARENT/openssl-${OPENSSL_VERSION}.tar.gz ]
   then
     pushd $OPENSSL_ROOT_PARENT
-    try wget https://www.openssl.org/source/openssl-${OPENSSL_VERSION}.tar.gz
+    try curl -o openssl-${OPENSSL_VERSION}.tar.gz -L https://www.openssl.org/source/openssl-${OPENSSL_VERSION}.tar.gz
     popd
   fi
 
@@ -51,7 +53,8 @@ then
       if [ ! -f $OPENSSL_TMP_ROOT_PATH/lib/libssl.dylib ]
       then
         MACOSX_DEPLOYMENT_TARGET=11.0 try ./config darwin64-${sslArch}-cc shared no-unit-test no-tests \
-            --cross-compile-prefix="" --prefix=$OPENSSL_TMP_ROOT_PATH --openssldir=$OPENSSL_TMP_ROOT_PATH
+            --cross-compile-prefix="" --prefix=$OPENSSL_TMP_ROOT_PATH --openssldir=$OPENSSL_TMP_ROOT_PATH \
+            -Wl,-rpath,@loader_path
         MACOSX_DEPLOYMENT_TARGET=11.0 try make -j
         MACOSX_DEPLOYMENT_TARGET=11.0 try make install_sw
         if [ ! -e $OPENSSL_TMP_ROOT_PATH/lib ] && [ -e $OPENSSL_TMP_ROOT_PATH/lib64 ]
@@ -64,12 +67,47 @@ then
     popd
     mkdir -p $OPENSSL_ROOT_PATH/lib $OPENSSL_ROOT_PATH/bin $OPENSSL_ROOT_PATH/include
     cp -r $BUILD_PATH/x86_64/openssl/include/* $OPENSSL_ROOT_PATH/include/
-    lipo -create -output $OPENSSL_ROOT_PATH/lib/libssl.dylib \
+
+    SSL_Name=libssl.dylib
+    Crypto_Name=libcrypto.dylib
+
+    b64SSL_RealName=$(basename $(realpath $OPENSSL_ROOT_PARENT/${OPENSSL_VERSION}/arm64/lib/libssl.dylib))
+
+    b64Crypto_RealName=$(basename $(realpath $OPENSSL_ROOT_PARENT/${OPENSSL_VERSION}/arm64/lib/libcrypto.dylib))
+
+    b32SSL_RealName=$(basename $(realpath $OPENSSL_ROOT_PARENT/${OPENSSL_VERSION}/x86_64/lib/libssl.dylib))
+
+    b32Crypto_RealName=$(basename $(realpath $OPENSSL_ROOT_PARENT/${OPENSSL_VERSION}/x86_64/lib/libcrypto.dylib))
+
+    if [ "$b32Crypto_RealName" != "$b64Crypto_RealName" ]
+    then
+      try rm -rf $OPENSSL_SOURCE_PATH
+      echo "failed to build openssl"
+      exit 1
+    fi
+
+    Crypto_RealName=$b32Crypto_RealName
+    SSL_RealName=$b32SSL_RealName
+
+    lipo -create -output $OPENSSL_ROOT_PATH/lib/$SSL_RealName \
           $OPENSSL_ROOT_PARENT/${OPENSSL_VERSION}/{x86_64,arm64}/lib/libssl.dylib
-    lipo -create -output $OPENSSL_ROOT_PATH/lib/libcrypto.dylib \
+    lipo -create -output $OPENSSL_ROOT_PATH/lib/$Crypto_RealName \
           $OPENSSL_ROOT_PARENT/${OPENSSL_VERSION}/{x86_64,arm64}/lib/libcrypto.dylib
-    lipo -create -output $OPENSSL_ROOT_PATH/lib/libssl.dylib \
-          $OPENSSL_ROOT_PARENT/${OPENSSL_VERSION}/{x86_64,arm64}/lib/libssl.dylib
+    # lipo -create -output $OPENSSL_ROOT_PATH/lib/libssl.dylib \
+    #       $OPENSSL_ROOT_PARENT/${OPENSSL_VERSION}/{x86_64,arm64}/lib/libssl.dylib
+
+    if [ "$SSL_RealName" != "libssl.dylib" ]
+    then
+      ln -sfn $SSL_RealName $OPENSSL_ROOT_PATH/lib/libssl.dylib
+    fi
+
+    if [ "$Crypto_RealName" != "libcrypto.dylib" ]
+    then
+      ln -sfn $Crypto_RealName $OPENSSL_ROOT_PATH/lib/libcrypto.dylib
+    fi
+
+    install_name_tool -id @rpath/libssl.dylib $OPENSSL_ROOT_PATH/lib/$SSL_RealName
+    install_name_tool -id @rpath/libcrypto.dylib $OPENSSL_ROOT_PATH/lib/$Crypto_RealName
     # lipo -create -output $OPENSSL_ROOT_PATH/bin/c_rehash \
     #       $BUILD_PATH/{x86_64,arm64}/openssl/bin/c_rehash
     lipo -create -output $OPENSSL_ROOT_PATH/bin/openssl \
@@ -89,16 +127,30 @@ fi
 
 RELEASE_PATH="$SCRIPTPATH/../../$releaseDir/macos/$ARCH"
 RELEASE_HEADER_PATH="$SCRIPTPATH/../../$releaseDir"
+RELEASE_ARCHIVE_PATH="$SCRIPTPATH/../../$releaseDir"
 mkdir -p "$RELEASE_PATH"
 #==========================
 
 try cmake -S . -B $BUILD_PATH/$ARCH/pinggy \
+    -DPINGGY_BUILD_ARCH=$ARCH \
     -DOPENSSL_ROOT_DIR="$OPENSSL_ROOT_PATH" \
     -DCMAKE_BUILD_SERVER=no \
     -DPINGGY_RELEASE_DIR="$RELEASE_PATH" \
     -DPINGGY_HEADER_RELEASE_DIR="$RELEASE_HEADER_PATH" \
+    -DPINGGY_ARCHIVE_RELEASE_DIR="$RELEASE_ARCHIVE_PATH" \
     -DCMAKE_INSTALL_PREFIX="$RELEASE_PATH" \
     -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64" \
     -DCMAKE_OSX_DEPLOYMENT_TARGET=11.0 \
     -DCMAKE_BUILD_TYPE=Release
 try cmake --build $BUILD_PATH/$ARCH/pinggy -j --config Release
+try cmake --build $BUILD_PATH/$ARCH/pinggy --target distribute
+
+if [ "$RELEASE_SO" == "yes" ]
+then
+  try cmake --build $BUILD_PATH/$ARCH/pinggy --target releaselib
+fi
+
+if [ "$RELEASE_SSL" == "yes" ]
+then
+  try cmake --build $BUILD_PATH/$ARCH/pinggy --target releasessl
+fi

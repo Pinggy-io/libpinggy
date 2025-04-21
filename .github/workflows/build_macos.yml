@@ -1,0 +1,30 @@
+name: Build in MacOS
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-macos:
+    name: macOS Package
+    runs-on: macos-latest
+
+    steps:
+    - name: Checkout source
+      uses: actions/checkout@v4
+
+    - name: Download OpenSSL
+      run: |
+        curl -o OpenSSL-3.3.1-macos.tgz https://public-pre-built-libraries.s3.us-east-2.amazonaws.com/openssl/OpenSSL-3.3.1-macos.tgz
+        tar -xzf OpenSSL-3.3.1-macos.tgz
+
+    - name: LS
+      run: ls -lrt .
+
+    - name: Run build script
+      run: |
+        OPENSSL_ROOT_PATH="${{ github.workspace }}/OpenSSL/3.3.1/universal" bash -x crossbuilding/macos/buildForMacos.sh
+
+    - name: LS
+      run: ls -lrt .

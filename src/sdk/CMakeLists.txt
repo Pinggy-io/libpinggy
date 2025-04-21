@@ -10,6 +10,8 @@ TargetIncludeDirectories(pinggysdk PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 TargetLinkLibraries(pinggysdk PUBLIC protocol)
 PlatformSpecificLinkings(pinggysdk PUBLIC)
 
+set(ARCHIVE_TARGETS)
+
 #=====================
 if(BUILD_MODE_STATIC STREQUAL "yes")
     AddLibrary(pinggyapi_static STATIC Pinggy_c.cc)
@@ -20,7 +22,7 @@ if(BUILD_MODE_STATIC STREQUAL "yes")
     TargetLinkLibraries(pinggyapi_static PUBLIC pinggysdk)
     LinkSSL(pinggyapi_static)
     AddCopyTarget(copyPinggyApi_static pinggyapi_static ${PINGGY_RELEASE_DIR} "Copying sdk to base dir")
-
+    list(APPEND ARCHIVE_TARGETS pinggyapi_static)
 
     install(TARGETS pinggyapi_static
         LIBRARY DESTINATION lib
@@ -53,6 +55,7 @@ if(NOT BUILD_MODE_DLL STREQUAL "no")
 
     set(CopyHeaderTarget copyPinggyApi_shared)
     AddSslCopyTarget(copyOpenSsl_shared copyPinggyApi_shared ${PINGGY_RELEASE_DIR} "Copying openssl to base dir")
+    list(APPEND ARCHIVE_TARGETS pinggyapi_shared)
 endif()
 
 if(NOT PINGGY_HEADER_RELEASE_DIR)
@@ -64,7 +67,16 @@ if(CopyHeaderTarget)
     if(PINGGY_HEADER_RELEASE_DIR)
         CopyHeaders(copyHeader ${CopyHeaderTarget} pinggy.h ${PINGGY_HEADER_RELEASE_DIR})
     endif()
+    list(APPEND ARCHIVE_TARGETS ${CMAKE_CURRENT_SOURCE_DIR}/pinggy.h)
 endif()
+
+
+
+if(NOT PINGGY_ARCHIVE_RELEASE_DIR)
+    set(PINGGY_ARCHIVE_RELEASE_DIR ${PINGGY_RELEASE_DIR})
+endif()
+
+DistributeLibPinggy(libpinggy ${PINGGY_ARCHIVE_RELEASE_DIR} ${ARCHIVE_TARGETS})
 
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/pinggy.h
     DESTINATION include/pinggy/)
