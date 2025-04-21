@@ -125,7 +125,7 @@ endfunction()
 SetupSSL()
 
 function(AddSslCopyTarget target anotherTarget dest cmnt)
-    if(DEFINED OPENSSL_ROOT_DIR)
+    if(DEFINED OPENSSL_ROOT_DIR AND PINGGY_COPY_OPENSSL STREQUAL "yes")
         add_custom_target(${target}
             COMMAND ${CMAKE_COMMAND} -E copy_directory
                 "${OPENSSL_ROOT_DIR}"  # Source
@@ -142,8 +142,8 @@ function(DistributeLibPinggy libname dest)
     set(DIST_STAGE ${CMAKE_BINARY_DIR}/dist_stage)
 
     if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
-        set(ARCHIVE_NAME_dirty ${dest}/${libname}-${PINGGY_OS}-${PINGGY_BUILD_ARCH}-${CMAKE_MSVC_RUNTIME_LIBRARY}.zip)
-        set(WITH_SSL_ARCHIVE_NAME_dirty ${dest}/${libname}-ssl-${PINGGY_OS}-${PINGGY_BUILD_ARCH}-${CMAKE_MSVC_RUNTIME_LIBRARY}.zip)
+        set(ARCHIVE_NAME_dirty ${dest}/${libname}-${PINGGY_OS}-${PINGGY_BUILD_ARCH}-${PINGGY_MSVC_RT}.zip)
+        set(WITH_SSL_ARCHIVE_NAME_dirty ${dest}/${libname}-ssl-${PINGGY_OS}-${PINGGY_BUILD_ARCH}-${PINGGY_MSVC_RT}.zip)
         set(ARCHIVE_FORMAT --format=zip)
     else()
         set(ARCHIVE_NAME_dirty ${dest}/${libname}-${PINGGY_OS}-${PINGGY_BUILD_ARCH}.tgz)
@@ -199,7 +199,7 @@ function(DistributeLibPinggy libname dest)
         COMMENT "Creating archive ${ARCHIVE_NAME}"
     )
 
-    if(DEFINED OPENSSL_ROOT_DIR)
+    if(DEFINED OPENSSL_ROOT_DIR AND PINGGY_COPY_OPENSSL STREQUAL "yes")
         add_custom_command(
             OUTPUT ${DIST_STAGE}/openssl
             DEPENDS ${ARCHIVE_NAME}
