@@ -14,7 +14,7 @@ execute_process(
 )
 
 # Try to parse semantic version if possible
-string(REGEX MATCH "([0-9]+)\\.([0-9]+)\\.([0-9]+)" _ ${GIT_DESCRIBE})
+string(REGEX MATCH "([0-9]+)\\.([0-9]+)\\.([0-9]+)" VERSION_MATCH ${GIT_DESCRIBE})
 set(PROJECT_VERSION_MAJOR "${CMAKE_MATCH_1}")
 set(PROJECT_VERSION_MINOR "${CMAKE_MATCH_2}")
 set(PROJECT_VERSION_PATCH "${CMAKE_MATCH_3}")
