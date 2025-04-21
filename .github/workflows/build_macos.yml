@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - dev
 
 jobs:
   build-macos:
@@ -13,6 +14,11 @@ jobs:
     steps:
     - name: Checkout source
       uses: actions/checkout@v4
+      with:
+        fetch-depth: 1  # Only fetch latest commit (faster)
+
+    - name: Fetch tags separately
+      run: git fetch --tags
 
     - name: Download OpenSSL
       run: |
