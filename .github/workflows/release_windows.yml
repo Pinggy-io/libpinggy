@@ -39,36 +39,39 @@ jobs:
       shell: cmd
       env:
         NATIVE_RUNTIMES: MT
-        NATIVE_ARCHES: x86_64
+        NATIVE_ARCHES: x86_64,i686
 
     - name: List all files in workspace
       run: |
         Get-ChildItem -Path "$env:GITHUB_WORKSPACE\releases" -Recurse
 
-    # - name: Find zip files for release
-    #   id: find_zips
-    #   shell: pwsh
-    #   run: |
-    #     $files = Get-ChildItem -Path "releases" -Filter "*.zip" | ForEach-Object { $_.FullName }
-    #     echo "files=$($files -join '`n')" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+    - name: Find zip files for release
+      id: find_zips
+      shell: pwsh
+      run: |
+        $files = Get-ChildItem -Path "releases" -Filter "*.zip" | ForEach-Object {
+          # Convert to relative POSIX-style path (e.g., releases/file.zip)
+          $_.FullName.Replace("${{ github.workspace }}\", "").Replace("\", "/")
+        }
+        echo "files=$($files -join '`n')" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
 
-    # - name: Upload release artifacts
-    #   uses: softprops/action-gh-release@v1
-    #   with:
-    #     files: ${{ steps.find_zips.outputs.files }}
+
+    - name: Upload release artifacts
+      uses: softprops/action-gh-release@v1
+      with:
+        files: ${{ steps.find_zips.outputs.files }}
 
 
     # - name: Configure and build
     #   run: |
     #     dir %cd%\releases
 
-    - name: Upload releases folder to release
-      uses: softprops/action-gh-release@v1
-      with:
-        files: "releases/*.zip"
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      shell: bash
+    # - name: Upload releases folder to release
+    #   uses: softprops/action-gh-release@v1
+    #   with:
+    #     files: "releases/*.zip"
+    #   env:
+    #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     # - name: Upload release zip files
     #   uses: actions/upload-artifact@v4
