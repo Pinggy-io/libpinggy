@@ -37,9 +37,6 @@ jobs:
     - name: Build with bundled CMake
       run: cmd.exe /c "crossbuilding\windows\buildForWindows.bat %OPENSSL_DIR% releases
       shell: cmd
-      env:
-        NATIVE_RUNTIMES: MT
-        NATIVE_ARCHES: x86_64,i686
 
     - name: List all files in workspace
       run: |
