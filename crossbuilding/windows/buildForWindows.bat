@@ -39,8 +39,8 @@ set PROJECT_ROOT=%cd%
 
 echo %PROJECT_ROOT%
 
-rmdir /s /q "%PROJECT_ROOT%\%buildDir%"
-rmdir /s /q "%PROJECT_ROOT%\%releaseDir%"
+@REM rmdir /s /q "%PROJECT_ROOT%\%buildDir%"
+@REM rmdir /s /q "%PROJECT_ROOT%\%releaseDir%"
 
 for %%i in (%NATIVE_ARCHES%) do (
     for %%j in (%NATIVE_RUNTIMES%) do (

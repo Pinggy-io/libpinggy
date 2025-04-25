@@ -312,7 +312,7 @@ tInt PollControllerGeneric::PollOnce()
         reinit = false;
     }
 
-    int timeout = -1;
+    int timeout = 1000; //1 second by default
     if (HaveFutureTasks()) {
         timeout = (int)(GetNextTaskTimeout()/MILLISECOND);
     }
@@ -322,7 +322,6 @@ tInt PollControllerGeneric::PollOnce()
         LOGE("poll() failed: ", app_get_strerror(app_get_errno()));
         return ret;
     }
-
 
     ExecuteCurrentTasks();
 
@@ -335,7 +334,7 @@ tInt PollControllerGeneric::PollOnce()
             auto pfd = pollEventsForIterator + i;
             auto eventFd = pfd->fd;
             if (eventFd == notificationReceiverFd) {
-                if (pfd->revents == POLLIN) {
+                if (pfd->revents & POLLIN) {
                     char buf[200];
                     auto ret1 = app_recv(notificationReceiverFd, buf, sizeof(buf), 0);
                     if (ret1 <= 0) {

@@ -86,7 +86,7 @@ if errorlevel 1 (
     exit /b 1
 )
 
-"%CMAKE_EXE%" --build "%BUILD_PATH%\pinggy" --config Release
+"%CMAKE_EXE%" --build "%BUILD_PATH%\pinggy" --config Release --parallel
 
 if errorlevel 1 (
     echo build failed
