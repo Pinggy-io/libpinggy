@@ -2,7 +2,9 @@
 This module contains a simple function that returns a greeting.
 """
 
-from .pylib import Tunnel, Channel, BaseTunnelHandler, setLogPath, disableLog, version, git_commit, build_timestamp, libc_version, build_os
+from .pylib import Tunnel, Channel, BaseTunnelHandler, \
+		setLogPath, disableLog, version, git_commit, \
+		build_timestamp, libc_version, build_os
 
 # Specify the public API of the module
 __all__ = [
