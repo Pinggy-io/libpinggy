@@ -888,6 +888,10 @@ SDKConfig::getUser()
         user += "+" + UdpMode;
     }
 
+    if (Force) {
+        user += "+force";
+    }
+
     return user.substr(1);
 }
 
