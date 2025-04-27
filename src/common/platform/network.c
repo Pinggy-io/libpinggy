@@ -564,7 +564,13 @@ sock_t app_udp_client_connect_host(const char *host, const char *port, sockaddr_
             name.sin6_family = AF_INET6;
             name.sin6_port = 0;
             name.sin6_addr = ip;
-            if(issockoptsuccess(bind(sock, (struct sockaddr *)&name, sizeof(name)))) {
+
+            int off = 0;
+            if (!issockoptsuccess(setsockopt(sock, IPPROTO_IPV6, IPV6_V6ONLY, &off, sizeof(off)))) {
+                LOGD("Could not unset IPV6_V6ONLY: %s", app_get_strerror(app_get_errno()));
+            }
+
+            if (issockoptsuccess(bind(sock, (struct sockaddr *)&name, sizeof(name)))) {
                 break;
             } else {
                 LOGD("Cannot bind %d %s", sock, app_get_strerror(app_get_errno()));
