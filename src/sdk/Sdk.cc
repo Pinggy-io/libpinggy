@@ -589,6 +589,10 @@ Sdk::HandleSessionNewChannelRequest(protocol::ChannelPtr channel)
 
         try {
             netConn = net::NewUdpConnectionImplPtr(sdkConfig->UdpForwardTo->GetHost(), sdkConfig->UdpForwardTo->GetPortStr());
+        } catch(const std::exception& e) {
+            LOGE("Could not connect to", sdkConfig->UdpForwardTo->ToString(), " due to ", e.what());
+            channel->Reject("Could not connect to provided address");
+            return;
         } catch(...) {
             LOGE("Could not connect to", sdkConfig->UdpForwardTo->ToString());
             channel->Reject("Could not connect to provided address");

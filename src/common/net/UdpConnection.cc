@@ -34,7 +34,7 @@ UdpConnectionImpl::UdpConnectionImpl(tString host, tString port):
     sockaddr_ip peerAddr;
     auto sock = app_udp_client_connect_host(host.c_str(), port.c_str(), &peerAddr);
     if (!IsValidSocket(sock)) {
-        throw std::runtime_error("Could not connect: " + tString(app_get_strerror(app_get_errno())));
+        throw std::runtime_error("Could not connect: sock " + std::to_string(sock) + " " + tString(app_get_strerror(app_get_errno())));
     }
     fd = sock;
     peerAddress = NewSocketAddressPtr(peerAddr);

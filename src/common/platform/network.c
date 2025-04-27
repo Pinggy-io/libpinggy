@@ -31,6 +31,7 @@
 #include <errno.h>
 #include <stdlib.h>
 #include "assert_pinggy.h"
+#include "log.h"
 
 
 #define MAXLINE 2048
@@ -528,41 +529,68 @@ sock_t app_udp_client_connect_host(const char *host, const char *port, sockaddr_
 
     int s = getaddrinfo(host, port, &hints, &res);
     if(s != 0) {
+        LOGE("Cannot get addr info");
+        return InValidSocket;
+    }
+
+    int found = 0;
+    for(rp = res; rp != NULL; rp=rp->ai_next) {
+        if (rp->ai_family == AF_INET6) {
+            sockAddr->addr = *(rp->ai_addr);
+            found = 1;
+        } else if (rp->ai_family == AF_INET) {
+            sockAddr->addr = *(rp->ai_addr);
+            found = 1;
+            break; //we want ipv4 here because almost all ipv4 can connect to ipv6
+        }
+    }
+    freeaddrinfo(res);
+    if (!found) {
         return InValidSocket;
     }
 
     sock_t sock = InValidSocket;
-    for(rp = res; rp != NULL; rp=rp->ai_next) {
-        sock = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
-        if(!IsValidSocket(sock))
+    sa_family_t families[2] = {AF_INET6, AF_INET};
+    for (int i = 0; i < 2; i++) {
+        sock = socket(families[i], SOCK_DGRAM, 0);
+        if(!IsValidSocket(sock)) {
+            LOGD("Cannot get addr info");
             continue;
+        }
 
-        if (rp->ai_family == AF_INET6) {
+        if (families[i] == AF_INET6) {
             struct in6_addr ip = IN6ADDR_ANY_INIT;
             struct sockaddr_in6 name;
             name.sin6_family = AF_INET6;
             name.sin6_port = 0;
             name.sin6_addr = ip;
-            if(!issockoptsuccess(bind(sock, (struct sockaddr *)&name, sizeof(name)))) {
-                sockAddr->addr = *(rp->ai_addr);
+            if(issockoptsuccess(bind(sock, (struct sockaddr *)&name, sizeof(name)))) {
                 break;
+            } else {
+                LOGD("Cannot bind %d %s", sock, app_get_strerror(app_get_errno()));
             }
-        } else if (rp->ai_family == AF_INET) {
+        } else if (families[i] == AF_INET) {
             in_addr_t ip = 0;
             struct sockaddr_in name;
             name.sin_family = AF_INET;
             name.sin_port = htons(0);
             name.sin_addr.s_addr = ip;
-            if(!issockoptsuccess(bind(sock, (struct sockaddr *)&name, sizeof(name)))) {
-                sockAddr->addr = *(rp->ai_addr);
+            if(issockoptsuccess(bind(sock, (struct sockaddr *)&name, sizeof(name)))) {
                 break;
+            } else {
+                LOGD("Cannot bind %d %s", sock, app_get_strerror(app_get_errno()));
             }
         }
 
+        int err = app_get_errno();
         SysSocketClose(sock);
         sock = InValidSocket;
+        app_set_errno(err);
     }
-    freeaddrinfo(res);
+
+    if (!IsValidSocket(sock)) {
+        return sock;
+    }
     return sock;
 }
 
