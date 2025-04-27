@@ -711,6 +711,26 @@ pinggy_tunnel_stop(pinggy_ref_t ref)
     }
 }
 
+PINGGY_EXPORT pinggy_bool_t
+pinggy_tunnel_is_active(pinggy_ref_t ref)
+{
+    auto sdk =  getSdk(ref);
+    if (sdk == nullptr) {
+        LOGE("null sdk");
+        return pinggy_false;
+    }
+    try {
+        return sdk->IsTunnelActive();
+    } catch (const std::exception &e) {
+        if (exception_callback) {
+            exception_callback("CPP exception:", e.what());
+        } else {
+            LOGE("No exception handler found");
+        }
+        return pinggy_false;
+    }
+}
+
 PINGGY_EXPORT pinggy_uint16_t
 pinggy_tunnel_start_web_debugging(pinggy_ref_t ref, pinggy_uint16_t port)
 {

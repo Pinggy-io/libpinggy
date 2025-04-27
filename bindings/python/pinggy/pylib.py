@@ -206,6 +206,9 @@ class Tunnel:
     def stop(self):
         core.pinggy_tunnel_stop(self.__tunnelRef)
 
+    def is_active(self):
+        return core.pinggy_tunnel_is_active(self.__tunnelRef)
+
     def start_web_debugging(self, port=4300):
         return core.pinggy_tunnel_start_web_debugging(self.__tunnelRef, port)
 

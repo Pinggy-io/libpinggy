@@ -468,6 +468,14 @@ PINGGY_EXPORT pinggy_bool_t
 pinggy_tunnel_stop(pinggy_ref_t tunnel);
 
 /**
+ * @brief Check if the tunnel is active or not.
+ * @param tunnel
+ * @return returns true if active
+ */
+PINGGY_EXPORT pinggy_bool_t
+pinggy_tunnel_is_active(pinggy_ref_t tunnel);
+
+/**
  * @brief Start webdebugging server.The tunnel would manage the connection.
  * @param tunnel
  * @param listening_port

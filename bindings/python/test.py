@@ -42,6 +42,7 @@ print("advanced_parsing     :", tunnel.advanced_parsing)
 print("ssl                  :", tunnel.ssl)
 print("sni_server_name      :", tunnel.sni_server_name)
 print("insecure             :", tunnel.insecure)
+print("is_active:           :", tunnel.is_active())
 
 # tunnel.start()
 
@@ -51,7 +52,7 @@ def starttune(tunnel: pinggy.Tunnel):
     tunnel.serve_tunnel()
     # tunnel.start_with_c()
 
-starttune(tunnel)
+# starttune(tunnel)
 
 # tunnel.start_with_c()
 
@@ -61,17 +62,25 @@ starttune(tunnel)
 # tunnel2.tcp_forward_to = "l:4000"
 
 
-# t = threading.Thread(target=starttune, args=(tunnel,))
+t = threading.Thread(target=starttune, args=(tunnel,))
 # t2 = threading.Thread(target=starttune, args=(tunnel2,))
-# t.start()
+t.start()
 # t2.start()
 
-# print("going to sleep")
+print("going to sleep")
 
-# time.sleep(15)
+for i in range(15):
+    print("is_active:           :", tunnel.is_active())
+    time.sleep(1)
 
-# print("stoping tunnel")
+print("stoping tunnel")
 
-# tunnel.stop()
+tunnel.stop()
 
-# t.join()
+for i in range(15):
+    print("is_active:           :", tunnel.is_active())
+    if not tunnel.is_active():
+        break
+    time.sleep(1)
+
+t.join()

@@ -127,7 +127,6 @@ Sdk::Sdk(SDKConfigPtr config, SdkEventHandlerPtr _eventHandler):
     if (!config) {
         sdkConfig = config = NewSDKConfigPtr();
     }
-    sdkConfig->validate();
 }
 
 Sdk::~Sdk()
@@ -145,6 +144,8 @@ Sdk::Connect(common::PollControllerPtr pollController)
 
     if (started)
         ABORT_WITH_MSG("Tunnel is already started");
+
+    sdkConfig->validate();
 
     started = true;
     runningThreadId = std::this_thread::get_id();
