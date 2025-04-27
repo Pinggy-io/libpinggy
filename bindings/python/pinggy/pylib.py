@@ -205,18 +205,48 @@ class BaseTunnelHandler:
         print(f"Additional forwarding from {bindAddr} to {forwardTo} succeeded")
 
     def additional_forwarding_failed(self, bindAddr, forwardTo, err):
+        """
+        Triggers when additional forwarding fails
+        """
         print(f"Additional forwarding from {bindAddr} to {forwardTo} failed with error {err}")
+
     def disconnected(self, msg):
+        """
+        Triggers when tunnel got disconnected by the server.
+
+        Agrs:
+            msg (str): disconnection reason.
+        """
         print(f"Tunnel disconnected with msg {msg}")
+
     def tunnel_error(self, errorNo, msg, recoverable):
+        """
+        In case some error occures. Errors could be recoverable.
+
+        Args:
+            errorNo (int): internal error no. Currently not useful for user.
+            msg (str): description
+            recoverable (bool): whether a error is recoverable or not. Application should ignore recoverable errors.
+        """
         print(f"Tunnel error occured {errorNo}, {msg}, {recoverable}")
+
     def handle_channel(self):
+        """
+        **Do not return anything but False**
+        """
         return False
+
     def new_channel(self, channel:Channel):
+        """
+        **Do not use**
+        """
         print(f"New channel received. rejecting it. override `new_channel` method to handle the channel or return `False` from `handle_channel` method")
         channel.reject()
 
 class Tunnel:
+    """
+    The primary class which provides the tunnel.
+    """
     def __init__(self, server_address="a.pinggy.io:443", eventClass=BaseTunnelHandler):
         server_address = server_address if isinstance(server_address, bytes) else server_address.encode("utf-8")
         self.__tunnelRef                            = 0
