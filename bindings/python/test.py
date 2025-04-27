@@ -2,7 +2,7 @@ import threading
 import time
 import pinggy
 
-# pinggy.disableLog()
+pinggy.disableLog()
 
 print(f"pinggy_version:             {pinggy.version()}")
 print(f"pinggy_git_commit:          {pinggy.git_commit()}")

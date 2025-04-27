@@ -1,5 +1,12 @@
 """
-This module contains a simple function that returns a greeting.
+Pinggy Python SDK.
+
+This sdk provide functionalities to create pinggy tunnel and forward local service to the Internet.
+
+For more details, visit https://pinggy.io.
+
+The python SDK is a wrapper arround the C library `libpinggy`. This module wraps `libpinggy` and
+provides easy interfact using Tunnel class.
 """
 
 from .pylib import Tunnel, Channel, BaseTunnelHandler, \

@@ -8,25 +8,77 @@ from . import core
 
 
 def setLogPath(path):
+    """
+    Set path where native library print its log. Use this function only if requires.
+    To disable native library logging completly, use `disableLog` function.
+
+    Returns:
+        None
+    """
     path = path if isinstance(path, bytes) else path.encode("utf-8")
     core.pinggy_set_log_path(path)
 
 def disableLog():
+    """
+    Disable logging by the native library.
+
+    Returns:
+        None
+    """
     core.pinggy_set_log_enable(False)
 
 def version():
+    """
+    Function to know the native library version.
+
+    Returns:
+        str: libpinggy version.
+    """
     return core._get_string_via_cfunc(core.pinggy_version)
+
 def git_commit():
+    """
+    Function to get the git commit hash of the source code.
+
+    Returns:
+        str: git commit hash.
+    """
     return core._get_string_via_cfunc(core.pinggy_git_commit)
+
 def build_timestamp():
+    """
+    Function to get the build timestamp as per the build-system.
+
+    Returns:
+        str: build timestamp.
+    """
     return core._get_string_via_cfunc(core.pinggy_build_timestamp)
+
 def libc_version():
+    """
+    Get the libc version of the native. This information is accurate only for linux operating system.
+
+    Returns:
+        str: libc version.
+    """
     return core._get_string_via_cfunc(core.pinggy_libc_version)
+
 def build_os():
+    """
+    Get the detail about the build operating system.
+
+    Returns:
+        str: os detail.
+    """
     return core._get_string_via_cfunc(core.pinggy_build_os)
 
 
 class Channel:
+    """
+    Represents incomming channels from the tunnel.
+
+    **This feature is not finished and not to be used**
+    """
     def __init__(self, channelRef):
         self.__channelRef       = channelRef
         self.__data_received_cb = core.pinggy_channel_data_received_cb_t(self.__func_data_received)
@@ -83,20 +135,68 @@ class Channel:
         return core._get_string_via_cfunc(core.pinggy_tunnel_channel_get_src_host, self.__channelRef)
 
 class BaseTunnelHandler:
+    """
+    Represent basic and default handler for :class:`Tunnel`. It provide default handler
+    for various event triggered by the Tunnel. It is expected that all the event handler
+    would extend this event handler.
+    """
     def __init__(self, tunnel):
+        """
+        Initializes the basic event handler.
+        Args:
+            tunnel (Tunnel): The tunnel object
+        """
         self.tunnel = tunnel
+
     def get_tunnel(self):
+        """
+        Returns the tunnel object
+        Returns:
+            Tunnel: the tunnel object
+        """
         return self.tunnel
+
     def authenticated(self):
+        """
+        Triggers when tunnel successfully authenticated. Authentication happen even for free tunnels.
+        """
         print(f"Tunnel authenthicated")
+
     def authentication_failed(self, errors):
+        """
+        Triggers when tunnel could not able to authenticate it self. Reasons are provided in the `errors` argument.
+        Any further action on the tunnel object will fail.
+
+        Args:
+            errors (list(str)): Authentication failure reasons.
+        """
         print(f"Tunnel is failed to authenticate. reasons: {errors}")
+
     def primary_forwarding_succeeded(self):
+        """
+        Triggers when primary (or default) forwarding successfully completed.
+        Know more about primary (or default) forwarding at
+        https://pinggy.io/docs/http_tunnels/multi_port_forwarding/.
+
+        Once this step done, one can fetch the urls from the tunnel.
+        """
         print(f"Forwarding succeeded. urls: {self.tunnel.urls}")
+
     def primary_forwarding_failed(self, msg):
+        """
+        Triggers when primary (or default) forwarding fails. The reason is present in the msg.
+
+        Agrs:
+            msg (str): the reason why it failes.
+        """
         print(f"Forwarding failed with msg {msg}")
+
     def additional_forwarding_succeeded(self, bindAddr, forwardTo):
+        """
+        Triggers when
+        """
         print(f"Additional forwarding from {bindAddr} to {forwardTo} succeeded")
+
     def additional_forwarding_failed(self, bindAddr, forwardTo, err):
         print(f"Additional forwarding from {bindAddr} to {forwardTo} failed with error {err}")
     def disconnected(self, msg):
