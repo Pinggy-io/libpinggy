@@ -193,7 +193,14 @@ class BaseTunnelHandler:
 
     def additional_forwarding_succeeded(self, bindAddr, forwardTo):
         """
-        Triggers when
+        Triggers when additional forwarding completes successfully. Learn more at
+        https://pinggy.io/docs/http_tunnels/multi_port_forwarding/.
+
+        **This is experimental and not tested**
+
+        Agrs:
+            bindAddr (str): remote address where connection can be sent.
+            forwardTo (str): address to which connection would forwarded. It is equivalen to `tcp_forward_to`.
         """
         print(f"Additional forwarding from {bindAddr} to {forwardTo} succeeded")
 
