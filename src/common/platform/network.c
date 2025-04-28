@@ -593,10 +593,6 @@ sock_t app_udp_client_connect_host(const char *host, const char *port, sockaddr_
         sock = InValidSocket;
         app_set_errno(err);
     }
-
-    if (!IsValidSocket(sock)) {
-        return sock;
-    }
     return sock;
 }
 
