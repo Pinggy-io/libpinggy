@@ -534,11 +534,14 @@ sock_t app_udp_client_connect_host(const char *host, const char *port, sockaddr_
     }
 
     int found = 0;
+    sa_family_t peer_family = AF_UNSPEC;
     for(rp = res; rp != NULL; rp=rp->ai_next) {
         if (rp->ai_family == AF_INET6) {
+            peer_family = AF_INET6;
             sockAddr->addr = *(rp->ai_addr);
             found = 1;
         } else if (rp->ai_family == AF_INET) {
+            peer_family = AF_INET;
             sockAddr->addr = *(rp->ai_addr);
             found = 1;
             break; //we want ipv4 here because almost all ipv4 can connect to ipv6
@@ -550,15 +553,14 @@ sock_t app_udp_client_connect_host(const char *host, const char *port, sockaddr_
     }
 
     sock_t sock = InValidSocket;
-    sa_family_t families[2] = {AF_INET6, AF_INET};
-    for (int i = 0; i < 2; i++) {
-        sock = socket(families[i], SOCK_DGRAM, 0);
+    for (int i = 0; i < 1; i++) {
+        sock = socket(peer_family, SOCK_DGRAM, 0);
         if(!IsValidSocket(sock)) {
             LOGD("Cannot get addr info");
             continue;
         }
 
-        if (families[i] == AF_INET6) {
+        if (peer_family == AF_INET6) {
             struct in6_addr ip = IN6ADDR_ANY_INIT;
             struct sockaddr_in6 name;
             name.sin6_family = AF_INET6;
@@ -575,7 +577,7 @@ sock_t app_udp_client_connect_host(const char *host, const char *port, sockaddr_
             } else {
                 LOGD("Cannot bind %d %s", sock, app_get_strerror(app_get_errno()));
             }
-        } else if (families[i] == AF_INET) {
+        } else if (peer_family == AF_INET) {
             in_addr_t ip = 0;
             struct sockaddr_in name;
             name.sin_family = AF_INET;
