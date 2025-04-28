@@ -109,7 +109,6 @@ UdpConnectionImpl::Write(RawDataPtr rwData, int flags)
         sockaddr_ip addr = peerAddress->GetSockAddr();
         socklen_t addrlen = addr.addr.sa_family==AF_INET ? sizeof(addr.inaddr) : sizeof(addr.inaddr);
         tryAgain = false;
-        auto txLen = txData->Len;
         auto wrote = app_send_to(fd, txData->GetData()+2, txData->Len-2, 0, &addr, addrlen);
         txData = nullptr;
         if (wrote <= -1  && app_is_eagain()) {
