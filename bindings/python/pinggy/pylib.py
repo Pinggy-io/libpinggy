@@ -367,16 +367,31 @@ class Tunnel:
             self.__tunnelRef = 0
 
     def start_with_c(self):
+        """
+        ** DO NOT USE THIS METHOD **
+        """
         self.__editableConfig = False
         print("Kindly don't use this method")
         core.pinggy_tunnel_start(self.__tunnelRef)
 
     def start(self):
+        """
+        Start the tunnel with the provided configuration. This is a blocking call.
+        It does not return unless tunnel stopped externally or some error occures.
+        """
         self.__editableConfig = False
         self.__auto = True
         self.connect()
 
     def connect(self):
+        """
+        Connect the tunnel with the server and authenticate it self. It returns true on success.
+
+        If this step fails, no futher step steps can be continued.
+
+        Returns:
+            bool: whether authentication done sucessfully or not.
+        """
         if self.__connected:
             raise Exception("You call connec only once")
         locked = False
@@ -394,15 +409,26 @@ class Tunnel:
         return self.__authenticated
 
     def stop(self):
+        """Stops the running tunnel."""
         core.pinggy_tunnel_stop(self.__tunnelRef)
 
     def is_active(self):
+        """Check if tunnel is active or not."""
         return core.pinggy_tunnel_is_active(self.__tunnelRef)
 
     def start_web_debugging(self, port=4300):
+        """
+        Start the web debugger. All the request would be handled internally.
+
+        Call this function after primary forwarding completed successfully.
+        """
         return core.pinggy_tunnel_start_web_debugging(self.__tunnelRef, port)
 
     def request_primary_forwarding(self):
+        """
+        Request to start the default forwarding. Once suceeded, user can get
+        the urls and tunnel starts accepting requests.
+        """
         if self.__auto:
             raise Exception("Not permitted as tunnel started with `start` method")
         if not self.__authenticated:
@@ -420,11 +446,19 @@ class Tunnel:
         return self.__tunnel_started
 
     def request_additional_forwarding(self, bindAddr, forwardTo):
+        """
+        Once primary forwarding is done, user can request additional forwarding for other ports.
+
+        More details at: https://pinggy.io/docs/http_tunnels/multi_port_forwarding/.
+        """
         bindAddr = bindAddr if isinstance(bindAddr, bytes) else bindAddr.encode('utf-8')
         forwardTo = forwardTo if isinstance(forwardTo, bytes) else forwardTo.encode('utf-8')
         core.pinggy_tunnel_request_additional_forwarding(self.__tunnelRef, bindAddr, forwardTo)
 
     def serve_tunnel(self):
+        """
+        Final method in the tunnel creation flow. It is again a blocking call.
+        """
         if not self.__tunnel_started:
             raise Exception("Tunnel is not running")
         locked = False
