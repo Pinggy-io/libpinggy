@@ -62,13 +62,21 @@ set RELEASE_ARCHIVE_PATH=%PROJECT_ROOT%\%releaseDir%
 set GENERATOR=Visual Studio 17 2022
 mkdir "%RELEASE_PATH%"
 
-set CMAKE_EXE=C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe
+
+
+if "%CMAKE_EXE%"=="" (
+  set CMAKE_EXE=C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe
+)
+
+if "%WINDOWS_SDK_VERSION%"=="" (
+    set WINDOWS_SDK_VERSION=10.0.19041.0
+)
 
 "%CMAKE_EXE%" ^
     "-S%PROJECT_ROOT%" ^
     "-B%BUILD_PATH%\pinggy" ^
     "-G%GENERATOR%" ^
-    -A %CMAKE_ARCH% ^
+    -A "%CMAKE_ARCH%,version=%WINDOWS_SDK_VERSION%" ^
     -DPINGGY_BUILD_ARCH=%ARCH% ^
     -DOPENSSL_ROOT_DIR=%OPENSSL_ROOT_PATH% ^
     -DCMAKE_BUILD_SERVER=no ^
