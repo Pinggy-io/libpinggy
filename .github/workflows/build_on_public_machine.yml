@@ -1,0 +1,110 @@
+name: Build on Public Machines
+
+on:
+  push:
+    branches:
+      - dev
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Only fetch latest commit (faster)
+
+    - name: Fetch tags separately
+      run: git fetch --tags
+
+    - name: Download and extract .zip file
+      run: |
+        $url = "https://public-pre-built-libraries.s3.us-east-2.amazonaws.com/openssl/OpenSSL-3.3.1-windows.zip"
+        $zipPath = "$env:GITHUB_WORKSPACE\OpenSSL-3.3.1-windows.zip"
+        $extractPath = "$env:GITHUB_WORKSPACE"
+        Invoke-WebRequest -Uri $url -OutFile $zipPath
+        Expand-Archive -Path $zipPath -DestinationPath $extractPath
+
+    - name: Configure and build
+      run: |
+        echo "OPENSSL_DIR=${{ github.workspace }}\OpenSSL" >> $env:GITHUB_ENV
+        echo "RELEASE_DIR=${{ github.workspace }}\releases" >> $env:GITHUB_ENV
+
+    - name: Configure cmake env
+      run: |
+        echo "CMAKE_EXE=C:\Program Files\Microsoft Visual Studio\2022\Enterprise\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe" >> $env:GITHUB_ENV
+        echo "WINDOWS_SDK_VERSION=10.0.19041.0" >> $env:GITHUB_ENV
+
+    - name: Build with bundled CMake
+      run: cmd.exe /c "crossbuilding\windows\buildForWindows.bat %OPENSSL_DIR% releases
+      shell: cmd
+
+    - name: List all files in workspace
+      run: |
+        Get-ChildItem -Path "$env:GITHUB_WORKSPACE\releases" -Recurse
+
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: releases-windows
+        path: releases
+
+  build-on-linux:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Only fetch latest commit (faster)
+
+    - name: Fetch tags separately
+      run: git fetch --tags
+
+    - name: Run build in container
+      run: |
+        bash crossbuilding/linux/buildForLinux.sh
+    - name: List
+      run: ls
+    - name: List
+      run: tree .
+
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: releases-linux
+        path: releases
+
+  build-on-macos:
+    runs-on: macos-latest
+
+    steps:
+    - name: Checkout source
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Only fetch latest commit (faster)
+
+    - name: Fetch tags separately
+      run: git fetch --tags
+
+    - name: Download OpenSSL
+      run: |
+        curl -o OpenSSL-3.3.1-macos.tgz https://public-pre-built-libraries.s3.us-east-2.amazonaws.com/openssl/OpenSSL-3.3.1-macos.tgz
+        tar -xzf OpenSSL-3.3.1-macos.tgz
+
+    - name: LS
+      run: ls -lrt .
+
+    - name: Run build script
+      run: |
+        OPENSSL_ROOT_PATH="${{ github.workspace }}/OpenSSL/3.3.1/universal" bash -x crossbuilding/macos/buildForMacos.sh
+
+    - name: LS
+      run: ls -lrt .
+
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: releases-macos
+        path: releases
