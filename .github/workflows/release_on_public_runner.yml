@@ -1,9 +1,8 @@
-name: Build on Public Machines
+name: Release on Public Runner
 
 on:
-  push:
-    branches:
-      - dev
+  release:
+    types: [created]
 
 jobs:
   build-windows:
@@ -48,11 +47,23 @@ jobs:
       run: |
         Get-ChildItem -Path "$env:GITHUB_WORKSPACE\releases" -Recurse
 
-    - name: Upload Artifact
-      uses: actions/upload-artifact@v4
+
+    - name: Find zip files for release
+      id: find_zips
+      shell: bash
+      run: |
+        files=$(find releases -name '*.zip' | sed 's|\\|/|g')
+        {
+          echo "files<<EOF"
+          echo "$files"
+          echo "EOF"
+        } >> "$GITHUB_OUTPUT"
+
+
+    - name: Upload release artifacts
+      uses: softprops/action-gh-release@v1
       with:
-        name: releases-windows-${{ matrix.architecture }}
-        path: releases
+        files: ${{ steps.find_zips.outputs.files }}
 
   build-on-linux:
     runs-on: ubuntu-latest
@@ -74,11 +85,12 @@ jobs:
     - name: List
       run: tree .
 
-    - name: Upload Artifact
-      uses: actions/upload-artifact@v4
+    - name: Upload releases folder to release
+      uses: softprops/action-gh-release@v1
       with:
-        name: releases-linux
-        path: releases
+        files: releases/*.tgz
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   build-on-macos:
     runs-on: macos-latest
@@ -107,8 +119,9 @@ jobs:
     - name: LS
       run: ls -lrt .
 
-    - name: Upload Artifact
-      uses: actions/upload-artifact@v4
+    - name: Upload releases folder to release
+      uses: softprops/action-gh-release@v1
       with:
-        name: releases-macos
-        path: releases
+        files: releases/*.tgz
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
