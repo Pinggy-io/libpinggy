@@ -38,7 +38,7 @@ jobs:
       run: |
         echo "CMAKE_EXE=C:\Program Files\Microsoft Visual Studio\2022\Enterprise\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe" >> $env:GITHUB_ENV
         echo "WINDOWS_SDK_VERSION=10.0.19041.0" >> $env:GITHUB_ENV
-        echo "NATIVE_ARCHES=${{ matrix.architecture }}"
+        echo "NATIVE_ARCHES=${{ matrix.architecture }}" >> $env:GITHUB_ENV
 
     - name: Build with bundled CMake
       run: cmd.exe /c "crossbuilding\windows\buildForWindows.bat %OPENSSL_DIR% releases
