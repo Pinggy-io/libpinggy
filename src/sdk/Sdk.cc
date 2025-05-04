@@ -127,7 +127,6 @@ Sdk::Sdk(SDKConfigPtr config, SdkEventHandlerPtr _eventHandler):
     if (!config) {
         sdkConfig = config = NewSDKConfigPtr();
     }
-    sdkConfig->validate();
 }
 
 Sdk::~Sdk()
@@ -145,6 +144,8 @@ Sdk::Connect(common::PollControllerPtr pollController)
 
     if (started)
         ABORT_WITH_MSG("Tunnel is already started");
+
+    sdkConfig->validate();
 
     started = true;
     runningThreadId = std::this_thread::get_id();
@@ -588,6 +589,10 @@ Sdk::HandleSessionNewChannelRequest(protocol::ChannelPtr channel)
 
         try {
             netConn = net::NewUdpConnectionImplPtr(sdkConfig->UdpForwardTo->GetHost(), sdkConfig->UdpForwardTo->GetPortStr());
+        } catch(const std::exception& e) {
+            LOGE("Could not connect to", sdkConfig->UdpForwardTo->ToString(), " due to ", e.what());
+            channel->Reject("Could not connect to provided address");
+            return;
         } catch(...) {
             LOGE("Could not connect to", sdkConfig->UdpForwardTo->ToString());
             channel->Reject("Could not connect to provided address");
@@ -864,7 +869,7 @@ SDKConfig::validate()
     if (!ServerAddress) {
         ServerAddress = NewUrlPtr("a.pinggy.ip:443");
     }
-    if (Mode != "http" && Mode != "tcp" && Mode != "tls")
+    if (Mode != "http" && Mode != "tcp" && Mode != "tls" && Mode != "tlstcp")
         Mode = "";
     if (UdpMode != "udp")
         UdpMode = "";
@@ -886,6 +891,10 @@ SDKConfig::getUser()
 
     if (!UdpMode.empty()) {
         user += "+" + UdpMode;
+    }
+
+    if (Force) {
+        user += "+force";
     }
 
     return user.substr(1);

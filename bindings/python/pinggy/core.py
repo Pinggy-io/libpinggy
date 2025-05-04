@@ -1,40 +1,8 @@
 import ctypes
 import threading
-import platform
-import os
+from .loader import cdll
 
 pinggy_thread_local_data = threading.local()
-
-__dllPath = ""
-__dllPrefixLocation="releases"
-
-if platform.system() == "Windows":
-    # os.add_dll_directory("c:\\Program Files\\OpenSSL-Win64")
-    __dllPath = os.path.join(os.path.dirname(__file__), "..\\..\\..\\pinggy.dll")
-elif platform.system() == "Linux":
-    if platform.machine() in ["x86_64", "i686", "aarch64"]:
-        __dllPath = os.path.join(os.path.dirname(__file__), __dllPrefixLocation, "linux/"+platform.machine()+"/libpinggy.so")
-    if __dllPath == "" or not os.path.exists(__dllPath):
-        __dllPath = os.path.join(os.path.dirname(__file__), "../../../libpinggy.so")
-elif platform.system() == "Darwin":
-    if platform.machine() in ["x86_64", "arm64"]:
-        __dllPath = os.path.join(os.path.dirname(__file__), __dllPrefixLocation, "macos/universal/libpinggy.dylib")
-    if __dllPath == "" or not os.path.exists(__dllPath):
-        __dllPath = os.path.join(os.path.dirname(__file__), "../../../libpinggy.dylib")
-else:
-    print("Unsupported platform")
-    exit(1)
-
-if not os.path.exists(__dllPath):
-    print(f"Required dll does not exists at the path: `{__dllPath}`")
-    exit(1)
-
-try:
-    cdll = ctypes.CDLL(__dllPath)
-except Exception as e:
-    print(f"Required dependencies not found. Make sure that the dependencies (OpenSSL) are there. {e}")
-    exit(1)
-
 
 def pinggy_error_check(a, b, c):
     err = None
@@ -129,6 +97,7 @@ pinggy_tunnel_start                                         = cdll.pinggy_tunnel
 pinggy_tunnel_connect                                       = cdll.pinggy_tunnel_connect
 pinggy_tunnel_resume                                        = cdll.pinggy_tunnel_resume
 pinggy_tunnel_stop                                          = cdll.pinggy_tunnel_stop
+pinggy_tunnel_is_active                                     = cdll.pinggy_tunnel_is_active
 pinggy_tunnel_start_web_debugging                           = cdll.pinggy_tunnel_start_web_debugging
 pinggy_tunnel_request_primary_forwarding                    = cdll.pinggy_tunnel_request_primary_forwarding
 pinggy_tunnel_request_additional_forwarding                 = cdll.pinggy_tunnel_request_additional_forwarding
@@ -200,6 +169,7 @@ pinggy_tunnel_start.errcheck                                        = pinggy_err
 pinggy_tunnel_connect.errcheck                                      = pinggy_error_check
 pinggy_tunnel_resume.errcheck                                       = pinggy_error_check
 pinggy_tunnel_stop.errcheck                                         = pinggy_error_check
+pinggy_tunnel_is_active.errcheck                                    = pinggy_error_check
 pinggy_tunnel_start_web_debugging.errcheck                          = pinggy_error_check
 pinggy_tunnel_request_primary_forwarding.errcheck                   = pinggy_error_check
 pinggy_tunnel_request_additional_forwarding.errcheck                = pinggy_error_check
@@ -245,8 +215,9 @@ pinggy_tunnel_set_new_channel_callback.restype                      = pinggy_boo
 pinggy_tunnel_initiate.restype                                      = pinggy_ref_t
 pinggy_tunnel_start.restype                                         = pinggy_bool_t
 pinggy_tunnel_connect.restype                                       = pinggy_bool_t
-pinggy_tunnel_resume.restypes                                       = pinggy_int_t
-pinggy_tunnel_stop.restypes                                         = pinggy_bool_t
+pinggy_tunnel_resume.restype                                        = pinggy_int_t
+pinggy_tunnel_stop.restype                                          = pinggy_bool_t
+pinggy_tunnel_is_active.restype                                     = pinggy_bool_t
 pinggy_tunnel_start_web_debugging.restype                           = pinggy_uint16_t
 pinggy_tunnel_request_primary_forwarding.restype                    = pinggy_void_t
 pinggy_tunnel_request_additional_forwarding.restype                 = pinggy_void_t
@@ -294,6 +265,7 @@ pinggy_tunnel_start.argtypes                                        = [pinggy_re
 pinggy_tunnel_connect.argtypes                                      = [pinggy_ref_t]
 pinggy_tunnel_resume.argtypes                                       = [pinggy_ref_t]
 pinggy_tunnel_stop.argtypes                                         = [pinggy_ref_t]
+pinggy_tunnel_is_active.argtypes                                    = [pinggy_ref_t]
 pinggy_tunnel_start_web_debugging.argtypes                          = [pinggy_ref_t, pinggy_uint16_t]
 pinggy_tunnel_request_primary_forwarding.argtypes                   = [pinggy_ref_t]
 pinggy_tunnel_request_additional_forwarding.argtypes                = [pinggy_ref_t, pinggy_const_char_p_t, pinggy_const_char_p_t]

@@ -2,7 +2,7 @@ import threading
 import time
 import pinggy
 
-# pinggy.disableLog()
+pinggy.disableLog()
 
 print(f"pinggy_version:             {pinggy.version()}")
 print(f"pinggy_git_commit:          {pinggy.git_commit()}")
@@ -17,11 +17,7 @@ class TunnelHandler(pinggy.BaseTunnelHandler):
         # tunnel.request_additional_forwarding("y.example.com:0", "l:3000")
 
 
-tunnel = pinggy.Tunnel("t.pinggy.io:443", TunnelHandler)
-tunnel.server_address = "t.pinggy.io:443"
-tunnel.sni_server_name = "t.pinggy.io"
-# tunnel.server_address = "localhost:7878"
-# tunnel.sni_server_name = "example.com"
+tunnel = pinggy.Tunnel("a.pinggy.io", TunnelHandler)
 tunnel.insecure = True
 tunnel.advanced_parsing = True
 tunnel.tcp_forward_to = "l:4000"
@@ -42,36 +38,31 @@ print("advanced_parsing     :", tunnel.advanced_parsing)
 print("ssl                  :", tunnel.ssl)
 print("sni_server_name      :", tunnel.sni_server_name)
 print("insecure             :", tunnel.insecure)
+print("is_active:           :", tunnel.is_active())
 
-# tunnel.start()
 
 def starttune(tunnel: pinggy.Tunnel):
     tunnel.connect()
     tunnel.request_primary_forwarding()
     tunnel.serve_tunnel()
-    # tunnel.start_with_c()
 
-starttune(tunnel)
+t = threading.Thread(target=starttune, args=(tunnel,))
+t.start()
 
-# tunnel.start_with_c()
+print("going to sleep")
 
-# tunnel2 = pinggy.Tunnel()
-# tunnel2.server_address = "t.pinggy.io:443"
-# tunnel2.sni_server_name = "t.pinggy.io"
-# tunnel2.tcp_forward_to = "l:4000"
+for i in range(15):
+    print("is_active:           :", tunnel.is_active())
+    time.sleep(1)
 
+print("stoping tunnel")
 
-# t = threading.Thread(target=starttune, args=(tunnel,))
-# t2 = threading.Thread(target=starttune, args=(tunnel2,))
-# t.start()
-# t2.start()
+tunnel.stop()
 
-# print("going to sleep")
+for i in range(15):
+    print("is_active:           :", tunnel.is_active())
+    if not tunnel.is_active():
+        break
+    time.sleep(1)
 
-# time.sleep(15)
-
-# print("stoping tunnel")
-
-# tunnel.stop()
-
-# t.join()
+t.join()

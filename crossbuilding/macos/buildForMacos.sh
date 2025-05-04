@@ -49,7 +49,7 @@ then
     try cd openssl-${OPENSSL_VERSION}
     for sslArch in x86_64 arm64
     do
-      OPENSSL_TMP_ROOT_PATH=$OPENSSL_ROOT_PARENT/${OPENSSL_VERSION}/$sslArch/
+      OPENSSL_TMP_ROOT_PATH=$OPENSSL_ROOT_PARENT/${OPENSSL_VERSION}/$sslArch
       if [ ! -f $OPENSSL_TMP_ROOT_PATH/lib/libssl.dylib ]
       then
         MACOSX_DEPLOYMENT_TARGET=11.0 try ./config darwin64-${sslArch}-cc shared no-unit-test no-tests \
@@ -62,6 +62,15 @@ then
           try ln -sfn lib64 $OPENSSL_TMP_ROOT_PATH/lib
         fi
         make clean
+
+        SSL_RealName=$(basename $(realpath $OPENSSL_TMP_ROOT_PATH/lib/libssl.dylib))
+        Crypto_RealName=$(basename $(realpath $OPENSSL_TMP_ROOT_PATH/lib/libcrypto.dylib))
+
+        echo $PWD $OPENSSL_TMP_ROOT_PATH
+        install_name_tool -id @rpath/$SSL_RealName $OPENSSL_TMP_ROOT_PATH/lib/$SSL_RealName
+        install_name_tool -change $OPENSSL_TMP_ROOT_PATH/lib/$Crypto_RealName @rpath/$Crypto_RealName $OPENSSL_TMP_ROOT_PATH/lib/$SSL_RealName
+        install_name_tool -id @rpath/$Crypto_RealName $OPENSSL_TMP_ROOT_PATH/lib/$Crypto_RealName
+
       fi
     done
     popd
@@ -71,23 +80,23 @@ then
     SSL_Name=libssl.dylib
     Crypto_Name=libcrypto.dylib
 
-    b64SSL_RealName=$(basename $(realpath $OPENSSL_ROOT_PARENT/${OPENSSL_VERSION}/arm64/lib/libssl.dylib))
+    arm64SSL_RealName=$(basename $(realpath $OPENSSL_ROOT_PARENT/${OPENSSL_VERSION}/arm64/lib/libssl.dylib))
 
-    b64Crypto_RealName=$(basename $(realpath $OPENSSL_ROOT_PARENT/${OPENSSL_VERSION}/arm64/lib/libcrypto.dylib))
+    arm64Crypto_RealName=$(basename $(realpath $OPENSSL_ROOT_PARENT/${OPENSSL_VERSION}/arm64/lib/libcrypto.dylib))
 
-    b32SSL_RealName=$(basename $(realpath $OPENSSL_ROOT_PARENT/${OPENSSL_VERSION}/x86_64/lib/libssl.dylib))
+    amd64SSL_RealName=$(basename $(realpath $OPENSSL_ROOT_PARENT/${OPENSSL_VERSION}/x86_64/lib/libssl.dylib))
 
-    b32Crypto_RealName=$(basename $(realpath $OPENSSL_ROOT_PARENT/${OPENSSL_VERSION}/x86_64/lib/libcrypto.dylib))
+    amd64Crypto_RealName=$(basename $(realpath $OPENSSL_ROOT_PARENT/${OPENSSL_VERSION}/x86_64/lib/libcrypto.dylib))
 
-    if [ "$b32Crypto_RealName" != "$b64Crypto_RealName" ]
+    if [ "$amd64Crypto_RealName" != "$arm64Crypto_RealName" ]
     then
       try rm -rf $OPENSSL_SOURCE_PATH
       echo "failed to build openssl"
       exit 1
     fi
 
-    Crypto_RealName=$b32Crypto_RealName
-    SSL_RealName=$b32SSL_RealName
+    Crypto_RealName=$amd64Crypto_RealName
+    SSL_RealName=$amd64SSL_RealName
 
     lipo -create -output $OPENSSL_ROOT_PATH/lib/$SSL_RealName \
           $OPENSSL_ROOT_PARENT/${OPENSSL_VERSION}/{x86_64,arm64}/lib/libssl.dylib
@@ -106,8 +115,6 @@ then
       ln -sfn $Crypto_RealName $OPENSSL_ROOT_PATH/lib/libcrypto.dylib
     fi
 
-    install_name_tool -id @rpath/libssl.dylib $OPENSSL_ROOT_PATH/lib/$SSL_RealName
-    install_name_tool -id @rpath/libcrypto.dylib $OPENSSL_ROOT_PATH/lib/$Crypto_RealName
     # lipo -create -output $OPENSSL_ROOT_PATH/bin/c_rehash \
     #       $BUILD_PATH/{x86_64,arm64}/openssl/bin/c_rehash
     lipo -create -output $OPENSSL_ROOT_PATH/bin/openssl \

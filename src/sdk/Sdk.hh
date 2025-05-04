@@ -189,6 +189,8 @@ public:
     void
     RequestAdditionalRemoteForwarding(UrlPtr bindAddress, UrlPtr forwardTo);
 
+    bool
+    IsTunnelActive()            { return (started && (!stopped)); }
 
 //protocol::SessionEventHandler
     virtual void

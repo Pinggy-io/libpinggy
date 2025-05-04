@@ -145,10 +145,12 @@ function(DistributeLibPinggy libname dest)
         set(ARCHIVE_NAME_dirty ${dest}/${libname}-${Pinggy_VERSION}-${PINGGY_OS}-${PINGGY_BUILD_ARCH}-${PINGGY_MSVC_RT}.zip)
         set(WITH_SSL_ARCHIVE_NAME_dirty ${dest}/${libname}-${Pinggy_VERSION}-ssl-${PINGGY_OS}-${PINGGY_BUILD_ARCH}-${PINGGY_MSVC_RT}.zip)
         set(ARCHIVE_FORMAT --format=zip)
+        set(ARCHIVE_FLAGS cfv)
     else()
         set(ARCHIVE_NAME_dirty ${dest}/${libname}-${Pinggy_VERSION}-${PINGGY_OS}-${PINGGY_BUILD_ARCH}.tgz)
         set(WITH_SSL_ARCHIVE_NAME_dirty ${dest}/${libname}-${Pinggy_VERSION}-ssl-${PINGGY_OS}-${PINGGY_BUILD_ARCH}.tgz)
         set(ARCHIVE_FORMAT --format=gnutar)
+        set(ARCHIVE_FLAGS czfv)
     endif()
 
     file(TO_NATIVE_PATH "${ARCHIVE_NAME_dirty}" ARCHIVE_NAME)
@@ -195,7 +197,7 @@ function(DistributeLibPinggy libname dest)
         OUTPUT ${ARCHIVE_NAME}
         DEPENDS ${DIST_STAGE}/.stamp
         WORKING_DIRECTORY ${DIST_STAGE}
-        COMMAND ${CMAKE_COMMAND} -E tar "cfv" ${ARCHIVE_NAME} ${ARCHIVE_FORMAT} -- ${FILES_TO_ARCHIVE}
+        COMMAND ${CMAKE_COMMAND} -E tar ${ARCHIVE_FLAGS} ${ARCHIVE_NAME} ${ARCHIVE_FORMAT} -- ${FILES_TO_ARCHIVE}
         COMMENT "Creating archive ${ARCHIVE_NAME}"
     )
 
@@ -211,7 +213,7 @@ function(DistributeLibPinggy libname dest)
             OUTPUT ${WITH_SSL_ARCHIVE_NAME}
             DEPENDS ${DIST_STAGE}/openssl
             WORKING_DIRECTORY ${DIST_STAGE}
-            COMMAND ${CMAKE_COMMAND} -E tar "cfv" ${WITH_SSL_ARCHIVE_NAME} ${ARCHIVE_FORMAT} -- ${FILES_TO_ARCHIVE_WITH_SSL}
+            COMMAND ${CMAKE_COMMAND} -E tar ${ARCHIVE_FLAGS} ${WITH_SSL_ARCHIVE_NAME} ${ARCHIVE_FORMAT} -- ${FILES_TO_ARCHIVE_WITH_SSL}
             COMMENT "Creating archive ${WITH_SSL_ARCHIVE_NAME}"
         )
 

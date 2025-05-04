@@ -34,7 +34,7 @@ UdpConnectionImpl::UdpConnectionImpl(tString host, tString port):
     sockaddr_ip peerAddr;
     auto sock = app_udp_client_connect_host(host.c_str(), port.c_str(), &peerAddr);
     if (!IsValidSocket(sock)) {
-        throw std::runtime_error("Could not connect: " + tString(app_get_strerror(app_get_errno())));
+        throw std::runtime_error("Could not connect: sock " + std::to_string(sock) + " " + tString(app_get_strerror(app_get_errno())));
     }
     fd = sock;
     peerAddress = NewSocketAddressPtr(peerAddr);
@@ -107,14 +107,15 @@ UdpConnectionImpl::Write(RawDataPtr rwData, int flags)
     Assert(expectedLen >= txData->Len);
     if (expectedLen == txData->Len) {
         sockaddr_ip addr = peerAddress->GetSockAddr();
-        socklen_t addrlen = sizeof(addr);
+        socklen_t addrlen = addr.addr.sa_family==AF_INET ? sizeof(addr.inaddr) : sizeof(addr.inaddr);
         tryAgain = false;
         auto wrote = app_send_to(fd, txData->GetData()+2, txData->Len-2, 0, &addr, addrlen);
         txData = nullptr;
-        if (wrote < -1  && app_is_eagain()) {
+        if (wrote <= -1  && app_is_eagain()) {
             return slice->Len;
         }
         if (wrote <= 0) {
+            LOGE("Socket error: ", app_get_strerror(app_get_errno()));
             return wrote;
         }
     }

@@ -36,25 +36,6 @@
    #endif //_WIN64
 #define IS_BIG_ENDIAN 0
 #elif __APPLE__
-    #ifndef TARGET_OS_MAC
-    #define TARGET_OS_MAC 0
-    #endif
-    #ifndef TARGET_OS_IPHONE
-    #define TARGET_OS_IPHONE 0
-    #endif
-    #ifndef TARGET_IPHONE_SIMULATOR
-    #define TARGET_IPHONE_SIMULATOR 0
-    #endif
-    #if TARGET_IPHONE_SIMULATOR
-         // iOS Simulator
-    #   error "Not implemented yet"
-    #elif TARGET_OS_IPHONE
-        // iOS device
-    #   error "Not implemented yet"
-    #elif TARGET_OS_MAC
-    #   error "Not implemented yet"
-        // Other kinds of Mac OS
-    #else
 
 #define __MAC_OS__
 
@@ -66,7 +47,6 @@
 #error "Unknown endian"
 #endif
 
-    #endif //if TARGET_IPHONE_SIMULATOR
 #elif __linux__
     // linux
 #define __LINUX_OS__

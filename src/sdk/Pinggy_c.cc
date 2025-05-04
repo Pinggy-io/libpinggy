@@ -358,7 +358,7 @@ pinggy_config_set_server_address(pinggy_ref_t ref, pinggy_char_p_t server_addres
         LOGE("No sdkConf found for the ref:", ref);
         return;
     }
-    sdkConf->ServerAddress = NewUrlPtr(EmptyStringIfNull(server_address));
+    sdkConf->ServerAddress = NewUrlPtr(EmptyStringIfNull(server_address), 443);
 }
 
 PINGGY_EXPORT pinggy_void_t
@@ -413,7 +413,7 @@ pinggy_config_set_udp_forward_to(pinggy_ref_t ref, pinggy_char_p_t udp_forward_t
         LOGE("No sdkConf found for the ref:", ref);
         return;
     }
-    sdkConf->UdpForwardTo = NewUrlPtr(EmptyStringIfNull(udp_forward_to));
+    sdkConf->UdpForwardTo = NewUrlPtr(EmptyStringIfNull(udp_forward_to), 80, "udp");
 }
 
 PINGGY_EXPORT pinggy_void_t
@@ -701,6 +701,26 @@ pinggy_tunnel_stop(pinggy_ref_t ref)
     }
     try {
         return sdk->Stop();
+    } catch (const std::exception &e) {
+        if (exception_callback) {
+            exception_callback("CPP exception:", e.what());
+        } else {
+            LOGE("No exception handler found");
+        }
+        return pinggy_false;
+    }
+}
+
+PINGGY_EXPORT pinggy_bool_t
+pinggy_tunnel_is_active(pinggy_ref_t ref)
+{
+    auto sdk =  getSdk(ref);
+    if (sdk == nullptr) {
+        LOGE("null sdk");
+        return pinggy_false;
+    }
+    try {
+        return sdk->IsTunnelActive();
     } catch (const std::exception &e) {
         if (exception_callback) {
             exception_callback("CPP exception:", e.what());

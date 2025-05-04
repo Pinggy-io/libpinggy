@@ -52,46 +52,71 @@ struct NoDeleter
 
 class Url {
 public:
-    Url(std::string url);
-    virtual ~Url();
+    Url(tString url, int defaultPort = 80, tString defaultProto = "http");
 
-    std::string ToString() {return protocol + "://" + host + ":" + std::to_string(port) + path;};
+    virtual
+    ~Url();
 
-    std::string GetSockAddrString() {return host + ":" + portStr; }
+    tString
+    ToString()                  { return protocol + "://" + host + ":" + std::to_string(port) + path; }
 
-    const std::string& GetHost() const {return host;}
+    tString
+    GetSockAddrString()         { return host + ":" + portStr; }
 
-    const std::string& GetPath() const {return path;}
+    const tString&
+    GetHost() const             { return host; }
 
-    port_t GetPort() const {return port;}
+    const tString&
+    GetPath() const             { return path; }
 
-    std::string GetPortStr() const {return portStr;}
+    port_t
+    GetPort() const             { return port; }
 
-    const std::string& GetProtocol() const {return protocol;}
+    tString
+    GetPortStr() const          { return portStr; }
 
-    const std::string& GetQuery() const {return query;}
+    const tString&
+    GetProtocol() const         { return protocol; }
 
-    void SetHost(std::string host) {this->host = host;}
-    void SetPath(std::string path) {this->path = path;}
-    void SetPort(port_t port) {this->port = port; this->portStr = std::to_string(port);}
-    void SetProtocol(std::string protocol) {this->protocol = protocol;}
-    void SetQuery(std::string query) {this->query = query;}
+    const tString&
+    GetQuery() const            { return query; }
+
+    void
+    SetHost(tString host)       { this->host = host; }
+
+    void
+    SetPath(tString path)       { this->path = path; }
+
+    void
+    SetPort(port_t port)        { this->port = port; this->portStr = std::to_string(port); }
+
+    void
+    SetProtocol(tString protocol)
+                                { this->protocol = protocol; }
+
+    void
+    SetQuery(tString query)     { this->query = query; }
+
 
 
 private:
-    std::string protocol;
-    std::string host;
+    tString protocol;
+    tString host;
     port_t port;
-    std::string portStr;
-    std::string path;
-    std::string query;
+    tString portStr;
+    tString path;
+    tString query;
 };
 
 DefineMakeSharedPtr(Url);
 
-std::ostream& operator<<(std::ostream& os, const UrlPtr& url);
+std::ostream&
+operator<<(std::ostream& os, const UrlPtr& url);
 
-FsPath CreateTemporaryDirectory(std::string templat="util-temp-XXXXX");
-bool DeleteDirTree(FsPath dirPath);
+FsPath
+CreateTemporaryDirectory(tString templat="util-temp-XXXXX");
+
+bool
+DeleteDirTree(FsPath dirPath);
 
 #endif /* SERVER_UTILS_HH_ */

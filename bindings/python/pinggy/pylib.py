@@ -8,25 +8,77 @@ from . import core
 
 
 def setLogPath(path):
+    """
+    Set path where native library print its log. Use this function only if requires.
+    To disable native library logging completly, use `disableLog` function.
+
+    Returns:
+        None
+    """
     path = path if isinstance(path, bytes) else path.encode("utf-8")
     core.pinggy_set_log_path(path)
 
 def disableLog():
+    """
+    Disable logging by the native library.
+
+    Returns:
+        None
+    """
     core.pinggy_set_log_enable(False)
 
 def version():
+    """
+    Function to know the native library version.
+
+    Returns:
+        str: libpinggy version.
+    """
     return core._get_string_via_cfunc(core.pinggy_version)
+
 def git_commit():
+    """
+    Function to get the git commit hash of the source code.
+
+    Returns:
+        str: git commit hash.
+    """
     return core._get_string_via_cfunc(core.pinggy_git_commit)
+
 def build_timestamp():
+    """
+    Function to get the build timestamp as per the build-system.
+
+    Returns:
+        str: build timestamp.
+    """
     return core._get_string_via_cfunc(core.pinggy_build_timestamp)
+
 def libc_version():
+    """
+    Get the libc version of the native. This information is accurate only for linux operating system.
+
+    Returns:
+        str: libc version.
+    """
     return core._get_string_via_cfunc(core.pinggy_libc_version)
+
 def build_os():
+    """
+    Get the detail about the build operating system.
+
+    Returns:
+        str: os detail.
+    """
     return core._get_string_via_cfunc(core.pinggy_build_os)
 
 
 class Channel:
+    """
+    Represents incomming channels from the tunnel.
+
+    **This feature is not finished and not to be used**
+    """
     def __init__(self, channelRef):
         self.__channelRef       = channelRef
         self.__data_received_cb = core.pinggy_channel_data_received_cb_t(self.__func_data_received)
@@ -83,33 +135,171 @@ class Channel:
         return core._get_string_via_cfunc(core.pinggy_tunnel_channel_get_src_host, self.__channelRef)
 
 class BaseTunnelHandler:
+    """
+    Represent basic and default handler for :class:`Tunnel`. It provide default handler
+    for various event triggered by the Tunnel. It is expected that all the event handler
+    would extend this event handler.
+    """
     def __init__(self, tunnel):
+        """
+        Initializes the basic event handler.
+        Args:
+            tunnel (Tunnel): The tunnel object
+        """
         self.tunnel = tunnel
+
     def get_tunnel(self):
+        """
+        Returns the tunnel object
+        Returns:
+            Tunnel: the tunnel object
+        """
         return self.tunnel
+
     def authenticated(self):
+        """
+        Triggers when tunnel successfully authenticated. Authentication happen even for free tunnels.
+        """
         print(f"Tunnel authenthicated")
+
     def authentication_failed(self, errors):
+        """
+        Triggers when tunnel could not able to authenticate it self. Reasons are provided in the `errors` argument.
+        Any further action on the tunnel object will fail.
+
+        Args:
+            errors (list(str)): Authentication failure reasons.
+        """
         print(f"Tunnel is failed to authenticate. reasons: {errors}")
+
     def primary_forwarding_succeeded(self):
+        """
+        Triggers when primary (or default) forwarding successfully completed.
+        Know more about primary (or default) forwarding at
+        https://pinggy.io/docs/http_tunnels/multi_port_forwarding/.
+
+        Once this step done, one can fetch the urls from the tunnel.
+        """
         print(f"Forwarding succeeded. urls: {self.tunnel.urls}")
+
     def primary_forwarding_failed(self, msg):
+        """
+        Triggers when primary (or default) forwarding fails. The reason is present in the msg.
+
+        Agrs:
+            msg (str): the reason why it failes.
+        """
         print(f"Forwarding failed with msg {msg}")
+
     def additional_forwarding_succeeded(self, bindAddr, forwardTo):
+        """
+        Triggers when additional forwarding completes successfully. Learn more at
+        https://pinggy.io/docs/http_tunnels/multi_port_forwarding/.
+
+        **This is experimental and not tested**
+
+        Agrs:
+            bindAddr (str): remote address where connection can be sent.
+            forwardTo (str): address to which connection would forwarded. It is equivalen to `tcp_forward_to`.
+        """
         print(f"Additional forwarding from {bindAddr} to {forwardTo} succeeded")
+
     def additional_forwarding_failed(self, bindAddr, forwardTo, err):
+        """
+        Triggers when additional forwarding fails
+        """
         print(f"Additional forwarding from {bindAddr} to {forwardTo} failed with error {err}")
+
     def disconnected(self, msg):
+        """
+        Triggers when tunnel got disconnected by the server.
+
+        Agrs:
+            msg (str): disconnection reason.
+        """
         print(f"Tunnel disconnected with msg {msg}")
+
     def tunnel_error(self, errorNo, msg, recoverable):
+        """
+        In case some error occures. Errors could be recoverable.
+
+        Args:
+            errorNo (int): internal error no. Currently not useful for user.
+            msg (str): description
+            recoverable (bool): whether a error is recoverable or not. Application should ignore recoverable errors.
+        """
         print(f"Tunnel error occured {errorNo}, {msg}, {recoverable}")
+
     def handle_channel(self):
+        """
+        **Do not return anything but False**
+        """
         return False
+
     def new_channel(self, channel:Channel):
+        """
+        **Do not use**
+        """
         print(f"New channel received. rejecting it. override `new_channel` method to handle the channel or return `False` from `handle_channel` method")
         channel.reject()
 
 class Tunnel:
+    """
+    The primary class which provides the tunnel.
+
+    There are two simple way to start a tunnel. If we want to forward local apache server listening on
+    port 80 to the internet we can start tunnel via following:
+
+    Example 1:
+
+        >>> import pinggy
+        >>> tunnel = pinggy.Tunnel()
+        >>> tunnel.tcp_forward_to = "localhost:80"
+        >>> tunnel.start()
+
+    Example 2:
+
+        >>> import pinggy
+        >>> tunnel = pinggy.Tunnel()
+        >>> tunnel.tcp_forward_to = "localhost:80"
+        >>> tunnel.connect()
+        >>> tunnel.request_primary_forwarding()
+        >>> tunnel.serve_tunnel()
+
+    There several configuration available, that one might need to consider.
+
+    Flow 1:
+
+        > Create Tunnel
+        >         |
+        >         |-> set attributes
+        >         |
+        >         |-> connect() -> authentication failed callback
+        >         |       |
+        >         |       `-> authentication success callback
+        >         |
+        >         |-> request_primary_forwarding() -> primary forwarding failed callback
+        >         |       |
+        >         |       `-> primary forwarding succeeded callback
+        >         |
+        >         |-> request_additional_forwarding(bindaddress, forwardto) -> additional forwarding failed callback
+        >         |       |
+        >         |       `-> additional forwarding succeeded callback
+        >         |
+        >         `-> serve_tunnel()
+
+    Flow 2:
+
+        > Create Tunnel
+        >         |
+        >         |-> set attributes
+        >         |
+        >         |-> start() -> authentication failed callback
+        >                 |
+        >                 `-> authentication success callback -> primary forwarding failed callback
+        >                             |
+        >                             `-> primary forwarding succeeded callback
+    """
     def __init__(self, server_address="a.pinggy.io:443", eventClass=BaseTunnelHandler):
         server_address = server_address if isinstance(server_address, bytes) else server_address.encode("utf-8")
         self.__tunnelRef                            = 0
@@ -177,16 +367,31 @@ class Tunnel:
             self.__tunnelRef = 0
 
     def start_with_c(self):
+        """
+        ** DO NOT USE THIS METHOD **
+        """
         self.__editableConfig = False
         print("Kindly don't use this method")
         core.pinggy_tunnel_start(self.__tunnelRef)
 
     def start(self):
+        """
+        Start the tunnel with the provided configuration. This is a blocking call.
+        It does not return unless tunnel stopped externally or some error occures.
+        """
         self.__editableConfig = False
         self.__auto = True
         self.connect()
 
     def connect(self):
+        """
+        Connect the tunnel with the server and authenticate it self. It returns true on success.
+
+        If this step fails, no futher step steps can be continued.
+
+        Returns:
+            bool: whether authentication done sucessfully or not.
+        """
         if self.__connected:
             raise Exception("You call connec only once")
         locked = False
@@ -204,12 +409,26 @@ class Tunnel:
         return self.__authenticated
 
     def stop(self):
+        """Stops the running tunnel."""
         core.pinggy_tunnel_stop(self.__tunnelRef)
 
+    def is_active(self):
+        """Check if tunnel is active or not."""
+        return core.pinggy_tunnel_is_active(self.__tunnelRef)
+
     def start_web_debugging(self, port=4300):
+        """
+        Start the web debugger. All the request would be handled internally.
+
+        Call this function after primary forwarding completed successfully.
+        """
         return core.pinggy_tunnel_start_web_debugging(self.__tunnelRef, port)
 
     def request_primary_forwarding(self):
+        """
+        Request to start the default forwarding. Once suceeded, user can get
+        the urls and tunnel starts accepting requests.
+        """
         if self.__auto:
             raise Exception("Not permitted as tunnel started with `start` method")
         if not self.__authenticated:
@@ -227,11 +446,19 @@ class Tunnel:
         return self.__tunnel_started
 
     def request_additional_forwarding(self, bindAddr, forwardTo):
+        """
+        Once primary forwarding is done, user can request additional forwarding for other ports.
+
+        More details at: https://pinggy.io/docs/http_tunnels/multi_port_forwarding/.
+        """
         bindAddr = bindAddr if isinstance(bindAddr, bytes) else bindAddr.encode('utf-8')
         forwardTo = forwardTo if isinstance(forwardTo, bytes) else forwardTo.encode('utf-8')
         core.pinggy_tunnel_request_additional_forwarding(self.__tunnelRef, bindAddr, forwardTo)
 
     def serve_tunnel(self):
+        """
+        Final method in the tunnel creation flow. It is again a blocking call.
+        """
         if not self.__tunnel_started:
             raise Exception("Tunnel is not running")
         locked = False
@@ -323,42 +550,71 @@ class Tunnel:
     #////////////////////
     @property
     def urls(self):
+        """list(str): lists of public urls for the running tunnel (read only)"""
         return self.__urls
 
     @property
     def server_address(self):
+        """
+        str: pinggy server address. The default server address is `a.pinggy.io`. You can also add the
+            port as follows: `a.pinggy.io:443`.
+        """
         return core._get_string_via_cfunc(core.pinggy_config_get_server_address, self.__configRef)
 
     @property
     def token(self):
+        """str: Token for the tunnel. One can it from `dashboard.pinggy.io`"""
         return core._get_string_via_cfunc(core.pinggy_config_get_token, self.__configRef)
 
     @property
     def type(self):
+        """
+        str: Tunnel type or mode. This is only for TCP type. So, the accepted values are 'http',
+            'tcp', 'tls' and 'tlstcp'. Default is 'http'.
+        """
         return core._get_string_via_cfunc(core.pinggy_config_get_type, self.__configRef)
 
     @property
     def udp_type(self):
+        """
+        str: Tunnel type or mode. This is only for UDP type. currently, only accepted value is 'udp'.
+        """
         return core._get_string_via_cfunc(core.pinggy_config_get_udp_type, self.__configRef)
 
     @property
     def tcp_forward_to(self):
+        """
+        str: local server address for default or primary forward. It is equivalent to -R option in ssh
+
+        Example:
+            If local server is running at port 8080. Forward request to it by setting
+
+            >>> tunnel.tcp_forward_to = "localhost:8080"
+        """
         return core._get_string_via_cfunc(core.pinggy_config_get_tcp_forward_to, self.__configRef)
 
     @property
     def udp_forward_to(self):
+        """
+        str: Similar to `tcp_forward_to`. However, it is for udp tunnel.
+        """
         return core._get_string_via_cfunc(core.pinggy_config_get_udp_forward_to, self.__configRef)
 
     @property
     def force(self):
+        """bool: force flag in tunnel that terminates any existing tunnel with the same token."""
         return core.pinggy_config_get_force(self.__configRef)
 
     @property
     def argument(self):
+        """str: tunnel arguments for header manipulation and others."""
         return core._get_string_via_cfunc(core.pinggy_config_get_argument, self.__configRef)
 
     @property
     def advanced_parsing(self):
+        """
+        keep it true. Free tunnels won't work without it.
+        """
         return core.pinggy_config_get_advanced_parsing(self.__configRef)
 
     @property

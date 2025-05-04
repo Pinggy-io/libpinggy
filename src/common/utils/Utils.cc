@@ -35,7 +35,8 @@ static std::regex urlRegex = std::regex(R"(^(?:(\w+):\/\/)?([^\/:#?]+)(?::(\d+))
 static std::regex urlRegexIpv6 = std::regex("^(.*?):\\/\\/(\\[?[^\\]/]+\\]?)?(?::([0-9]+))?(\\/.*)?$");
 
 #if 0
-Url::Url(std::string aurl): port(0) {
+Url::Url(tString aurl, int defaultPort, tString defaultProto): port(0)
+{
 
     std::smatch match;
     auto url = aurl;
@@ -53,24 +54,25 @@ Url::Url(std::string aurl): port(0) {
     fragment = match[6];
 
     if(protocol.empty())
-        protocol = "http";
+        protocol = defaultProto;
     if(portStr.empty())
-        portStr = "80";
+        portStr = std::to_string(defaultPort);
     port = std::stoi(portStr);
 }
 
 #elif 1
-Url::Url(std::string url): port(0) {
-    std::string nurl = url;
+Url::Url(tString url, int defaultPort, tString defaultProto): port(0)
+{
+    tString nurl = url;
     std::transform(nurl.begin(), nurl.end(), nurl.begin(), [](unsigned char c){ return std::tolower(c); });
-    protocol = "http";
-    port = 80;
-    portStr = "80";
+    protocol = defaultProto;
+    port = defaultPort;
+    portStr = std::to_string(defaultPort);
     query = "";
     path = "/";
-    std::string::size_type pos = 0;
+    tString::size_type pos = 0;
     auto cloneSlashPos = nurl.find("://");
-    if(cloneSlashPos != std::string::npos) {
+    if(cloneSlashPos != tString::npos) {
         protocol = url.substr(pos, cloneSlashPos);
         pos += cloneSlashPos + 3;
     }
@@ -95,7 +97,7 @@ Url::Url(std::string url): port(0) {
         portStr = std::to_string(port);
         pos = MIN(slashpos, querypos);
     }
-    if(pos != std::string::npos && querypos > pos) { //Let sanitize path
+    if(pos != tString::npos && querypos > pos) { //Let sanitize path
         // path = nurl.substr(pos, querypos-pos);
         bool lastSlash = false;
         path = "";
@@ -110,7 +112,7 @@ Url::Url(std::string url): port(0) {
             path += url[i];
         }
     }
-    if(querypos != std::string::npos)
+    if(querypos != tString::npos)
         query = url.substr(querypos);
     if(path.length() == 0) {
         path = "/";
@@ -118,7 +120,8 @@ Url::Url(std::string url): port(0) {
 }
 #else
 #include <httpparser/urlparser.h>
-Url::Url(std::string url): port(0) {
+Url::Url(tString url): port(0)
+{
     httpparser::UrlParser urlParser;
     Assert(urlParser.parse(url));
     protocol = urlParser.scheme();
@@ -130,17 +133,21 @@ Url::Url(std::string url): port(0) {
 }
 #endif //#if 0
 
-Url::~Url() {
+Url::~Url()
+{
 }
 
-std::ostream &operator<<(std::ostream &os, const UrlPtr &url)
+std::ostream &
+operator<<(std::ostream &os, const UrlPtr &url)
 {
     os << url->ToString();
     return os;
 }
 
 #ifdef __WINDOWS_OS__
-FsPath CreateTemporaryDirectory(const std::string &templat) {
+FsPath
+CreateTemporaryDirectory(const tString &templat)
+{
     // Get the path to the temporary directory as a wide string
     wchar_t tempPath[MAX_PATH];
     if (GetTempPathW(MAX_PATH, tempPath) == 0) {
@@ -160,7 +167,9 @@ FsPath CreateTemporaryDirectory(const std::string &templat) {
     return tmpDirPath;
 }
 
-bool DeleteDirTree(FsPath dirPath) {
+bool
+DeleteDirTree(FsPath dirPath)
+{
     try {
         // Iterate over the directory and remove each file or subdirectory
         for (const auto& entry : std::filesystem::directory_iterator(dirPath)) {
@@ -177,35 +186,38 @@ bool DeleteDirTree(FsPath dirPath) {
     }
 }
 #else
-static std::string FindTempDir()
+static tString
+FindTempDir()
 {
     const char *tmpDir = std::getenv("TMPDIR");
     if (tmpDir == NULL || tmpDir[0] == 0)
         tmpDir = "/tmp";
-    return std::string(tmpDir);
+    return tString(tmpDir);
 }
 
-FsPath CreateTemporaryDirectory(std::string templat)
+FsPath
+CreateTemporaryDirectory(tString templat)
 {
 
-    std::string tmpDirPath = FindTempDir();
+    tString tmpDirPath = FindTempDir();
     tmpDirPath += "/" + templat;
     char *tmp = new char[tmpDirPath.length() + 2]; //a buffer
     std::strcpy(tmp, tmpDirPath.c_str());
-    auto dirPath = std::string(mkdtemp(tmp));
+    auto dirPath = tString(mkdtemp(tmp));
     delete[] tmp;
     return FsPath(dirPath);
 }
 
-bool DeleteDirTree(FsPath dirPathArg)
+bool
+DeleteDirTree(FsPath dirPathArg)
 {
-    std::string dirPath = dirPathArg.string();
+    tString dirPath = dirPathArg.string();
     DIR *dirp = opendir(dirPath.c_str());
     if (dirp == NULL)
         return false;
     for(struct dirent *dir = readdir(dirp); dir; dir = readdir(dirp))
     {
-        std::string tmpPath = dirPath + std::string("/") + std::string(dir->d_name);
+        tString tmpPath = dirPath + tString("/") + tString(dir->d_name);
         remove(tmpPath.c_str());
     }
     closedir(dirp);
