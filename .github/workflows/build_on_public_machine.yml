@@ -23,7 +23,7 @@ jobs:
 
     - name: Download and extract .zip file
       run: |
-        $url = "https://public-pre-built-libraries.s3.us-east-2.amazonaws.com/openssl/OpenSSL-3.3.1-windows.zip"
+        $url = "https://public-pre-built-libraries.s3.us-east-2.amazonaws.com/openssl/OpenSSL-3.3.1-windows-${{ matrix.architecture }}.zip"
         $zipPath = "$env:GITHUB_WORKSPACE\OpenSSL-3.3.1-windows.zip"
         $extractPath = "$env:GITHUB_WORKSPACE"
         Invoke-WebRequest -Uri $url -OutFile $zipPath
