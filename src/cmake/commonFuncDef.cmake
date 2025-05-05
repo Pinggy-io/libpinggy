@@ -112,10 +112,18 @@ function(LinkSSL target)
         target_link_libraries(${target} PRIVATE Crypt32 advapi32)
         endif()
     endif()
-    set_target_properties(${target} PROPERTIES
-        BUILD_WITH_INSTALL_RPATH TRUE
-        INSTALL_RPATH "@loader_path/openssl/lib"  # or "@rpath"
-    )
+
+    if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+        set_target_properties(${target} PROPERTIES
+            BUILD_WITH_INSTALL_RPATH TRUE
+            INSTALL_RPATH "$ORIGIN/openssl/lib"  # or "@rpath"
+        )
+    elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+        set_target_properties(${target} PROPERTIES
+            BUILD_WITH_INSTALL_RPATH TRUE
+            INSTALL_RPATH "@loader_path/openssl/lib"  # or "@rpath"
+        )
+    endif()
 endfunction()
 
 function(EnableSymbolExport target)
