@@ -869,6 +869,7 @@ SDKConfig::validate()
     if (!ServerAddress) {
         ServerAddress = NewUrlPtr("a.pinggy.ip:443");
     }
+
     if (TcpForwardTo && Mode == "") {
         Mode = "http";
     }

@@ -68,8 +68,8 @@ struct sock_addrinfo
   int                           protocol;   /* Protocol for socket.  */
   socklen_t                     addrlen;    /* Length of socket address.  */
   union sockaddr_ip             addr;       /* Socket address for socket.  */
-  int                           valid:1;
-  int                           cached:1;
+  uint16_t                      valid:1;
+  uint16_t                      cached:1;
 };
 
 typedef struct socket_stat {

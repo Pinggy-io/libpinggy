@@ -20,8 +20,7 @@
 
 
 #include <memory>
-
-// #include <stdint.h>
+#include "platform.h"
 
 //#define NO_SHARED_PTR
 
