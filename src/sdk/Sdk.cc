@@ -869,6 +869,14 @@ SDKConfig::validate()
     if (!ServerAddress) {
         ServerAddress = NewUrlPtr("a.pinggy.ip:443");
     }
+    if (TcpForwardTo && Mode == "") {
+        Mode = "http";
+    }
+
+    if (UdpForwardTo && UdpMode == "") {
+        UdpMode = "udp";
+    }
+
     if (Mode != "http" && Mode != "tcp" && Mode != "tls" && Mode != "tlstcp")
         Mode = "";
     if (UdpMode != "udp")
