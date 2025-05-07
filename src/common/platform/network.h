@@ -62,14 +62,14 @@ typedef union sockaddr_ip{
 
 struct sock_addrinfo
 {
-  int flags;			/* Input flags.  */
-  int family;		/* Protocol family for socket.  */
-  int socktype;		/* Socket type.  */
-  int protocol;		/* Protocol for socket.  */
-  socklen_t addrlen;		/* Length of socket address.  */
-  union sockaddr_ip addr;	/* Socket address for socket.  */
-  struct sock_addrinfo *root;	/* Pointer to next in list.  */
-  int valid;
+  int                           flags;      /* Input flags.  */
+  int                           family;     /* Protocol family for socket.  */
+  int                           socktype;   /* Socket type.  */
+  int                           protocol;   /* Protocol for socket.  */
+  socklen_t                     addrlen;    /* Length of socket address.  */
+  union sockaddr_ip             addr;       /* Socket address for socket.  */
+  uint16_t                      valid:1;
+  uint16_t                      cached:1;
 };
 
 typedef struct socket_stat {

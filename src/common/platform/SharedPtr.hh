@@ -20,8 +20,7 @@
 
 
 #include <memory>
-
-// #include <stdint.h>
+#include "platform.h"
 
 //#define NO_SHARED_PTR
 
@@ -32,7 +31,7 @@ namespace pinggy {
 struct SharedObject: public std::enable_shared_from_this<SharedObject>
 {
     virtual ~SharedObject(){};
-    virtual uint64_t Hash() { return (uint64_t) this; }
+    virtual tUint64 Hash() { return (tUint64) this; }
     std::shared_ptr<SharedObject> getptr() {
         return shared_from_this();
     }

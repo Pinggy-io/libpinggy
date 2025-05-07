@@ -97,12 +97,12 @@ DeclareSharedPtr(PollState);
 #define GetCurrentTimeInNS() \
     (std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch()).count())
 
-#define  NANOSECOND         (1L)
-#define  MICROSECOND        (1000L*NANOSECOND)
-#define  MILLISECOND        (1000L*MICROSECOND)
-#define  SECOND             (1000L*MILLISECOND)
-#define  MINUTE             (60L*SECOND)
-#define  HOUR               (60L*MINUTE)
+#define  NANOSECOND         ((uint64_t)1)
+#define  MICROSECOND        (1000*NANOSECOND)
+#define  MILLISECOND        (1000*MICROSECOND)
+#define  SECOND             (1000*MILLISECOND)
+#define  MINUTE             (60*SECOND)
+#define  HOUR               (60*MINUTE)
 // #define  MILLIS_IN_SECOND   (1000L)
 // #define  NANOS_IN_MILLI     (1000L)
 

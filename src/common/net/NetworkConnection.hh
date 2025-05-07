@@ -462,6 +462,12 @@ private:
     void
     tryNonBlockingConnect();
 
+    void
+    connectTimeoutOccured();
+
+    bool
+    getNextAddressToConnect();
+
     sock_t                      fd;
     int                         soType;
     int                         soFamily;
@@ -471,12 +477,21 @@ private:
     ssize_t                     lastReturn;
     bool                        blocking;
     bool                        tryAgain;
+    // async connect
     bool                        connecting;
-    sock_addrinfo              *addressesToConnect;
+    bool                        cachedAddressTried;
+    bool                        fetchAddressFromSystem;
+    tString                     hostToConnect;
+    tString                     portToConnect;
+    sock_addrinfo               currentAddress;
+    std::queue<sock_addrinfo>   addressesToConnect;
     NonBlockingConnectEventHandlerPtr
                                 connectEventHandler;
     tString                     connectEventTag;
     pinggy::VoidPtr             connectEventPtr;
+    common::PollableTaskPtr     connectTimer;
+
+
     tNetState                   netState;
 };
 

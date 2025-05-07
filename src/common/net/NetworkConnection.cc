@@ -23,6 +23,7 @@
 #include <string.h>
 #include <utils/Json.hh>
 #include <platform/platform.h>
+#include "AddressCache.hh"
 
 
 namespace net {
@@ -69,7 +70,8 @@ NetworkSocket::ReassigntoLowerFdPtr(sock_t *fd)
 
 NetworkConnectionImpl::NetworkConnectionImpl(tString host, tString port, bool blockingConnect) :
             fd(INVALID_SOCKET), flags(0), lastReturn(0), blocking(false), tryAgain(false),
-            connecting(false), addressesToConnect(NULL)
+            connecting(false), cachedAddressTried(false), fetchAddressFromSystem(false),
+            hostToConnect(host), portToConnect(port)
 {
     netState.Connected = false;
     if (blockingConnect) {
@@ -84,15 +86,13 @@ NetworkConnectionImpl::NetworkConnectionImpl(tString host, tString port, bool bl
         netState.Uds = soFamily == AF_UNIX;
         netState.Connected = true;
         netState.Valid = true;
-    } else {
-        addressesToConnect = app_getaddrinfo_tcp(host.c_str(), port.c_str());
     }
 }
 
 #ifndef __WINDOWS_OS__
 NetworkConnectionImpl::NetworkConnectionImpl(tString path) :
             fd(INVALID_SOCKET), flags(0), lastReturn(0), blocking(false), tryAgain(false),
-            connecting(false), addressesToConnect(NULL)
+            connecting(false), cachedAddressTried(false), fetchAddressFromSystem(false)
 {
     auto sock = app_uds_client_connect(path.c_str());
     if (!IsValidSocket(sock)) {
@@ -112,7 +112,7 @@ NetworkConnectionImpl::NetworkConnectionImpl(tString path) :
 
 NetworkConnectionImpl::NetworkConnectionImpl(sock_t fd) :
             fd(fd), flags(0), lastReturn(0), blocking(false), tryAgain(false),
-            connecting(false), addressesToConnect(NULL)
+            connecting(false), cachedAddressTried(false), fetchAddressFromSystem(false)
 {
     soType = get_socket_type(fd);
     soFamily = get_socket_family(fd);
@@ -131,10 +131,6 @@ NetworkConnectionImpl::~NetworkConnectionImpl()
         LOGD(this, "Closing fd:", fd);
     CloseNCleanSocket(fd);
     netState.Valid = false;
-    if (addressesToConnect) {
-        app_freeaddrinfo(addressesToConnect);
-        addressesToConnect = NULL;
-    }
 }
 
 ssize_t
@@ -188,7 +184,12 @@ NetworkConnectionImpl::CloseNClear(tString location)
 len_t
 NetworkConnectionImpl::HandleConnect()
 {
-    ConnectionCompleted();
+    DeregisterConnectHandler();
+    if (connectTimer) {
+        connectTimer->DisArm();
+        connectTimer = nullptr;
+        LOGT("DisArming timer: fd:", fd);
+    }
     int err;
     socklen_t len = sizeof(err);
     if (app_getsockopt(fd, SOL_SOCKET, SO_ERROR, &err, &len) < 0) {
@@ -211,6 +212,10 @@ NetworkConnectionImpl::HandleConnect()
         connectEventHandler = nullptr;
         connectEventPtr     = nullptr;
         connectEventTag     = "";
+
+        if (!currentAddress.cached) {
+            AddressCache::GetInstance()->SetAddrInfo(hostToConnect, portToConnect, true, currentAddress);
+        }
     } else {
         LOGT("Failed to connect");
         CloseNCleanSocket(fd);
@@ -223,17 +228,13 @@ NetworkConnectionImpl::HandleConnect()
 void
 NetworkConnectionImpl::tryNonBlockingConnect()
 {
-    while (addressesToConnect) {
-        if (addressesToConnect && addressesToConnect->valid == false) {
-            app_freeaddrinfo(addressesToConnect);
-            addressesToConnect = nullptr;
-            break;
-        }
+    while (getNextAddressToConnect()) {
+        if (currentAddress.valid == false)
+            continue;
 
         int success = 0;
         LOGT("Trying to connect");
-        fd = app_connect_nonblocking_socket(addressesToConnect, &success);
-        addressesToConnect += 1;
+        fd = app_connect_nonblocking_socket(&currentAddress, &success);
         netState.Valid = IsValidSocket(fd);
         if (IsValidSocket(fd)) {
             if (success) {
@@ -241,15 +242,20 @@ NetworkConnectionImpl::tryNonBlockingConnect()
                 connectEventHandler = nullptr;
                 connectEventPtr     = nullptr;
                 connectEventTag     = "";
+                if (!currentAddress.cached) {
+                    AddressCache::GetInstance()->SetAddrInfo(hostToConnect, portToConnect, true, currentAddress);
+                }
             } else {
-                InitiateConnect();
+                RegisterConnectHandler();
+                connectTimer = GetPollController()->SetTimeout(5*SECOND, thisPtr, &NetworkConnectionImpl::connectTimeoutOccured);
+                LOGT("Setting timer: fd:", fd, (currentAddress.family==AF_INET?"IPv6":"IPv4"));
             }
             return;
         }
-        continue;
     }
 
-    if (!addressesToConnect) {
+    {
+        LOGE("Failed to connect to ", hostToConnect + ":" + portToConnect);
         connecting = false;
         connectEventHandler->HandleConnectionFailed(thisPtr);
         connectEventHandler = nullptr;
@@ -257,6 +263,48 @@ NetworkConnectionImpl::tryNonBlockingConnect()
         connectEventTag     = "";
         return;
     }
+}
+
+void
+NetworkConnectionImpl::connectTimeoutOccured()
+{
+    DeregisterConnectHandler();
+    connectTimer = nullptr;
+    LOGT("Timeout to connect: fd: ", fd);
+    CloseNCleanSocket(fd);
+    netState.Valid = false;
+    tryNonBlockingConnect();
+}
+
+bool
+NetworkConnectionImpl::getNextAddressToConnect()
+{
+    currentAddress = sock_addrinfo{0};
+    if (!cachedAddressTried) {
+        cachedAddressTried = true;
+        fetchAddressFromSystem = true;
+        auto addrCache = AddressCache::GetInstance();
+        currentAddress = addrCache->GetAddrInfo(hostToConnect, portToConnect, true);
+        if (currentAddress.valid)
+            return true;
+    }
+
+    if (fetchAddressFromSystem) {
+        fetchAddressFromSystem = false;
+        auto addresses = app_getaddrinfo_tcp(hostToConnect.c_str(), portToConnect.c_str());
+        for (auto addr = addresses; addr->valid; addr++) {
+            sock_addrinfo tmpAdr = *addr;
+            addressesToConnect.push(tmpAdr);
+        }
+        app_freeaddrinfo(addresses);
+    }
+
+    if (addressesToConnect.empty())
+        return false;
+
+    currentAddress = addressesToConnect.front();
+    addressesToConnect.pop();
+    return true;
 }
 
 ssize_t

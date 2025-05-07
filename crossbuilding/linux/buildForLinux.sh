@@ -17,11 +17,12 @@ try() {
 dockernametag=pinggy/crossbuild-glibc:latest
 # dockernametag=crossbuilder
 
-arches=(armv7 aarch64 x86_64 i686)
 
 if [ $# -gt 0 ]
 then
   arches=$@
+else
+  arches=(armv7 aarch64 x86_64 i686)
 fi
 
 

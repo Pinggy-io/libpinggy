@@ -618,12 +618,7 @@ struct sock_addrinfo *app_getaddrinfo_tcp(const char *host, const char *port)
 
     struct sock_addrinfo *addresses = malloc(sizeof(struct sock_addrinfo) * (count + 1));
 
-    for (int i = 0; i < count; i++) {
-        addresses[i].root = addresses;
-    }
-
     for (int i = 0; i < count+1; i++) {
-        addresses[i].root = addresses;
         addresses[i].valid = 0;
     }
 
@@ -643,7 +638,7 @@ struct sock_addrinfo *app_getaddrinfo_tcp(const char *host, const char *port)
 void app_freeaddrinfo(struct sock_addrinfo *res)
 {
     if (res) {
-        free(res->root);
+        free(res);
     }
 }
 

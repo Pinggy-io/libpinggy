@@ -16,9 +16,8 @@
 
 
 #include <stdlib.h>
-#include "ThreadPool.hh"
 #include <platform/Log.hh>
-
+#include "ThreadPool.hh"
 
 namespace common {
 
