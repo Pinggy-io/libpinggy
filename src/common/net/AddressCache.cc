@@ -1,0 +1,39 @@
+#include "AddressCache.hh"
+/*
+ * Copyright (C) 2025 PINGGY TECHNOLOGY PRIVATE LIMITED
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+namespace net
+{
+
+
+sock_addrinfo AddressCache::GetAddrInfo(tString host, tString port, bool tcp)
+{
+    auto ret = sock_addrinfo{.valid = 0};
+    auto key = std::tuple(host, port, tcp);
+    if (addrInfoMap.find(key) == addrInfoMap.end())
+        return ret;
+    return addrInfoMap[key];
+}
+
+void AddressCache::SetAddrInfo(tString host, tString port, bool tcp, sock_addrinfo addr)
+{
+    auto key = std::tuple(host, port, tcp);
+    addr.cached = 1;
+    addrInfoMap[key] = addr;
+}
+
+
+} // namespace net

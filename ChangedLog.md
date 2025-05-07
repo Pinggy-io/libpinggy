@@ -8,3 +8,4 @@
 ### Fixing Auto Typing
 * It was mandatory that we specify udp or tcp. I fixed it now. If `tcp_forward_to` is specified and `type` is not, it would set it to `http`. And similarly for Udp.
 * Also fixed loader path for linux
+* Adding address cache and connect timeout for async connect. Tested in Linux Only.

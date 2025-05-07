@@ -141,7 +141,7 @@ void PollableFD::RaiseDummyWritePoll()
         GetPController()->RaiseWritePoll(getRegisteredFD());
 }
 
-void PollableFD::InitiateConnect()
+void PollableFD::RegisterConnectHandler()
 {
     Assert(GetOrig() == thisPtr);
     if (redirectWriteEventsForConnection_)
@@ -155,7 +155,7 @@ void PollableFD::InitiateConnect()
     redirectWriteEventsForConnection_ = true;
 }
 
-void PollableFD::ConnectionCompleted()
+void PollableFD::DeregisterConnectHandler()
 {
     if (!isRedirectWriteEventsForConnection())
         throw std::runtime_error("Non blocking connection is not going on. Operation not allowed.");

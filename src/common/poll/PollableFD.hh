@@ -91,8 +91,8 @@ protected:
     virtual void SetPController(common::PollControllerPtr ptr) final {auto ob = GetOrig(); Assert(ob); if(ob) ob->pollController_ = ptr; else pollController_ = ptr;}
     virtual len_t HandleConnect() { ABORT_WITH_MSG("It is not supposed to happen"); return 0; }
 
-    virtual void InitiateConnect() final;
-    virtual void ConnectionCompleted() final;
+    virtual void RegisterConnectHandler() final;
+    virtual void DeregisterConnectHandler() final;
 
     // virtual common::PollStatePtr SlientPollDeregister() final;
     // virtual void SlientPollRegister(common::PollStatePtr) final;

@@ -1,0 +1,62 @@
+{
+	// Place your feat-AsyncParseMessage workspace snippets here. Each snippet is defined under a snippet name and has a scope, prefix, body and
+	// description. Add comma separated ids of the languages where the snippet is applicable in the scope field. If scope
+	// is left empty or omitted, the snippet gets applied to all languages. The prefix is what is
+	// used to trigger the snippet and the body will be expanded and inserted. Possible variables are:
+	// $1, $2 for tab stops, $0 for the final cursor position, and ${1:label}, ${2:another} for placeholders.
+	// Placeholders with the same ids are connected.
+	// Example:
+	// "Print to console": {
+	// 	"scope": "javascript,typescript",
+	// 	"prefix": "log",
+	// 	"body": [
+	// 		"console.log('$1');",
+	// 		"$2"
+	// 	],
+	// 	"description": "Log output to console"
+	// }
+	"CppGuard": {
+		"prefix": "cppgrd",
+		"body": [
+			"#ifndef __${RELATIVE_FILEPATH/(?:^.*\\\\src\\\\)?(\\w+)(?!\\w*$)|(\\W)|(\\w+)$/${1:/upcase}${2:+_}${3:/upcase}${3:+_}/g}_$1",
+			"#define __${RELATIVE_FILEPATH/(?:^.*\\\\src\\\\)?(\\w+)(?!\\w*$)|(\\W)|(\\w+)$/${1:/upcase}${2:+_}${3:/upcase}${3:+_}/g}_$1",
+			"\n${TM_SELECTED_TEXT}",
+			"\n#endif // __${RELATIVE_FILEPATH/(?:^.*\\\\src\\\\)?(\\w+)(?!\\w*$)|(\\W)|(\\w+)$/${1:/upcase}${2:+_}${3:/upcase}${3:+_}/g}_$1"
+		]
+	},
+	"macroIf": {
+		"prefix": "#if",
+		"body": [
+			"#if $1",
+			"",
+			"${TM_SELECTED_TEXT}",
+			"",
+			"#endif //if $1"
+		]
+	},
+	"pinggyClass": {
+		"prefix": "classpinggy",
+		"body": [
+			"class ${TM_FILENAME_BASE}$1: virtual public pinggy::SharedObject",
+			"{",
+			"public:",
+			"    ${TM_FILENAME_BASE}$1(/* args */);",
+			"    virtual ~${TM_FILENAME_BASE}$1();",
+			"private:",
+			"    /* data */",
+			"};",
+			"DefineMakeSharedPtr(${TM_FILENAME_BASE}$1);",
+		]
+	},
+	"pinggyAbsClass": {
+		"prefix": "absclasspinggy",
+		"body": [
+			"abstract class ${TM_FILENAME_BASE}$1: virtual public pinggy::SharedObject",
+			"{",
+			"public:",
+			"    virtual ~${TM_FILENAME_BASE}$1(){}",
+			"};",
+			"DeclareSharedPtr(${TM_FILENAME_BASE}$1);"
+		]
+	}
+}

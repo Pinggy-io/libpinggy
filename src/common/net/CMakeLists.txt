@@ -1,6 +1,7 @@
 
 # Common sources
 set(SOURCES
+    AddressCache.cc
     ConnectionListener.cc
     DummyConnection.cc
     NetworkConnection.cc
