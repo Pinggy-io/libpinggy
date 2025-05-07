@@ -21,7 +21,7 @@ namespace net
 
 sock_addrinfo AddressCache::GetAddrInfo(tString host, tString port, bool tcp)
 {
-    auto ret = sock_addrinfo{.valid = 0};
+    sock_addrinfo ret = sock_addrinfo{0};
     auto key = std::tuple(host, port, tcp);
     if (addrInfoMap.find(key) == addrInfoMap.end())
         return ret;

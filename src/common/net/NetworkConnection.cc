@@ -279,7 +279,7 @@ NetworkConnectionImpl::connectTimeoutOccured()
 bool
 NetworkConnectionImpl::getNextAddressToConnect()
 {
-    currentAddress = sock_addrinfo{.valid = 0, .cached = 0};
+    currentAddress = sock_addrinfo{0};
     if (!cachedAddressTried) {
         cachedAddressTried = true;
         fetchAddressFromSystem = true;
