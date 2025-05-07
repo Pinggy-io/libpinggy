@@ -15,11 +15,11 @@
  */
 
 
-#include "CertificateFileDetail.hh"
 #include <cstdlib>
 #include <climits>
 #include <platform/assert_pinggy.h>
 #include <platform/platform.h>
+#include "CertificateFileDetail.hh"
 
 #ifdef __WINDOWS_OS__
 static std::string getRealPath(const std::string& path) {

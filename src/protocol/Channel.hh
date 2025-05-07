@@ -16,8 +16,8 @@
 
 #ifndef SRC_CPP_PROTOCOL_CHANNEL_HH_
 #define SRC_CPP_PROTOCOL_CHANNEL_HH_
-#include <platform/SharedPtr.hh>
 #include "Schema.hh"
+#include <platform/SharedPtr.hh>
 
 namespace protocol
 {
