@@ -89,33 +89,33 @@ public:
     ~SdkEventHandler()          { }
 
     virtual void
-    Connected()                 { }
+    OnConnected()                 { }
 
     virtual void
-    Authenticated()             { } //Not important;
+    OnAuthenticated()             { } //Not important;
 
     virtual void
-    AuthenticationFailed(std::vector<tString> why)
+    OnAuthenticationFailed(std::vector<tString> why)
                                 { }
 
     virtual void
-    PrimaryForwardingSucceeded(std::vector<tString> urls)
+    OnPrimaryForwardingSucceeded(std::vector<tString> urls)
                                 { }
 
     virtual void
-    PrimaryForwardingFailed(tString)
+    OnPrimaryForwardingFailed(tString)
                                 { }
 
     virtual void
-    RemoteForwardingSuccess(UrlPtr bindAddress, UrlPtr forwardTo)
+    OnRemoteForwardingSuccess(UrlPtr bindAddress, UrlPtr forwardTo)
                                 { }
 
     virtual void
-    RemoteForwardingFailed(UrlPtr bindAddress, UrlPtr forwardTo, tString error)
+    OnRemoteForwardingFailed(UrlPtr bindAddress, UrlPtr forwardTo, tString error)
                                 { }
 
     virtual void
-    Disconnected(tString error, std::vector<tString> messages)
+    OnDisconnected(tString error, std::vector<tString> messages)
                                 { }
 
     virtual void
@@ -123,12 +123,12 @@ public:
                                 { }
 
     virtual void
-    HandleError(tUint32 errorNo, tString what, tBool recoverable)
+    OnHandleError(tUint32 errorNo, tString what, tBool recoverable)
                                 { }
 
     //return false to let the sdk handle connection
     virtual bool
-    NewConnectionReceived(SdkChannelWraperPtr channel)
+    OnNewVisitorConnectionReceived(SdkChannelWraperPtr channel)
     {
         return false;
     }
@@ -200,7 +200,7 @@ public:
     HandleSessionAuthenticatedAsClient(std::vector<tString> messages) override;
 
     virtual void
-    HandleSessionAuthenticationFailed(tString error, std::vector<tString> AuthenticationFailed) override;
+    HandleSessionAuthenticationFailed(tString error, std::vector<tString> OnAuthenticationFailed) override;
 
     virtual void
     HandleSessionRemoteForwardingSucceeded(protocol::tReqId reqId, std::vector<tString> urls) override;

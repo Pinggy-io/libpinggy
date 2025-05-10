@@ -391,7 +391,7 @@ Sdk::HandleSessionInitiated()
         return;
     connected = true;
     if (eventHandler)
-        eventHandler->Connected();
+        eventHandler->OnConnected();
     authenticate();
 }
 
@@ -400,9 +400,9 @@ Sdk::HandleSessionAuthenticatedAsClient(std::vector<tString> messages)
 {
     authenticationMsg = messages;
     authenticated = true;
-    LOGD("Authenticated");
+    LOGD("OnAuthenticated");
     if (eventHandler)
-        eventHandler->Authenticated();
+        eventHandler->OnAuthenticated();
     if (automatic) {
         RequestPrimaryRemoteForwarding();
     }
@@ -423,7 +423,7 @@ Sdk::HandleSessionAuthenticationFailed(tString error, std::vector<tString> authe
     }
 
     if (eventHandler)
-        eventHandler->AuthenticationFailed(authenticationMsg);
+        eventHandler->OnAuthenticationFailed(authenticationMsg);
 
     if (baseConnection->IsValid()) {
         baseConnection->DeregisterFDEvenHandler();
@@ -452,7 +452,7 @@ Sdk::HandleSessionRemoteForwardingSucceeded(protocol::tReqId reqId, std::vector<
         primaryForwardingCompleted = true;
 
         if (eventHandler)
-            eventHandler->PrimaryForwardingSucceeded(urls);
+            eventHandler->OnPrimaryForwardingSucceeded(urls);
         LOGD("Primary forwarding done");
         return;
     }
@@ -476,7 +476,7 @@ Sdk::HandleSessionRemoteForwardingSucceeded(protocol::tReqId reqId, std::vector<
     remoteForwardings[remoteBinding] = localForwarding;
 
     if (eventHandler)
-        eventHandler->RemoteForwardingSuccess(bindAddress, forwardTo);
+        eventHandler->OnRemoteForwardingSuccess(bindAddress, forwardTo);
 }
 
 void
@@ -500,7 +500,7 @@ Sdk::HandleSessionRemoteForwardingFailed(protocol::tReqId reqId, tString error)
         }
 
         if (eventHandler)
-            eventHandler->PrimaryForwardingFailed(error);
+            eventHandler->OnPrimaryForwardingFailed(error);
 
         if (baseConnection->IsValid()) {
             baseConnection->DeregisterFDEvenHandler();
@@ -523,7 +523,7 @@ Sdk::HandleSessionRemoteForwardingFailed(protocol::tReqId reqId, tString error)
     auto [bindAddress, forwardTo] = pendingRemoteForwardingMap[reqId];
     pendingRemoteForwardingMap.erase(reqId);
     if (eventHandler)
-        eventHandler->RemoteForwardingFailed(bindAddress, forwardTo, error);
+        eventHandler->OnRemoteForwardingFailed(bindAddress, forwardTo, error);
 }
 
 void
@@ -560,7 +560,7 @@ Sdk::HandleSessionNewChannelRequest(protocol::ChannelPtr channel)
 
         if (eventHandler) {
             auto chan = NewSdkChannelWraperPtr(channel, thisPtr);
-            eventHandler->NewConnectionReceived(chan);
+            eventHandler->OnNewVisitorConnectionReceived(chan);
             if (chan->IsResponeded())
                 return;
         }
@@ -582,7 +582,7 @@ Sdk::HandleSessionNewChannelRequest(protocol::ChannelPtr channel)
         }
 
         if (eventHandler) {
-            auto done = eventHandler->NewConnectionReceived(NewSdkChannelWraperPtr(channel, thisPtr));
+            auto done = eventHandler->OnNewVisitorConnectionReceived(NewSdkChannelWraperPtr(channel, thisPtr));
             if (done)
                 return;
         }
@@ -625,7 +625,7 @@ Sdk::HandleSessionDisconnection(tString reason)
     cleanup();
 
     if (eventHandler)
-        eventHandler->Disconnected(reason, {reason});
+        eventHandler->OnDisconnected(reason, {reason});
 }
 
 void
@@ -637,7 +637,7 @@ Sdk::HandleSessionConnectionReset()
     cleanup();
 
     if (eventHandler)
-        eventHandler->Disconnected("Connection reset", {"Connection reset"});
+        eventHandler->OnDisconnected("Connection reset", {"Connection reset"});
 }
 
 void
@@ -648,7 +648,7 @@ Sdk::HandleSessionError(tUint32 errorNo, tString what, tBool recoverable)
         cleanup();
     }
     if (eventHandler)
-        eventHandler->HandleError(errorNo, what, recoverable);
+        eventHandler->OnHandleError(errorNo, what, recoverable);
 }
 
 void
