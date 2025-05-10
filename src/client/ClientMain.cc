@@ -231,7 +231,7 @@ struct ClientSdkEventHandler: virtual public sdk::SdkEventHandler
     ~ClientSdkEventHandler()    { }
 
     virtual void
-    PrimaryForwardingSucceeded(std::vector<std::string> urls);
+    OnPrimaryForwardingSucceeded(std::vector<std::string> urls);
 
     ClientConfigPtr             config;
     sdk::SdkWPtr                sdk;
@@ -260,7 +260,7 @@ main(int argc, char *argv[]) {
 }
 
 void
-ClientSdkEventHandler::PrimaryForwardingSucceeded(std::vector<std::string> urls)
+ClientSdkEventHandler::OnPrimaryForwardingSucceeded(std::vector<std::string> urls)
 {
     std::cout << "Connection completed" << std::endl;
     for (auto url : urls) {
