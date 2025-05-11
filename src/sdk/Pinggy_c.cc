@@ -334,7 +334,7 @@ extern "C" {
 static pinggy_on_raise_exception_cb_t exception_callback = NULL;
 
 PINGGY_EXPORT pinggy_void_t
-pinggy_set_exception_callback(pinggy_on_raise_exception_cb_t cb)
+pinggy_set_on_exception_callback(pinggy_on_raise_exception_cb_t cb)
 {
     exception_callback = cb;
 }
@@ -822,7 +822,7 @@ pinggy_tunnel_request_additional_forwarding(pinggy_ref_t ref, pinggy_const_char_
     }
 
 PINGGY_EXPORT pinggy_bool_t
-pinggy_tunnel_set_connected_callback(pinggy_ref_t sdkRef, pinggy_on_connected_cb_t connected, pinggy_void_p_t user_data)
+pinggy_tunnel_set_on_connected_callback(pinggy_ref_t sdkRef, pinggy_on_connected_cb_t connected, pinggy_void_p_t user_data)
 {
     GetEventHandlerFromSdkRef(sdkRef, aev);
     aev->onConnectedCB = connected;
@@ -831,7 +831,7 @@ pinggy_tunnel_set_connected_callback(pinggy_ref_t sdkRef, pinggy_on_connected_cb
 }
 
 PINGGY_EXPORT pinggy_bool_t
-pinggy_tunnel_set_authenticated_callback(pinggy_ref_t sdkRef, pinggy_on_authenticated_cb_t authenticated, pinggy_void_p_t user_data)
+pinggy_tunnel_set_on_authenticated_callback(pinggy_ref_t sdkRef, pinggy_on_authenticated_cb_t authenticated, pinggy_void_p_t user_data)
 {
     GetEventHandlerFromSdkRef(sdkRef, aev);
     aev->onAuthenticatedCB = authenticated;
@@ -840,7 +840,7 @@ pinggy_tunnel_set_authenticated_callback(pinggy_ref_t sdkRef, pinggy_on_authenti
 }
 
 PINGGY_EXPORT pinggy_bool_t
-pinggy_tunnel_set_authentication_failed_callback(pinggy_ref_t sdkRef, pinggy_on_authentication_failed_cb_t authenticationFailed, pinggy_void_p_t user_data)
+pinggy_tunnel_set_on_authentication_failed_callback(pinggy_ref_t sdkRef, pinggy_on_authentication_failed_cb_t authenticationFailed, pinggy_void_p_t user_data)
 {
     GetEventHandlerFromSdkRef(sdkRef, aev);
     aev->onAuthenticationFailedCB = authenticationFailed;
@@ -849,7 +849,7 @@ pinggy_tunnel_set_authentication_failed_callback(pinggy_ref_t sdkRef, pinggy_on_
 }
 
 PINGGY_EXPORT pinggy_bool_t
-pinggy_tunnel_set_primary_forwarding_succeeded_callback(pinggy_ref_t sdkRef, pinggy_on_primary_forwarding_succeeded_cb_t tunnel_initiated, pinggy_void_p_t user_data)
+pinggy_tunnel_set_on_primary_forwarding_succeeded_callback(pinggy_ref_t sdkRef, pinggy_on_primary_forwarding_succeeded_cb_t tunnel_initiated, pinggy_void_p_t user_data)
 {
     GetEventHandlerFromSdkRef(sdkRef, aev);
     aev->onPrimaryForwardingSucceededCB = tunnel_initiated;
@@ -867,7 +867,7 @@ pinggy_tunnel_set_primary_forwarding_failed_callback(pinggy_ref_t sdkRef, pinggy
 }
 
 PINGGY_EXPORT pinggy_bool_t
-pinggy_tunnel_set_additional_forwarding_succeeded_callback(pinggy_ref_t sdkRef, pinggy_on_additional_forwarding_succeeded_cb_t reverseForwardingSucceeded, pinggy_void_p_t user_data)
+pinggy_tunnel_set_on_additional_forwarding_succeeded_callback(pinggy_ref_t sdkRef, pinggy_on_additional_forwarding_succeeded_cb_t reverseForwardingSucceeded, pinggy_void_p_t user_data)
 {
     GetEventHandlerFromSdkRef(sdkRef, aev);
     aev->onAdditionalForwardingSucceededCB = reverseForwardingSucceeded;
@@ -876,7 +876,7 @@ pinggy_tunnel_set_additional_forwarding_succeeded_callback(pinggy_ref_t sdkRef, 
 }
 
 PINGGY_EXPORT pinggy_bool_t
-pinggy_tunnel_set_additional_forwarding_failed_callback(pinggy_ref_t sdkRef, pinggy_on_additional_forwarding_failed_cb_t reverseForwardingFailed, pinggy_void_p_t user_data)
+pinggy_tunnel_set_on_additional_forwarding_failed_callback(pinggy_ref_t sdkRef, pinggy_on_additional_forwarding_failed_cb_t reverseForwardingFailed, pinggy_void_p_t user_data)
 {
     GetEventHandlerFromSdkRef(sdkRef, aev);
     aev->onAdditionalForwardingFailedCB = reverseForwardingFailed;
@@ -885,7 +885,7 @@ pinggy_tunnel_set_additional_forwarding_failed_callback(pinggy_ref_t sdkRef, pin
 }
 
 PINGGY_EXPORT pinggy_bool_t
-pinggy_tunnel_set_disconnected_callback(pinggy_ref_t sdkRef, pinggy_on_disconnected_cb_t disconnected, pinggy_void_p_t user_data)
+pinggy_tunnel_set_on_disconnected_callback(pinggy_ref_t sdkRef, pinggy_on_disconnected_cb_t disconnected, pinggy_void_p_t user_data)
 {
     GetEventHandlerFromSdkRef(sdkRef, aev);
     aev->onDisconnectedCB = disconnected;
@@ -894,7 +894,7 @@ pinggy_tunnel_set_disconnected_callback(pinggy_ref_t sdkRef, pinggy_on_disconnec
 }
 
 PINGGY_EXPORT pinggy_bool_t
-pinggy_tunnel_set_tunnel_error_callback(pinggy_ref_t sdkRef, pinggy_on_tunnel_error_cb_t error, pinggy_void_p_t user_data)
+pinggy_tunnel_set_on_tunnel_error_callback(pinggy_ref_t sdkRef, pinggy_on_tunnel_error_cb_t error, pinggy_void_p_t user_data)
 {
     GetEventHandlerFromSdkRef(sdkRef, aev);
     aev->onErrorCB = error;
@@ -903,7 +903,7 @@ pinggy_tunnel_set_tunnel_error_callback(pinggy_ref_t sdkRef, pinggy_on_tunnel_er
 }
 
 PINGGY_EXPORT pinggy_bool_t
-pinggy_tunnel_set_new_channel_callback(pinggy_ref_t sdkRef, pinggy_on_new_channel_cb_t new_channel, pinggy_void_p_t user_data)
+pinggy_tunnel_set_on_new_channel_callback(pinggy_ref_t sdkRef, pinggy_on_new_channel_cb_t new_channel, pinggy_void_p_t user_data)
 {
     GetEventHandlerFromSdkRef(sdkRef, aev);
     aev->onNewChannelCB = new_channel;

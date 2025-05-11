@@ -63,7 +63,7 @@ main() {
     ret = pinggy_build_os(sizeof(details), details);
     printf("pinggy_build_os:        %s\n", details);
     pinggy_set_log_path("/dev/null");
-    pinggy_set_exception_callback(pinggy_raise_exception);
+    pinggy_set_on_exception_callback(pinggy_raise_exception);
     pinggy_ref_t config = pinggy_create_config();
     pinggy_config_set_server_address(config, "t.pinggy.io:443");
     pinggy_config_set_sni_server_name(config, "t.pinggy.io");
@@ -75,9 +75,9 @@ main() {
     struct Tunnel tunnel;
 
     tunnel.tunnelRef = pinggy_tunnel_initiate(config);
-    pinggy_tunnel_set_authenticated_callback(tunnel.tunnelRef, pinggy_authenticated, &tunnel);
-    pinggy_tunnel_set_authentication_failed_callback(tunnel.tunnelRef, pinggy_authentication_failed, &tunnel);
-    pinggy_tunnel_set_primary_forwarding_succeeded_callback(tunnel.tunnelRef, pinggy_primary_forwarding_succeeded, &tunnel);
+    pinggy_tunnel_set_on_authenticated_callback(tunnel.tunnelRef, pinggy_authenticated, &tunnel);
+    pinggy_tunnel_set_on_authentication_failed_callback(tunnel.tunnelRef, pinggy_authentication_failed, &tunnel);
+    pinggy_tunnel_set_on_primary_forwarding_succeeded_callback(tunnel.tunnelRef, pinggy_primary_forwarding_succeeded, &tunnel);
     pinggy_tunnel_set_primary_forwarding_failed_callback(tunnel.tunnelRef, pinggy_primary_forwrding_failed, &tunnel);
     pinggy_tunnel_start(tunnel.tunnelRef);
     return 0;
