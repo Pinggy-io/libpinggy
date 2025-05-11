@@ -86,9 +86,9 @@ startTunnel()
     struct Tunnel tunnel;
 
     tunnel.tunnelRef = pinggy_tunnel_initiate(config);
-    pinggy_tunnel_set_authenticated_callback(tunnel.tunnelRef, pinggy_authenticated, &tunnel);
-    pinggy_tunnel_set_authentication_failed_callback(tunnel.tunnelRef, pinggy_authentication_failed, &tunnel);
-    pinggy_tunnel_set_primary_forwarding_succeeded_callback(tunnel.tunnelRef, pinggy_primary_forwarding_succeeded, &tunnel);
+    pinggy_tunnel_set_on_authenticated_callback(tunnel.tunnelRef, pinggy_authenticated, &tunnel);
+    pinggy_tunnel_set_on_authentication_failed_callback(tunnel.tunnelRef, pinggy_authentication_failed, &tunnel);
+    pinggy_tunnel_set_on_primary_forwarding_succeeded_callback(tunnel.tunnelRef, pinggy_primary_forwarding_succeeded, &tunnel);
     pinggy_tunnel_set_primary_forwarding_failed_callback(tunnel.tunnelRef, pinggy_primary_forwrding_failed, &tunnel);
     pinggy_tunnel_start(tunnel.tunnelRef);
 }
@@ -112,7 +112,7 @@ int main() {
     int threadIds[NUM_THREADS];     // Array to hold thread IDs
     int result;
 
-    pinggy_set_exception_callback(pinggy_raise_exception);
+    pinggy_set_on_exception_callback(pinggy_raise_exception);
 
     for (int i = 0; i < NUM_THREADS; i++) {
         threadIds[i] = i;
