@@ -132,6 +132,26 @@ static void Inflate(DeserializerPtr deserializer,                               
 
 
 //==============================================================================
+//    Define Static Map
+//==============================================================================
+
+#define _SCHEMA_BODY_DefineStaticMapElement_(ClassName, RootClass, ClassSuffix, \
+    ClassSmallSuffix, ...)                                                      \
+    { APP_EXPAND(TO_STR(ClassSuffix##Type_##ClassName)),                        \
+        ClassSuffix##Type_##ClassName},                                         \
+
+#define _SCHEMA_BODY_DefineStaticMapElement(ClassName, vars, ...)               \
+_SCHEMA_HEADER_StripParenAndExpand(_SCHEMA_BODY_DefineStaticMapElement_,        \
+    ClassName, _SCHEMA_HEADER_StripParen vars, __VA_ARGS__)
+
+#define _SCHEMA_BODY_DefineStaticMap(RootClass, ClassSuffix,                    \
+    ClassSmallSuffix, Definition)                                               \
+static std::map<tString, tUint8> _##RootClass##_##ClassSmallSuffix##TypeMap = { \
+    Definition(_SCHEMA_BODY_DefineStaticMapElement, (RootClass,                 \
+        ClassSuffix, ClassSmallSuffix))                                         \
+};
+
+//==============================================================================
 //    Define Global Inflate function
 //==============================================================================
 
@@ -154,14 +174,29 @@ static void Inflate(DeserializerPtr deserializer,                               
 void Inflate(DeserializerPtr deserializer,                                      \
     RootClass##ClassSuffix##Ptr &ClassSmallSuffix)                              \
 {                                                                               \
-    uint8_t ClassSmallSuffix##Type;                                             \
+    tUint8 ClassSmallSuffix##Type;                                              \
+    tString ClassSmallSuffix##TypeStr;                                          \
     deserializer->Deserialize(APP_EXPAND(TO_STR(ClassSmallSuffix##Type)),       \
         ClassSmallSuffix##Type);                                                \
+    deserializer->Deserialize(APP_EXPAND(TO_STR(ClassSmallSuffix##TypeStr)),    \
+        ClassSmallSuffix##TypeStr);                                             \
+                                                                                \
+    if (_##RootClass##_##ClassSmallSuffix##TypeMap.find(                        \
+            ClassSmallSuffix##TypeStr) !=                                       \
+                _##RootClass##_##ClassSmallSuffix##TypeMap.end()) {             \
+        auto type = _##RootClass##_##ClassSmallSuffix##TypeMap[                 \
+                ClassSmallSuffix##TypeStr];                                     \
+        if (type != ClassSmallSuffix##Type && type !=                           \
+                ClassSuffix##Type_Invalid) {                                    \
+            ClassSmallSuffix##Type = type;                                      \
+        }                                                                       \
+    }                                                                           \
+                                                                                \
     switch(ClassSmallSuffix##Type) {                                            \
-Definition(_SCHEMA_BODY_DefineInflate, (RootClass,                              \
-    ClassSuffix, ClassSmallSuffix))                                             \
+    Definition(_SCHEMA_BODY_DefineInflate, (RootClass,                          \
+        ClassSuffix, ClassSmallSuffix))                                         \
     default:                                                                    \
-        ABORT_WITH_MSG("Unknown " APP_EXPAND(TO_STR(ClassSmallSuffix##Type)))   \
+        LOGE("Unknown " APP_EXPAND(TO_STR(ClassSmallSuffix##Type)))             \
     }                                                                           \
 }
 
@@ -195,7 +230,7 @@ void Deflate(SerializerPtr serializer,                                          
 Definition(_SCHEMA_BODY_DefineDeflate, (RootClass,                              \
     ClassSuffix, ClassSmallSuffix))                                             \
     default:                                                                    \
-        ABORT_WITH_MSG("Unknown " APP_EXPAND(TO_STR(ClassSmallSuffix##Type)))   \
+        LOGE("Unknown " APP_EXPAND(TO_STR(ClassSmallSuffix##Type)))             \
     }                                                                           \
 }                                                                               \
 
@@ -206,6 +241,8 @@ Definition(_SCHEMA_BODY_DefineDeflate, (RootClass,                              
         Definition(_SCHEMA_BODY_DefineMsgConstructor, (RootClass, ClassSuffix)) \
         Definition(_SCHEMA_BODY_DefineProtocolFunctions, (RootClass,            \
             ClassSuffix, ClassSmallSuffix))                                     \
+        _SCHEMA_BODY_DefineStaticMap(RootClass, ClassSuffix,                    \
+            ClassSmallSuffix, Definition)                                       \
         _SCHEMA_BODY_DefineInflateFunction(RootClass, ClassSuffix,              \
             ClassSmallSuffix, Definition)                                       \
         _SCHEMA_BODY_DefineDeflateFunction(RootClass, ClassSuffix,              \
@@ -293,8 +330,9 @@ HandlingClassName::~HandlingClassName()                                         
     }                                                                           \
 }                                                                               \
                                                                                 \
-bool HandlingClassName::Start() {                                               \
-    transportManager = NewTransportManagerPtr(netConn, thisPtr);                \
+bool HandlingClassName::Start(bool handshakeRequired) {                         \
+    transportManager = NewTransportManagerPtr(netConn, thisPtr, false,          \
+        handshakeRequired);                                                     \
     netConn->RegisterFDEvenHandler(transportManager);                           \
     running = true;                                                             \
     return true;                                                                \
@@ -341,11 +379,15 @@ void HandlingClassName::HandleIncomingDeserialize(DeserializerPtr deserializer) 
 {                                                                               \
     RootClass##ClassSuffix##Ptr tmp##ClassSuffix;                               \
     deserializer->Deserialize(TO_STR(ClassSmallSuffix), tmp##ClassSuffix);      \
+    if (!tmp##ClassSuffix) {                                                    \
+        return;                                                                 \
+    }                                                                           \
     switch(tmp##ClassSuffix->ClassSmallSuffix##Type) {                          \
     Definition(_SCHEMA_BODY_HandleIncomingMsg,                                  \
         (RootClass, ClassSuffix, ClassSmallSuffix))                             \
         default:                                                                \
-            ABORT_WITH_MSG("Unhandled " TO_STR(ClassSmallSuffix));              \
+            LOGE("Unknown  " APP_EXPAND(TO_STR(ClassSmallSuffix##Type))         \
+                ". Ignoring..");                                                \
     }                                                                           \
 }                                                                               \
                                                                                 \
@@ -364,7 +406,8 @@ void HandlingClassName::HandleReadyToSendBuffer()                               
                                                                                 \
 void HandlingClassName::HandleIncompleteHandshake()                             \
 {                                                                               \
-    ABORT_WITH_MSG("Something fishy. Cannot complete handshake");               \
+    LOGE("Something fishy. Cannot complete handshake");                         \
+    Stop();                                                                     \
 }
 
 

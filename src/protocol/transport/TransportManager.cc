@@ -117,7 +117,7 @@ TransportManager::recvSignature(RawDataPtr rawData)
     if (isServer && isRemoteServer) {
         ABORT_WITH_MSG("Remote and local both cannot be server")
     }
-    if (!isServer) //if local is not server with deserilize with provision to byteswap
+    if (!isServer) //if local is server, the deserilize is not provision to byteswap
         mismatchedEndianness = (isRemoteBigEndian != IS_BIG_ENDIAN);
     if (isRemoteServer) //if remote is a server we serialize with byteswap
         mismatchedEndianSerialize = (isRemoteBigEndian != IS_BIG_ENDIAN);

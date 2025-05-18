@@ -94,7 +94,7 @@ FOREACH_ALL_TYPE(DefineSerializeDeflateForArray)
 // serializeArray
 #define DefineSerializeArray(x)                                     \
     void serializeArray(std::vector<t##x> vector_t){                \
-        uint16_t cnt = (uint16_t)vector_t.size();                             \
+        uint16_t cnt = (uint16_t)vector_t.size();                   \
         tValueType contentType = ValueType_Invalid;                 \
         if (cnt > 0) {                                              \
             contentType = ValueType_##x;                            \

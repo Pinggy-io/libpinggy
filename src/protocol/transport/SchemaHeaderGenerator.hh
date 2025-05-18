@@ -217,7 +217,7 @@ public:                                                                         
     HandlingClassName(net::NetworkConnectionPtr netConn,                        \
         HandlingClassName##EventHandler##Ptr handlerPtr);                       \
     virtual ~ HandlingClassName();                                              \
-    virtual bool Start();                                                       \
+    virtual bool Start(bool handshakeRequired=true);                            \
     virtual bool Stop();                                                        \
     virtual bool IsConnected() { return running; }                              \
     virtual bool Send##ClassSuffix(RootClass##ClassSuffix##Ptr                  \
