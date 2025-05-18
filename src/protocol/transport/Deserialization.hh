@@ -72,8 +72,14 @@ FOREACH_ALL_TYPE(DeclareArrayDeserialize)
 public:
     ~Deserializer();
 
-    virtual void Parse(RawDataPtr stream, PathRegistryPtr pathRegistry, std::string curPath = "");
-    virtual tString Dump();
+    virtual void
+    Parse(RawDataPtr stream, PathRegistryPtr pathRegistry, std::string curPath = "");
+
+    virtual tString
+    Dump();
+
+    virtual bool
+    HasChild(tString key);
 
     template<typename T>
     void Deserialize(tString key, T &val);

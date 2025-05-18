@@ -144,11 +144,18 @@ static void Inflate(DeserializerPtr deserializer,                               
 _SCHEMA_HEADER_StripParenAndExpand(_SCHEMA_BODY_DefineStaticMapElement_,        \
     ClassName, _SCHEMA_HEADER_StripParen vars, __VA_ARGS__)
 
+
+#define _SCHEMA_BODY_DefineMsgTypArray(y, x, ...) APP_EXPAND(TO_STR(y)),
+
 #define _SCHEMA_BODY_DefineStaticMap(RootClass, ClassSuffix,                    \
     ClassSmallSuffix, Definition)                                               \
 static std::map<tString, tUint8> _##RootClass##_##ClassSmallSuffix##TypeMap = { \
     Definition(_SCHEMA_BODY_DefineStaticMapElement, (RootClass,                 \
         ClassSuffix, ClassSmallSuffix))                                         \
+};                                                                              \
+static tString _##RootClass##_##ClassSmallSuffix##TypeArray[] = {               \
+    "Invalid",                                                                  \
+    Definition(_SCHEMA_BODY_DefineMsgTypArray, ClassSuffix)                     \
 };
 
 //==============================================================================
@@ -175,20 +182,27 @@ void Inflate(DeserializerPtr deserializer,                                      
     RootClass##ClassSuffix##Ptr &ClassSmallSuffix)                              \
 {                                                                               \
     tUint8 ClassSmallSuffix##Type;                                              \
-    tString ClassSmallSuffix##TypeStr;                                          \
+    bool found = false;                                                         \
     deserializer->Deserialize(APP_EXPAND(TO_STR(ClassSmallSuffix##Type)),       \
         ClassSmallSuffix##Type);                                                \
-    deserializer->Deserialize(APP_EXPAND(TO_STR(ClassSmallSuffix##TypeStr)),    \
-        ClassSmallSuffix##TypeStr);                                             \
                                                                                 \
-    if (_##RootClass##_##ClassSmallSuffix##TypeMap.find(                        \
-            ClassSmallSuffix##TypeStr) !=                                       \
-                _##RootClass##_##ClassSmallSuffix##TypeMap.end()) {             \
-        auto type = _##RootClass##_##ClassSmallSuffix##TypeMap[                 \
-                ClassSmallSuffix##TypeStr];                                     \
-        if (type != ClassSmallSuffix##Type && type !=                           \
-                ClassSuffix##Type_Invalid) {                                    \
-            ClassSmallSuffix##Type = type;                                      \
+    if (ClassSmallSuffix##Type > ClassSuffix##Type_Invalid                      \
+            && ClassSmallSuffix##Type < ClassSuffix##Type_Count) {              \
+        if (deserializer->HasChild(                                             \
+            _##RootClass##_##ClassSmallSuffix##TypeArray[                       \
+                ClassSmallSuffix##Type]))                                       \
+            found = true;                                                       \
+    }                                                                           \
+                                                                                \
+    if (!found) {                                                               \
+        for(tUint8 t = ClassSuffix##Type_Invalid;                               \
+            t < ClassSuffix##Type_Count; t++) {                                 \
+            if (deserializer->HasChild(                                         \
+                _##RootClass##_##ClassSmallSuffix##TypeArray[t])) {             \
+                found = true;                                                   \
+                ClassSmallSuffix##Type = t;                                     \
+                break;                                                          \
+            }                                                                   \
         }                                                                       \
     }                                                                           \
                                                                                 \
@@ -196,7 +210,8 @@ void Inflate(DeserializerPtr deserializer,                                      
     Definition(_SCHEMA_BODY_DefineInflate, (RootClass,                          \
         ClassSuffix, ClassSmallSuffix))                                         \
     default:                                                                    \
-        LOGE("Unknown " APP_EXPAND(TO_STR(ClassSmallSuffix##Type)))             \
+        LOGE("Unknown " APP_EXPAND(TO_STR(ClassSmallSuffix##Type)));            \
+        return;                                                                 \
     }                                                                           \
 }
 
@@ -230,7 +245,8 @@ void Deflate(SerializerPtr serializer,                                          
 Definition(_SCHEMA_BODY_DefineDeflate, (RootClass,                              \
     ClassSuffix, ClassSmallSuffix))                                             \
     default:                                                                    \
-        LOGE("Unknown " APP_EXPAND(TO_STR(ClassSmallSuffix##Type)))             \
+        LOGE("Unknown " APP_EXPAND(TO_STR(ClassSmallSuffix##Type)));            \
+        return;                                                                 \
     }                                                                           \
 }                                                                               \
 
@@ -388,6 +404,7 @@ void HandlingClassName::HandleIncomingDeserialize(DeserializerPtr deserializer) 
         default:                                                                \
             LOGE("Unknown  " APP_EXPAND(TO_STR(ClassSmallSuffix##Type))         \
                 ". Ignoring..");                                                \
+            return;                                                             \
     }                                                                           \
 }                                                                               \
                                                                                 \

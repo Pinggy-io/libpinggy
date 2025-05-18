@@ -435,6 +435,12 @@ tString Deserializer::Dump()
     return dump;
 }
 
+bool
+Deserializer::HasChild(tString key)
+{
+    return (children.find(key) != children.end());
+}
+
 #define DefineDeserialize(x)                                                        \
 void Deserializer::Deserialize(tString key, t##x &val, t##x defaultVal)             \
 {                                                                                   \
