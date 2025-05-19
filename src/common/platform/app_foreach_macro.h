@@ -28,7 +28,6 @@ extern "C" {
 #define APP_MACRO_PASTE(_x,_y) _x##_y
 
 #ifndef __WINDOWS_OS__
-// #if 0
 /*
   Reduced no of argument from 127 to 60 because windows does not support
   more than 127 arguments in macro
