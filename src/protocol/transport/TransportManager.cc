@@ -206,6 +206,14 @@ TransportManager::parseBody(RawDataPtr stream)
     eventHandler->HandleIncomingDeserialize(deserializer);
 }
 
+void TransportManager::closeConnections()
+{
+    sendersNetConn->DeregisterFDEvenHandler();
+    recversNetConn->DeregisterFDEvenHandler();
+    sendersNetConn->CloseConn();
+    recversNetConn->CloseConn();
+}
+
 SerializerPtr TransportManager::GetSerializer()
 {
     if (!signatureSent) {
@@ -242,12 +250,11 @@ TransportManager::SendMsg(SerializerPtr serializer)
 bool
 TransportManager::EndTransport()
 {
-    if (!endTransport)
+    if (endTransport)
         return true;
     endTransport = true;
     if (senderQueue.empty()) {
-        sendersNetConn->CloseConn();
-        recversNetConn->CloseConn();
+        closeConnections();
     }
     return true;
 }
@@ -337,8 +344,7 @@ TransportManager::HandleFDWrite(PollableFDPtr)
     }
     if (senderQueue.empty()) {
         if (endTransport) {
-            sendersNetConn->CloseConn();
-            recversNetConn->CloseConn();
+            closeConnections();
             return -1;
         }
     }

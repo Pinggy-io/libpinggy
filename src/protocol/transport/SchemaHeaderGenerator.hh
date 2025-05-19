@@ -197,6 +197,7 @@ abstract class HandlingClassName##EventHandler :                                
 public:                                                                         \
     virtual ~ HandlingClassName##EventHandler() {}                              \
     virtual void Handle##RootClass##ConnectionReset(HandlingClassName##Ptr) = 0;\
+    virtual void Handle##RootClass##Stopped(HandlingClassName##Ptr) = 0;        \
     Definition(_SCHEMA_HEADER_EvHandlerHandlingFunction,                        \
         (HandlingClassName, RootClass, ClassSuffix))                            \
 };                                                                              \
@@ -207,6 +208,7 @@ abstract class HandlingClassName##EmptyEventHandler :                           
 public:                                                                         \
     virtual ~ HandlingClassName##EmptyEventHandler() {}                         \
     virtual void Handle##RootClass##ConnectionReset(HandlingClassName##Ptr) {}  \
+    virtual void Handle##RootClass##Stopped(HandlingClassName##Ptr) {}          \
     Definition(_SCHEMA_HEADER_EmptyEvHandlerHandlingFunction,                   \
         (HandlingClassName, RootClass, ClassSuffix,))                           \
 };                                                                              \

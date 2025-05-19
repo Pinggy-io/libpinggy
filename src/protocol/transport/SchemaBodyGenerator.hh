@@ -19,6 +19,40 @@
 
 #include "SchemaHeaderGenerator.hh"
 
+//==============================================================================
+//    Define exception
+//==============================================================================
+
+#define _SCHEMA_BODY_DefineExceptionClasses(RootClass, ClassSuffix)             \
+class RootClass##ClassSuffix##SerializationException:public std::exception,     \
+    public virtual pinggy::SharedObject                                         \
+{                                                                               \
+public:                                                                         \
+    RootClass##ClassSuffix##SerializationException(tString message) :           \
+        message(message) {}                                                     \
+    virtual ~ RootClass##ClassSuffix##SerializationException() {};              \
+                                                                                \
+    virtual const char*                                                         \
+    what() const noexcept override      { return message.c_str(); }             \
+                                                                                \
+private:                                                                        \
+    tString                     message;                                        \
+};                                                                              \
+                                                                                \
+class RootClass##ClassSuffix##DeserializationException:public std::exception,   \
+        public virtual pinggy::SharedObject                                     \
+{                                                                               \
+public:                                                                         \
+    RootClass##ClassSuffix##DeserializationException(tString message) :         \
+        message(message) {}                                                     \
+    virtual ~ RootClass##ClassSuffix##DeserializationException() {};            \
+                                                                                \
+    virtual const char*                                                         \
+    what() const noexcept override      { return message.c_str(); }             \
+                                                                                \
+private:                                                                        \
+    tString                     message;                                        \
+};
 
 //==============================================================================
 //    Define constructors
@@ -206,11 +240,18 @@ void Inflate(DeserializerPtr deserializer,                                      
         }                                                                       \
     }                                                                           \
                                                                                 \
+    if (!found) {                                                               \
+        throw RootClass##ClassSuffix##DeserializationException(                 \
+            APP_EXPAND(TO_STR(ClassSmallSuffix##Type)) " not found");           \
+        return;                                                                 \
+    }                                                                           \
+                                                                                \
     switch(ClassSmallSuffix##Type) {                                            \
     Definition(_SCHEMA_BODY_DefineInflate, (RootClass,                          \
         ClassSuffix, ClassSmallSuffix))                                         \
     default:                                                                    \
-        LOGE("Unknown " APP_EXPAND(TO_STR(ClassSmallSuffix##Type)));            \
+        throw RootClass##ClassSuffix##DeserializationException(                 \
+            "Unknown " APP_EXPAND(TO_STR(ClassSmallSuffix##Type)) );            \
         return;                                                                 \
     }                                                                           \
 }
@@ -245,7 +286,8 @@ void Deflate(SerializerPtr serializer,                                          
 Definition(_SCHEMA_BODY_DefineDeflate, (RootClass,                              \
     ClassSuffix, ClassSmallSuffix))                                             \
     default:                                                                    \
-        LOGE("Unknown " APP_EXPAND(TO_STR(ClassSmallSuffix##Type)));            \
+        throw RootClass##ClassSuffix##SerializationException(                   \
+            "Unknown " APP_EXPAND(TO_STR(ClassSmallSuffix##Type)) );            \
         return;                                                                 \
     }                                                                           \
 }                                                                               \
@@ -254,6 +296,7 @@ Definition(_SCHEMA_BODY_DefineDeflate, (RootClass,                              
 
 #define SCHEMA_BODY__DEFINE_BODIES(RootClass, ClassSuffix,                      \
                                         ClassSmallSuffix, Definition)           \
+        _SCHEMA_BODY_DefineExceptionClasses(RootClass, ClassSuffix)             \
         Definition(_SCHEMA_BODY_DefineMsgConstructor, (RootClass, ClassSuffix)) \
         Definition(_SCHEMA_BODY_DefineProtocolFunctions, (RootClass,            \
             ClassSuffix, ClassSmallSuffix))                                     \
@@ -355,7 +398,14 @@ bool HandlingClassName::Start(bool handshakeRequired) {                         
 }                                                                               \
                                                                                 \
 bool HandlingClassName::Stop() {                                                \
-    transportManager->EndTransport();                                           \
+    if (transportManager) {                                                     \
+        transportManager->EndTransport();                                       \
+        transportManager = nullptr;                                             \
+    }                                                                           \
+    if (netConn) {                                                              \
+        netConn->CloseConn();                                                   \
+        netConn = nullptr;                                                      \
+    }                                                                           \
     running = false;                                                            \
     return true;                                                                \
 }                                                                               \
@@ -365,8 +415,14 @@ bool HandlingClassName::Send##ClassSuffix(RootClass##ClassSuffix##Ptr           
 {                                                                               \
     bool success = false;                                                       \
     if (sendQueue.empty()) {                                                    \
-        success = transportManager->GetSerializer()->Serialize(                 \
-            TO_STR(ClassSmallSuffix),  ClassSmallSuffix)->Send();               \
+        try {                                                                   \
+            success = transportManager->GetSerializer()->Serialize(             \
+                TO_STR(ClassSmallSuffix),  ClassSmallSuffix)->Send();           \
+        } catch(RootClass##ClassSuffix##SerializationException &e){             \
+            LOGE("Exception occurred: ", e.what());                             \
+            Stop();                                                             \
+            return false;                                                       \
+        }                                                                       \
     }                                                                           \
     if (!success && queue) {                                                    \
         sendQueue.push(ClassSmallSuffix);                                       \
@@ -394,8 +450,15 @@ void HandlingClassName::HandleConnectionReset(net::NetworkConnectionPtr         
 void HandlingClassName::HandleIncomingDeserialize(DeserializerPtr deserializer) \
 {                                                                               \
     RootClass##ClassSuffix##Ptr tmp##ClassSuffix;                               \
-    deserializer->Deserialize(TO_STR(ClassSmallSuffix), tmp##ClassSuffix);      \
+    try {                                                                       \
+        deserializer->Deserialize(TO_STR(ClassSmallSuffix), tmp##ClassSuffix);  \
+    } catch(RootClass##ClassSuffix##DeserializationException &e){               \
+        LOGE("Exception occurred: ", e.what());                                 \
+        Stop();                                                                 \
+        return;                                                                 \
+    }                                                                           \
     if (!tmp##ClassSuffix) {                                                    \
+        Stop();                                                                 \
         return;                                                                 \
     }                                                                           \
     switch(tmp##ClassSuffix->ClassSmallSuffix##Type) {                          \
@@ -403,7 +466,8 @@ void HandlingClassName::HandleIncomingDeserialize(DeserializerPtr deserializer) 
         (RootClass, ClassSuffix, ClassSmallSuffix))                             \
         default:                                                                \
             LOGE("Unknown  " APP_EXPAND(TO_STR(ClassSmallSuffix##Type))         \
-                ". Ignoring..");                                                \
+                ". Stoping...");                                                \
+            Stop();                                                             \
             return;                                                             \
     }                                                                           \
 }                                                                               \
@@ -412,8 +476,15 @@ void HandlingClassName::HandleReadyToSendBuffer()                               
 {                                                                               \
     while (!sendQueue.empty()) {                                                \
         auto ClassSmallSuffix = sendQueue.front();                              \
-        auto success = transportManager->GetSerializer()->Serialize(            \
-            TO_STR(ClassSmallSuffix), ClassSmallSuffix)->Send();                \
+        auto success = false;                                                   \
+        try {                                                                   \
+            success = transportManager->GetSerializer()->Serialize(             \
+                TO_STR(ClassSmallSuffix), ClassSmallSuffix)->Send();            \
+        } catch(RootClass##ClassSuffix##SerializationException &e){             \
+            LOGE("Exception occurred: ", e.what());                             \
+            Stop();                                                             \
+            return;                                                             \
+        }                                                                       \
         if (!success) {                                                         \
             break;                                                              \
         }                                                                       \
