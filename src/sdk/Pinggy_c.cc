@@ -53,6 +53,13 @@ pinggy_set_log_enable(pinggy_bool_t val)
 {
     SetGlobalLogEnable(val != 0);
 }
+
+
+PINGGY_EXPORT pinggy_bool_t
+pinggy_is_interrupted(pinggy_ref_t tunnel)
+{
+    return app_get_errno() == EINTR;
+}
 //==============================================================
 
 static pinggy_ref_t
