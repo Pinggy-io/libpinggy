@@ -168,7 +168,7 @@ pinggy_set_log_enable(pinggy_bool_t);
  * @return
  */
 PINGGY_EXPORT pinggy_bool_t
-pinggy_is_interrupted(pinggy_ref_t tunnel);
+pinggy_is_interrupted();
 
 //================
 typedef pinggy_void_t (*pinggy_on_connected_cb_t)(pinggy_void_p_t, pinggy_ref_t);
