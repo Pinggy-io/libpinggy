@@ -161,6 +161,12 @@ pinggy_set_log_path(pinggy_char_p_t);
 PINGGY_EXPORT pinggy_void_t
 pinggy_set_log_enable(pinggy_bool_t);
 
+PINGGY_EXPORT pinggy_int_t
+pinggy_get_errno();
+
+PINGGY_EXPORT pinggy_void_t
+pinggy_set_errno(pinggy_int_t errno);
+
 //================
 typedef pinggy_void_t (*pinggy_on_connected_cb_t)(pinggy_void_p_t, pinggy_ref_t);
 typedef pinggy_void_t (*pinggy_on_authenticated_cb_t)(pinggy_void_p_t, pinggy_ref_t);

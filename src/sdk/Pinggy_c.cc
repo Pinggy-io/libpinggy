@@ -54,6 +54,18 @@ pinggy_set_log_enable(pinggy_bool_t val)
     SetGlobalLogEnable(val != 0);
 }
 //==============================================================
+PINGGY_EXPORT pinggy_int_t
+pinggy_get_errno()
+{
+    return app_get_errno();
+}
+
+PINGGY_EXPORT pinggy_void_t
+pinggy_set_errno(pinggy_int_t errno)
+{
+    app_set_errno(errno);
+}
+//==============================================================
 
 static pinggy_ref_t
 getRef(pinggy::VoidPtr ptr)
