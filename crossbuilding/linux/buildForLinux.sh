@@ -42,6 +42,7 @@ do
       -e HOST_GID=$(id -g) \
       -e RELEASE_SO=${RELEASE_SO} \
       -e RELEASE_SSL=${RELEASE_SSL} \
+      -e RELEASE_CLI=${RELEASE_CLI} \
       -v $REPO_PATH:/workspace \
       -e RELEASE_DIR_NAME="$RELEASE_DIR_NAME" \
       $dockernametag \

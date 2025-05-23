@@ -52,9 +52,9 @@ add_subdirectory(common)
 add_subdirectory(protocol)
 add_subdirectory(sdk)
 
-if(NOT CMAKE_SYSTEM_NAME STREQUAL "Windows")
-    if(NOT PINGGY_BUILD_PINGGY_CLIENT STREQUAL "no")
+# if(NOT CMAKE_SYSTEM_NAME STREQUAL "Windows")
+#     if(NOT PINGGY_BUILD_PINGGY_CLIENT STREQUAL "no")
         add_subdirectory(client)
-    endif()
-endif()
+#     endif()
+# endif()
 
