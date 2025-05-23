@@ -161,3 +161,8 @@ if [ "$RELEASE_SSL" == "yes" ]
 then
   try cmake --build $BUILD_PATH/$ARCH/pinggy --target releasessl
 fi
+
+if [ "$RELEASE_CLI" == "yes" ]
+then
+  try cmake --build $BUILD_PATH/$ARCH/pinggy --target releasecli
+fi
