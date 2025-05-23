@@ -125,3 +125,11 @@ if defined RELEASE_SSL (
         exit /b 1
     )
 )
+
+if defined RELEASE_CLI (
+  "%CMAKE_EXE%" --build "%BUILD_PATH%/pinggy" --target releasecli
+    if errorlevel 1 (
+        echo build failed
+        exit /b 1
+    )
+)

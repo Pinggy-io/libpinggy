@@ -10,6 +10,11 @@ add_custom_target(
     COMMENT "Packaging complete"
 )
 
+add_custom_target(
+    releasecli
+    COMMENT "Releasing cli"
+)
+
 if(NOT PINGGY_BUILD_ARCH)
     set(PINGGY_BUILD_ARCH ${CMAKE_SYSTEM_PROCESSOR})
 endif()
@@ -56,6 +61,25 @@ function(AddCopyTarget target anotherTarget dest cmnt)
         )
     endif()
     add_dependencies(releaselib ${target})
+endfunction()
+
+
+
+function(AddCopyClient target anotherTarget dest cmnt)
+    if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
+        add_custom_target(${target}
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:${anotherTarget}> ${dest}
+            DEPENDS ${anotherTarget}
+            COMMENT ${cmnt}
+        )
+    else()
+        add_custom_target(${target}
+            ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:${anotherTarget}> ${dest}
+            DEPENDS ${anotherTarget}
+            COMMENT ${cmnt}
+        )
+    endif()
+    add_dependencies(releasecli ${target})
 endfunction()
 
 function(CopyHeaders target dependecy srcFile destDir)
