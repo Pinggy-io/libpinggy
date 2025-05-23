@@ -44,7 +44,7 @@ struct ClientConfig: virtual public pinggy::SharedObject
     virtual ~ClientConfig()     {}
 
     sdk::SDKConfigPtr           sdkConfig;
-    port_t                         WebDebuggerPort;
+    port_t                      WebDebuggerPort;
     bool                        EnableWebDebugger;
 };
 DefineMakeSharedPtr(ClientConfig);
@@ -85,7 +85,7 @@ parseForwardTunnel(ClientConfigPtr config, tString value)
 bool
 parseUser(ClientConfigPtr config, tString user)
 {
-    auto values = SplitString(user, ":");
+    auto values = SplitString(user, "+");
     tString token = "";
 
     auto sdkConfig = config->sdkConfig;
@@ -101,9 +101,9 @@ parseUser(ClientConfigPtr config, tString user)
             sdkConfig->Mode = sl;
         } else if (sl == ConnModeExt_UDP) {
             sdkConfig->UdpForwardTo = forwardingAddress;
-            sdkConfig->Mode = sl;
+            sdkConfig->UdpMode = sl;
         } else {
-            token = "+" + sl;
+            token = "+" + s;
         }
     }
 
@@ -115,6 +115,7 @@ parseUser(ClientConfigPtr config, tString user)
     if (token.length() > 1) {
         sdkConfig->Token = token.substr(1);
     }
+    LOGE("token: ", sdkConfig->Token);
     return true;
 }
 
@@ -138,11 +139,34 @@ parseUserServer(ClientConfigPtr config, tString value, tString port)
     return success;
 }
 
+void
+printHelpOptions(const char *prog){
+    printf("%s [-h|--help] [-v|-version] [--port|-p PORT] [-R ADDR:PORT] [-L ADDR:PORT] token@server\n", prog);
+    printf("        -h\n");
+    printf("       --help\n");
+    printf("                Print this help msg\n");
+    printf("\n");
+    printf("        -v\n");
+    printf("       --version\n");
+    printf("                Print version and exit\n");
+    printf("\n");
+    printf("        -p PORT\n");
+    printf("       --port PORT\n");
+    printf("                Provide the server port\n");
+    printf("\n");
+    printf("        -R ADDR:PORT\n");
+    printf("                The address to where forwarded connections needs to be forwarded\n");
+    printf("\n");
+    printf("        -L ADDR:PORT\n");
+    printf("                Listening address for webdebugging\n");
+    printf("\n");
+}
+
 ClientConfigPtr
 parseArguments(int argc, char *argv[])
 {
     auto config = NewClientConfigPtr();
-    config->sdkConfig->AdvancedParsing = false;
+    // config->sdkConfig->AdvancedParsing = false;
 
 
     int opt;
@@ -162,6 +186,7 @@ parseArguments(int argc, char *argv[])
     };
     bool exitNow = false;
     tString serverPort = "443";
+    const char *prog = argv[0];
     while ((opt = cli_getopt_long(argc, argv, "ahvno:R:L:p:s:", longopts, &longindex)) != -1) {
         bool success = true;
         switch (opt) {
@@ -169,12 +194,15 @@ parseArguments(int argc, char *argv[])
                 config->sdkConfig->AdvancedParsing = true;
                 break;
             case 'h':
-                printf("Help option\n");
+                // printf("Help option\n");
+                printHelpOptions(prog);
                 exitNow = true;
+                exit(0);
                 break;
             case 'v':
-                printf("Version option\n");
+                printf("v%d.%d.%d\n", PinggyVersionMajor, PinggyVersionMinor, PinggyVersionPatch);
                 exitNow = true;
+                exit(0);
                 break;
             case 'o':
                 printf("Output option with value: %s\n", cli_optarg);
@@ -242,6 +270,7 @@ int
 main(int argc, char *argv[]) {
     WindowsSocketInitialize();
     InitLogWithCout();
+    SetGlobalLogEnable(false);
     auto config = parseArguments(argc, argv);
     auto sdkEventHandler = NewClientSdkEventHandlerPtr(config);
     auto sdk = sdk::NewSdkPtr(config->sdkConfig, sdkEventHandler);

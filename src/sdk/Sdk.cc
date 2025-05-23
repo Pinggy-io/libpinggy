@@ -856,6 +856,7 @@ void Sdk::cleanup()
 //===============================================
 
 SDKConfig::SDKConfig():
+    Force(false),
     AdvancedParsing(true),
     Ssl(true),
     SniServerName("a.pinggy.io"),
