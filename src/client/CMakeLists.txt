@@ -10,6 +10,8 @@ list(APPEND SOURCES
 
 AddExecutable(pinggyclient ${SOURCES})
 
+AddPlatFormHeader(pinggyclient)
+
 TargetLinkLibraries(pinggyclient PRIVATE pinggysdk)
 
 AddCopyClient(pinggyclientcopy pinggyclient ${PINGGY_RELEASE_DIR} "Copying pinggyclient to the base directory")
