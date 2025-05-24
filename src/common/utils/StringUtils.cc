@@ -233,6 +233,48 @@ ShlexSplitString(const tString &input)
 
     return tokens;
 }
+
+
+tString
+ShlexJoinStrings(const std::vector<tString>& tokens)
+{
+    tString result;
+
+    for (size_t i = 0; i < tokens.size(); ++i) {
+        const tString& token = tokens[i];
+
+        // Check if quoting is needed
+        bool needs_quotes = false;
+        for (char c : token) {
+            if (std::isspace(c) || c == '\'' || c == '"' || c == '\\') {
+                needs_quotes = true;
+                break;
+            }
+        }
+
+        if (token == "") {
+            result += "\"\"";
+        } else if (!needs_quotes) {
+            result += token;
+        } else {
+            result += '"';  // Use double quotes universally
+            for (char c : token) {
+                if (c == '\\' || c == '"' || c == '$' || c == '`') {
+                    result += '\\';  // Escape special characters in double quotes
+                }
+                result += c;
+            }
+            result += '"';
+        }
+
+        if (i + 1 < tokens.size()) {
+            result += ' ';
+        }
+    }
+
+    return result;
+}
+
 bool
 CaseInsensitiveStringCompare(tString const &a, tString const &b)
 {

@@ -72,6 +72,9 @@ public:
 std::vector<tString>
 ShlexSplitString(const tString &input);
 
+tString
+ShlexJoinStrings(const std::vector<tString>& tokens);
+
 #if 0
 // Case insensetive string
 
