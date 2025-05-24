@@ -26,6 +26,19 @@
 
 #include "cli_getopt.h"
 
+#ifndef PLATFORM_CONFIG_INCLUDED
+
+#define PinggyVersionMajor 0
+#define PinggyVersionMinor 0
+#define PinggyVersionPatch 0
+
+#define PINGGY_GIT_COMMIT_ID "unknown"
+#define PINGGY_BUILD_TIMESTAMP "0000-00-00 00:00:00"
+#define PINGGY_LIBC_VERSION "unknown"
+#define PINGGY_BUILD_OS "unknown"
+
+#endif
+
 
 static const std::string ConnMode_HTTP      = "http";
 static const std::string ConnMode_TCP       = "tcp";
@@ -281,6 +294,19 @@ struct ClientSdkEventHandler: virtual public sdk::SdkEventHandler
     virtual void
     OnPrimaryForwardingSucceeded(std::vector<std::string> urls);
 
+    virtual void
+    OnAuthenticationFailed(std::vector<tString> why) override
+                                { this->error = JoinString(why, " "); }
+
+    virtual void
+    OnPrimaryForwardingFailed(tString error) override
+                                { this->error = error; }
+
+    virtual void
+    OnDisconnected(tString error, std::vector<tString> messages) override
+                                { this->error = error; }
+
+    tString                     error;
     ClientConfigPtr             config;
     sdk::SdkWPtr                sdk;
 };
@@ -303,7 +329,8 @@ main(int argc, char *argv[]) {
     sdk->Start(pollController);
     pollController->StartPolling();
 
-    LOGI("Tunnel ended with msg: ", sdk->GetEndMessage());
+    if (sdkEventHandler->error != "")
+        std::cout << "Tunnel ended with msg: " << sdkEventHandler->error << std::endl;
 
     return 0;
 }
