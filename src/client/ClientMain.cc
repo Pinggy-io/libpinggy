@@ -115,7 +115,7 @@ parseUser(ClientConfigPtr config, tString user)
     if (token.length() > 1) {
         sdkConfig->Token = token.substr(1);
     }
-    LOGE("token: ", sdkConfig->Token);
+    LOGI("token: ", sdkConfig->Token);
     return true;
 }
 
@@ -162,6 +162,18 @@ printHelpOptions(const char *prog){
     printf("\n");
 }
 
+bool
+parseSdkArguments(ClientConfigPtr config, int argc, char *argv[])
+{
+    std::vector<tString> args;
+    for (int i = 0; i < argc; i++) {
+        args.push_back(tString(argv[i]));
+    }
+    config->sdkConfig->Argument = ShlexJoinStrings(args);
+
+    return true;
+}
+
 ClientConfigPtr
 parseArguments(int argc, char *argv[])
 {
@@ -175,6 +187,7 @@ parseArguments(int argc, char *argv[])
     struct cli_option longopts[] = {
         {"help", cli_no_argument, 0, 'h'},
         {"version", cli_no_argument, 0, 'v'},
+        {"verbose", cli_no_argument, 0, 'V'},
         {"port", cli_required_argument, 0, 'p'},
         {"sni", cli_required_argument, 0, 's'},
         {"inseceure", cli_required_argument, 0, 'i'},
@@ -187,7 +200,7 @@ parseArguments(int argc, char *argv[])
     bool exitNow = false;
     tString serverPort = "443";
     const char *prog = argv[0];
-    while ((opt = cli_getopt_long(argc, argv, "ahvno:R:L:p:s:", longopts, &longindex)) != -1) {
+    while ((opt = cli_getopt_long(argc, argv, "ahvVno:R:L:p:s:", longopts, &longindex)) != -1) {
         bool success = true;
         switch (opt) {
             case 'a':
@@ -203,6 +216,9 @@ parseArguments(int argc, char *argv[])
                 printf("v%d.%d.%d\n", PinggyVersionMajor, PinggyVersionMinor, PinggyVersionPatch);
                 exitNow = true;
                 exit(0);
+                break;
+            case 'V':
+                SetGlobalLogEnable(true);
                 break;
             case 'o':
                 printf("Output option with value: %s\n", cli_optarg);
@@ -242,6 +258,10 @@ parseArguments(int argc, char *argv[])
         exitNow = !(parseUserServer(config, argv[cli_optind], serverPort));
     } else {
         exitNow = true;
+    }
+
+    if ((cli_optind + 1) < argc) {
+        exitNow = !(parseSdkArguments(config, argc - (cli_optind + 1), argv + (cli_optind + 1)));
     }
 
     if (exitNow)
