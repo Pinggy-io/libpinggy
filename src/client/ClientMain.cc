@@ -292,7 +292,7 @@ struct ClientSdkEventHandler: virtual public sdk::SdkEventHandler
     ~ClientSdkEventHandler()    { }
 
     virtual void
-    OnPrimaryForwardingSucceeded(std::vector<std::string> urls);
+    OnPrimaryForwardingSucceeded(std::vector<std::string> urls) override;
 
     virtual void
     OnAuthenticationFailed(std::vector<tString> why) override
