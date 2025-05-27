@@ -91,6 +91,9 @@ private:
     void
     parseBody(RawDataPtr stream);
 
+    void
+    closeConnections();
+
 public:
     TransportManager(net::NetworkConnectionPtr netConn, TransportManagerEventHandlerPtr eventHandler=nullptr,
                         bool isServer = false, bool handshakeRequired=true);

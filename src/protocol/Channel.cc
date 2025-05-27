@@ -215,7 +215,9 @@ void
 Channel::sendOrQueue(ProtoMsgPtr msg)
 {
     auto success = session.lock()->sendMsg(msg, true);
-    Assert(success);
+    // Assert(success);
+    if (!success)
+        eventHandler->ChannelError(thisPtr, 0, "Cannot send msg");
 }
 
 void

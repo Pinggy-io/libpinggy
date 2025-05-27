@@ -144,12 +144,81 @@ void Deserialize_Lit(RawDataPtr stream, RawDataPtr &data, bool swapBytes)
 
 FOREACH_LITERALS_TYPE(DefineDeserilizationFunctions)
 
+template<typename L, typename R>
+bool
+checkIfAssignmentPossibleAndAssign(L &l, R r) {
+    if constexpr (std::is_signed_v<L> == std::is_signed_v<R>) {
+        if (r >= std::numeric_limits<L>::min() && r <= std::numeric_limits<L>::max()) {
+            l = static_cast<L>(r);
+            return true;
+        }
+    } else if constexpr (std::is_signed_v<R>) { //signed -> unsinged
+        if (r >= 0 && static_cast<std::make_unsigned_t<R>>(r) <= std::numeric_limits<L>::max()) {
+            l = static_cast<L>(r);
+            return true;
+        }
+    } else {
+        if (r <= static_cast<std::make_unsigned_t<L>>(std::numeric_limits<L>::max())) {
+            l = static_cast<L>(r);
+            return true;
+        }
+    }
+    return false;
+}
+
+#define FOR_EACH_FRONT_checkIfAssignmentPossibleAndAssign(L, R) \
+inline bool \
+checkIfAssignmentPossibleAndAssign(t##L &l, t##R r) { l = r; return true; }
+
+#define Define_checkIfAssignmentPossibleAndAssign_Func(x, ...) \
+APP_MACRO_FOR_EACH_WITH_ARG_FORNT(FOR_EACH_FRONT_checkIfAssignmentPossibleAndAssign, x, __VA_ARGS__)
+
+Define_checkIfAssignmentPossibleAndAssign_Func(Raw, Raw)
+Define_checkIfAssignmentPossibleAndAssign_Func(String, String)
+Define_checkIfAssignmentPossibleAndAssign_Func(Int64, Int8, Int16, Int32, Int64)
+Define_checkIfAssignmentPossibleAndAssign_Func(Int32, Int8, Int16, Int32)
+Define_checkIfAssignmentPossibleAndAssign_Func(Int16, Int8, Int16)
+Define_checkIfAssignmentPossibleAndAssign_Func(Int8, Int8)
+Define_checkIfAssignmentPossibleAndAssign_Func(Uint64, Uint8, Uint16, Uint32, Uint64)
+Define_checkIfAssignmentPossibleAndAssign_Func(Uint32, Uint8, Uint16, Uint32)
+Define_checkIfAssignmentPossibleAndAssign_Func(Uint16, Uint8, Uint16)
+Define_checkIfAssignmentPossibleAndAssign_Func(Uint8, Uint8)
+Define_checkIfAssignmentPossibleAndAssign_Func(Float64, Float32, Float64)
+Define_checkIfAssignmentPossibleAndAssign_Func(Float32, Float32)
+
+template<typename L, typename R>
+bool
+checkIfCompatible(L l, R r) { return false; }
+
+#define FOR_EACH_FRONT_checkIfCompatible(L, R) \
+inline bool \
+checkIfCompatible(t##L &l, t##R r) { return true; }
+
+#define Define_checkIfCompatible_Func(x, ...) \
+APP_MACRO_FOR_EACH_WITH_ARG_FORNT(FOR_EACH_FRONT_checkIfCompatible, x, __VA_ARGS__)
+Define_checkIfCompatible_Func(Raw, Raw)
+Define_checkIfCompatible_Func(String, String)
+Define_checkIfCompatible_Func(Int64, Int8, Int16, Int32, Int64)
+Define_checkIfCompatible_Func(Int32, Int8, Int16, Int32)
+Define_checkIfCompatible_Func(Int16, Int8, Int16)
+Define_checkIfCompatible_Func(Int8, Int8)
+Define_checkIfCompatible_Func(Uint64, Uint8, Uint16, Uint32, Uint64)
+Define_checkIfCompatible_Func(Uint32, Uint8, Uint16, Uint32)
+Define_checkIfCompatible_Func(Uint16, Uint8, Uint16)
+Define_checkIfCompatible_Func(Uint8, Uint8)
+Define_checkIfCompatible_Func(Float64, Float32, Float64)
+Define_checkIfCompatible_Func(Float32, Float32)
+
+
 #define FOR_EACH_FRONT_CASE(x) \
         case ValueType_##x: \
             { \
                 t##x tVal; \
                 Deserialize_Lit(stream, tVal, swapBytes); \
-                val = tVal; \
+                if (checkIfCompatible(val, tVal)) \
+                    val = tVal; \
+                else if (!checkIfAssignmentPossibleAndAssign(val, tVal)) \
+                    throw CustingException(type, ValueType_##x);    \
             } \
             break;
 
@@ -169,14 +238,14 @@ void deserializeLiteralWithType(tRaw stream, t##x &val, bool swapBytes, tValueTy
 
 DefineDeserializeLiteralWithType(Raw, Raw)
 DefineDeserializeLiteralWithType(String, String)
-DefineDeserializeLiteralWithType(Int64, Int8, Int16, Int32, Int64)
-DefineDeserializeLiteralWithType(Int32, Int8, Int16, Int32)
-DefineDeserializeLiteralWithType(Int16, Int8, Int16)
-DefineDeserializeLiteralWithType(Int8, Int8)
-DefineDeserializeLiteralWithType(Uint64, Uint8, Uint16, Uint32, Uint64)
-DefineDeserializeLiteralWithType(Uint32, Uint8, Uint16, Uint32)
-DefineDeserializeLiteralWithType(Uint16, Uint8, Uint16)
-DefineDeserializeLiteralWithType(Uint8, Uint8)
+DefineDeserializeLiteralWithType(Int64,  Int8, Int16, Int32, Int64, Uint8, Uint16, Uint32, Uint64)
+DefineDeserializeLiteralWithType(Int32,  Int8, Int16, Int32, Int64, Uint8, Uint16, Uint32, Uint64)
+DefineDeserializeLiteralWithType(Int16,  Int8, Int16, Int32, Int64, Uint8, Uint16, Uint32, Uint64)
+DefineDeserializeLiteralWithType(Int8,   Int8, Int16, Int32, Int64, Uint8, Uint16, Uint32, Uint64)
+DefineDeserializeLiteralWithType(Uint64, Int8, Int16, Int32, Int64, Uint8, Uint16, Uint32, Uint64)
+DefineDeserializeLiteralWithType(Uint32, Int8, Int16, Int32, Int64, Uint8, Uint16, Uint32, Uint64)
+DefineDeserializeLiteralWithType(Uint16, Int8, Int16, Int32, Int64, Uint8, Uint16, Uint32, Uint64)
+DefineDeserializeLiteralWithType(Uint8,  Int8, Int16, Int32, Int64, Uint8, Uint16, Uint32, Uint64)
 DefineDeserializeLiteralWithType(Float64, Float32, Float64)
 DefineDeserializeLiteralWithType(Float32, Float32)
 
@@ -364,6 +433,12 @@ tString Deserializer::Dump()
         throw std::runtime_error("Unexpected type " + std::to_string(valueType));
     }
     return dump;
+}
+
+bool
+Deserializer::HasChild(tString key)
+{
+    return (children.find(key) != children.end());
 }
 
 #define DefineDeserialize(x)                                                        \
