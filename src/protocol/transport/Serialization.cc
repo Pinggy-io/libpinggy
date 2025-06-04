@@ -83,7 +83,7 @@ void Serialize_Lit(RawDataPtr stream, RawDataPtr data, bool swapBytes)
     void Serialize_Lit(RawDataPtr stream, t##x data, bool swapBytes)    \
     {                                                                   \
         auto tempData = swapBytes ? byteSwap(data) : data;              \
-        AddOrThrow(stream, &tempData, sizeof(t##x));                        \
+        AddOrThrow(stream, &tempData, sizeof(t##x));                    \
     }
 
 #define DefineSerilizationFunctions(x) \

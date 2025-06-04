@@ -51,8 +51,7 @@ DefineMakeSharedPtr(FDEventHandler);
 
 #define CloseConn(...) __CloseNReport(__FILE__ ":" APP_CONVERT_TO_STRING(__LINE__))
 //This is not closed to perfect or ok. But I could not do the same as linux here.
-
-#endif
+#endif //__WINDOWS_OS__
 
 abstract class PollableFD : public virtual common::PollEventHandler {
 public:
