@@ -100,7 +100,7 @@ tInt PollControllerLinux::PollOnce()
     auto nfds = epoll_wait(pollfd, pollEvents, numEvents, timeout);
 
     if (nfds == -1) {
-        return nfds;
+        return -1;
     }
 
     ExecuteCurrentTasks();

@@ -171,17 +171,38 @@ PINGGY_EXPORT pinggy_bool_t
 pinggy_is_interrupted();
 
 //================
-typedef pinggy_void_t (*pinggy_on_connected_cb_t)(pinggy_void_p_t, pinggy_ref_t);
-typedef pinggy_void_t (*pinggy_on_authenticated_cb_t)(pinggy_void_p_t, pinggy_ref_t);
-typedef pinggy_void_t (*pinggy_on_authentication_failed_cb_t)(pinggy_void_p_t, pinggy_ref_t, pinggy_len_t, pinggy_char_p_p_t);
-typedef pinggy_void_t (*pinggy_on_primary_forwarding_succeeded_cb_t)(pinggy_void_p_t, pinggy_ref_t, pinggy_len_t, pinggy_char_p_p_t);
-typedef pinggy_void_t (*pinggy_on_primary_forwarding_failed_cb_t)(pinggy_void_p_t, pinggy_ref_t, pinggy_const_char_p_t);
-typedef pinggy_void_t (*pinggy_on_additional_forwarding_succeeded_cb_t)(pinggy_void_p_t, pinggy_ref_t, pinggy_const_char_p_t, pinggy_const_char_p_t);
-typedef pinggy_void_t (*pinggy_on_additional_forwarding_failed_cb_t)(pinggy_void_p_t, pinggy_ref_t, pinggy_const_char_p_t, pinggy_const_char_p_t, pinggy_const_char_p_t);
-typedef pinggy_void_t (*pinggy_on_disconnected_cb_t)(pinggy_void_p_t, pinggy_ref_t, pinggy_const_char_p_t, pinggy_len_t, pinggy_char_p_p_t);
-typedef pinggy_void_t (*pinggy_on_tunnel_error_cb_t)(pinggy_void_p_t, pinggy_ref_t, pinggy_uint32_t, pinggy_const_char_p_t, pinggy_bool_t);
-typedef pinggy_bool_t (*pinggy_on_new_channel_cb_t)(pinggy_void_p_t, pinggy_ref_t, pinggy_ref_t);
-typedef pinggy_void_t (*pinggy_on_raise_exception_cb_t)(pinggy_const_char_p_t, pinggy_const_char_p_t);
+typedef pinggy_void_t (*pinggy_on_connected_cb_t)                               \
+                            (pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref);
+
+typedef pinggy_void_t (*pinggy_on_authenticated_cb_t)                           \
+                            (pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref);
+
+typedef pinggy_void_t (*pinggy_on_authentication_failed_cb_t)                   \
+                            (pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_len_t num_reasons, pinggy_char_p_p_t reasons);
+
+typedef pinggy_void_t (*pinggy_on_primary_forwarding_succeeded_cb_t)            \
+                            (pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_len_t num_urls, pinggy_char_p_p_t urls);
+
+typedef pinggy_void_t (*pinggy_on_primary_forwarding_failed_cb_t)               \
+                            (pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_const_char_p_t msg);
+
+typedef pinggy_void_t (*pinggy_on_additional_forwarding_succeeded_cb_t)         \
+                            (pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_const_char_p_t bind_addr, pinggy_const_char_p_t forward_to_addr);
+
+typedef pinggy_void_t (*pinggy_on_additional_forwarding_failed_cb_t)            \
+                            (pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_const_char_p_t bind_addr, pinggy_const_char_p_t forward_to_addr, pinggy_const_char_p_t error);
+
+typedef pinggy_void_t (*pinggy_on_disconnected_cb_t)                            \
+                            (pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_const_char_p_t error, pinggy_len_t msg_size, pinggy_char_p_p_t msg);
+
+typedef pinggy_void_t (*pinggy_on_tunnel_error_cb_t)                            \
+                            (pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_uint32_t error_no, pinggy_const_char_p_t error, pinggy_bool_t recoverable);
+
+typedef pinggy_bool_t (*pinggy_on_new_channel_cb_t)                             \
+                            (pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_ref_t channel_ref);
+
+typedef pinggy_void_t (*pinggy_on_raise_exception_cb_t)                         \
+                            (pinggy_const_char_p_t where, pinggy_const_char_p_t what);
 //================
 
 /**
@@ -460,13 +481,12 @@ PINGGY_EXPORT pinggy_bool_t
 pinggy_tunnel_connect(pinggy_ref_t tunnel);
 
 /**
- * @brief This is the resume function. Applications are expected to call this function in infinite loop.
- * Application should check return value. If it returns negetive integer and errno not set to EINTR, loop
- * should break. It would work only with `pinggy_tunnel_connect`
+ * @brief This is the resume function. Applications are expected to call this function in infinite loop
+ * unless it returns false. It would work only with `pinggy_tunnel_connect`
  * @param tunnel
  * @return
  */
-PINGGY_EXPORT pinggy_int_t
+PINGGY_EXPORT pinggy_bool_t
 pinggy_tunnel_resume(pinggy_ref_t tunnel);
 
 /**

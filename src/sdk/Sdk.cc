@@ -216,7 +216,7 @@ Sdk::ResumeTunnel()
     if (!started)
         throw std::runtime_error("tunnel is not started");
     if (stopped)
-        return 1;
+        return -1;
     lockAccess.lock();
     running = true;
     runningThreadId = std::this_thread::get_id();
