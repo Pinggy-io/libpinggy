@@ -28,9 +28,20 @@
 namespace net {
 
 DeclareClassWithSharedPtr(SslConnectionListner);
-// DeclareClassWithSharedPtr(SslNetworkConnection);
+DeclareClassWithSharedPtr(SslNetworkConnection);
 
-class SslNetworkConnection: public NetworkConnection
+abstract class SslConnectHandler: virtual public pinggy::SharedObject
+{
+public:
+    virtual void
+    SslConnected(SslNetworkConnectionPtr sslConnPtr, pinggy::VoidPtr asyncConnectPtr) = 0;
+
+    virtual void
+    SslConnectionFailed(SslNetworkConnectionPtr sslConnPtr, pinggy::VoidPtr asyncConnectPtr) = 0;
+};
+DeclareSharedPtr(SslConnectHandler);
+
+class SslNetworkConnection: public NetworkConnection, public virtual FDEventHandler
 {
 public:
     SslNetworkConnection(NetworkConnectionPtr netConn, tString serverName);
@@ -49,6 +60,12 @@ public:
 
     virtual void
     Connect() final;
+
+    virtual void
+    ConnectAsync(common::TaskPtr onSuccess, common::TaskPtr onFailed) final;
+
+    virtual void
+    ConnectAsync(SslConnectHandlerPtr connectHandler, pinggy::VoidPtr asyncConnectPtr) final;
 
     virtual ssize_t
     Read(void *data, size_t len, int flags = 0) override;
@@ -122,6 +139,16 @@ public:
     virtual tNetState
     GetState() override         { return netConn->GetState().NewWithSsl(); }
 
+    //FDEventHandler
+    virtual len_t
+    HandleFDRead(PollableFDPtr) override;
+
+    virtual len_t
+    HandleFDWrite(PollableFDPtr) override;
+
+    virtual len_t
+    HandleFDError(PollableFDPtr, int16_t) override;
+
     class SslNetworkConnectionException: public std::exception {
     public:
         virtual NetworkConnectionPtr
@@ -178,6 +205,9 @@ private:
     void
     loadBaseCertificate(SSL_CTX *ctx);
 
+    len_t
+    handleFD();
+
     friend class                SslConnectionListner;
 
     SSL                        *ssl;
@@ -191,6 +221,9 @@ private:
     tString                     sniServerName;
     tString                     rootCertificate;
     bool                        privateCtx;
+    bool                        asyncConnectCompleted;
+    SslConnectHandlerPtr        asyncConnectHandler;
+    pinggy::VoidPtr             asyncConnectPtr;
 };
 
 DefineMakeSharedPtr(SslNetworkConnection);

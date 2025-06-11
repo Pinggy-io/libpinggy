@@ -25,18 +25,33 @@ DeclareClassWithSharedPtr(PollableFD);
 abstract class FDEventHandler : public virtual pinggy::SharedObject {
     public:
 
-    virtual len_t HandleFDRead(PollableFDPtr) {ABORT_WITH_MSG("Not implemented"); return 0;}
-    virtual len_t HandleFDWrite(PollableFDPtr) {ABORT_WITH_MSG("Not implemented"); return 0;}
-    virtual len_t HandleFDError(PollableFDPtr, int16_t) {Assert(false && "Not implemented"); return 0;}
+    virtual len_t
+    HandleFDRead(PollableFDPtr) {ABORT_WITH_MSG("Not implemented"); return 0;}
+
+    virtual len_t
+    HandleFDWrite(PollableFDPtr) {ABORT_WITH_MSG("Not implemented"); return 0;}
+
+    virtual len_t
+    HandleFDError(PollableFDPtr, int16_t) {Assert(false && "Not implemented"); return 0;}
             // this should fail during development. We do not care about the error in production.
 
-    virtual len_t HandleFDReadWTag(PollableFDPtr, std::string) {ABORT_WITH_MSG("Not implemented"); return 0;}
-    virtual len_t HandleFDWriteWTag(PollableFDPtr, std::string) {ABORT_WITH_MSG("Not implemented"); return 0;}
-    virtual len_t HandleFDErrorWTag(PollableFDPtr, std::string, int16_t) {ABORT_WITH_MSG("Not implemented"); return 0;};
+            virtual len_t
+    HandleFDReadWTag(PollableFDPtr, tString) {ABORT_WITH_MSG("Not implemented"); return 0;}
 
-    virtual len_t HandleFDReadWPtr(PollableFDPtr, pinggy::VoidPtr) {ABORT_WITH_MSG("Not implemented"); return 0;}
-    virtual len_t HandleFDWriteWPtr(PollableFDPtr, pinggy::VoidPtr) {ABORT_WITH_MSG("Not implemented"); return 0;}
-    virtual len_t HandleFDErrorWPtr(PollableFDPtr, pinggy::VoidPtr, int16_t) {ABORT_WITH_MSG("Not implemented"); return 0;}
+    virtual len_t
+    HandleFDWriteWTag(PollableFDPtr, tString) {ABORT_WITH_MSG("Not implemented"); return 0;}
+
+    virtual len_t
+    HandleFDErrorWTag(PollableFDPtr, tString, int16_t) {ABORT_WITH_MSG("Not implemented"); return 0;};
+
+    virtual len_t
+    HandleFDReadWPtr(PollableFDPtr, pinggy::VoidPtr) {ABORT_WITH_MSG("Not implemented"); return 0;}
+
+    virtual len_t
+    HandleFDWriteWPtr(PollableFDPtr, pinggy::VoidPtr) {ABORT_WITH_MSG("Not implemented"); return 0;}
+
+    virtual len_t
+    HandleFDErrorWPtr(PollableFDPtr, pinggy::VoidPtr, int16_t) {ABORT_WITH_MSG("Not implemented"); return 0;}
 };
 DefineMakeSharedPtr(FDEventHandler);
 
@@ -55,70 +70,166 @@ DefineMakeSharedPtr(FDEventHandler);
 
 abstract class PollableFD : public virtual common::PollEventHandler {
 public:
-    PollableFD(): initialReadPoll_(false), redirectWriteEventsForConnection_(false) {}
-    virtual ~PollableFD() {}
+    PollableFD(): initialReadPoll_(false), redirectWriteEventsForConnection_(false)
+                                {}
 
-    virtual len_t HandlePollRecv() override;
-    virtual len_t HandlePollSend() override;
-    virtual len_t HandlePollError(int16_t err) override;
+    virtual
+    ~PollableFD()               {}
 
-    virtual PollableFDPtr SetPollController(common::PollControllerPtr pollController) final;
-    virtual common::PollControllerPtr GetPollController() final { return GetPController(); }
+    virtual len_t
+    HandlePollRecv() override;
 
-    virtual PollableFDPtr RegisterFDEvenHandler(FDEventHandlerPtr fdEventHandler, pinggy::VoidPtr udata = nullptr, bool edgeTrigger = false) final;
-    virtual PollableFDPtr RegisterFDEvenHandler(FDEventHandlerPtr fdEventHandler, std::string tag, bool edgeTrigger = false) final;
-    virtual PollableFDPtr DeregisterFDEvenHandler() final;
+    virtual len_t
+    HandlePollSend() override;
 
-    virtual void SetCloseOnExec() { if (IsValidSocket(GetFd())) set_close_on_exec(GetFd()); }
-    virtual void UnSetCloseOnExec() { if (IsValidSocket(GetFd())) unset_close_on_exec(GetFd()); }
+    virtual len_t
+    HandlePollError(int16_t err) override;
 
-    virtual void EnableReadPoll();
-    virtual void EnableWritePoll();
-    virtual void DisableReadPoll();
-    virtual void DisableWritePoll();
-    virtual void RaiseDummyReadPoll() final;
-    virtual void RaiseDummyWritePoll() final;
-    virtual int __CloseNReport(tString location) final { return CloseNClear(location); }
+    virtual PollableFDPtr
+    SetPollController(common::PollControllerPtr pollController) final;
 
-    virtual PollableFDPtr GetOrig() = 0;
+    virtual common::PollControllerPtr
+    GetPollController() final   { return GetPController(); }
+
+    virtual PollableFDPtr
+    RegisterFDEvenHandler(FDEventHandlerPtr fdEventHandler, pinggy::VoidPtr udata = nullptr, bool edgeTrigger = false) final;
+
+    virtual PollableFDPtr
+    RegisterFDEvenHandler(FDEventHandlerPtr fdEventHandler, tString tag, bool edgeTrigger = false) final;
+
+    virtual PollableFDPtr
+    DeregisterFDEvenHandler() final;
+
+    virtual void
+    SetCloseOnExec()            { if (IsValidSocket(GetFd())) set_close_on_exec(GetFd()); }
+
+    virtual void
+    UnSetCloseOnExec()          { if (IsValidSocket(GetFd())) unset_close_on_exec(GetFd()); }
+
+    virtual void
+    EnableReadPoll() final;
+
+    virtual void
+    EnableWritePoll() final;
+
+    virtual void
+    DisableReadPoll() final;
+
+    virtual void
+    DisableWritePoll() final;
+
+    virtual void
+    RaiseDummyReadPoll() final;
+
+    virtual void
+    RaiseDummyWritePoll() final;
+
+    virtual int
+    __CloseNReport(tString location) final
+                                { return CloseNClear(location); }
+
+    virtual PollableFDPtr
+    GetOrig() = 0;
 
 protected:
-    virtual int CloseNClear(tString location) = 0;
-    virtual void EventHandlerRegistered() {};
-    virtual void EventHandlerDeregistered() {};
-    virtual common::PollControllerPtr GetPController() final {auto ob = GetOrig(); Assert(ob); return ob ? ob->pollController_ : pollController_;}
-    virtual void SetPController(common::PollControllerPtr ptr) final {auto ob = GetOrig(); Assert(ob); if(ob) ob->pollController_ = ptr; else pollController_ = ptr;}
-    virtual len_t HandleConnect() { ABORT_WITH_MSG("It is not supposed to happen"); return 0; }
+    virtual int
+    CloseNClear(tString location) = 0;
 
-    virtual void RegisterConnectHandler() final;
-    virtual void DeregisterConnectHandler() final;
+    virtual void
+    EventHandlerRegistered()    {};
 
-    // virtual common::PollStatePtr SlientPollDeregister() final;
-    // virtual void SlientPollRegister(common::PollStatePtr) final;
-//protected:
+    virtual void
+    EventHandlerDeregistered()  {};
+
+    virtual common::PollControllerPtr
+    GetPController() final      { auto ob = GetOrig(); Assert(ob); return ob ? ob->pollController_ : pollController_; }
+
+    virtual void
+    SetPController(common::PollControllerPtr ptr) final
+                                { auto ob = GetOrig(); Assert(ob); if(ob) ob->pollController_ = ptr; else pollController_ = ptr; }
+
+    virtual len_t
+    HandleConnect()             { ABORT_WITH_MSG("It is not supposed to happen"); return 0; }
+
+    virtual void
+    RegisterConnectHandler() final;
+
+    virtual void
+    DeregisterConnectHandler() final;
+
+    virtual void
+    WritePollEnabled();
+
+    virtual void
+    WritePollDisabled();
+
+    virtual void
+    ReadPollEnabled();
+
+    virtual void
+    ReadPollDisabled();
+
 private:
-    virtual void registerFDEvenHandler(FDEventHandlerPtr fdEventHandler, bool edgeTrigger = false) final;
+    virtual void
+    registerFDEvenHandler(FDEventHandlerPtr fdEventHandler, bool edgeTrigger = false) final;
 
-    virtual FDEventHandlerPtr getFDEventHandler() { return GetOrig()->fdEventHandler_; }
-    virtual std::string getTag() { return GetOrig()->tag_; }
-    virtual pinggy::VoidPtr getUdata() { return GetOrig()->udata_; }
-    virtual bool getInitialReadPoll() { return GetOrig()->initialReadPoll_; }
-    virtual PollableFDPtr getRegisteredFD() { return GetOrig()->registeredFD_.lock(); }
-    virtual bool isRedirectWriteEventsForConnection() { return GetOrig()->redirectWriteEventsForConnection_; }
+    virtual FDEventHandlerPtr
+    getFDEventHandler()         { return GetOrig()->fdEventHandler_; }
 
-    virtual void setFDEventHandler(FDEventHandlerPtr ptr) { GetOrig()->fdEventHandler_ = ptr; }
-    virtual void setTag(std::string str) { GetOrig()->tag_ = str; }
-    virtual void setUdata(pinggy::VoidPtr ptr) { GetOrig()->udata_ = ptr; }
-    virtual void setInitialReadPoll(bool initialReadPoll) { GetOrig()->initialReadPoll_ = initialReadPoll; }
-    virtual void setRegisteredFD(PollableFDPtr registeredFD) { GetOrig()->registeredFD_ = registeredFD; }
+    virtual tString
+    getTag()                    { return GetOrig()->tag_; }
 
-    common::PollControllerPtr pollController_;
-    FDEventHandlerPtr fdEventHandler_;
-    std::string tag_;
-    pinggy::VoidPtr udata_;
-    bool initialReadPoll_;
-    PollableFDWPtr registeredFD_;
-    bool redirectWriteEventsForConnection_;
+    virtual pinggy::VoidPtr
+    getUdata()                  { return GetOrig()->udata_; }
+
+    virtual bool
+    getInitialReadPoll()        { return GetOrig()->initialReadPoll_; }
+
+    virtual PollableFDPtr
+    getRegisteredFD()           { return GetOrig()->registeredFD_.lock(); }
+
+    virtual bool
+    isRedirectWriteEventsForConnection()
+                                { return GetOrig()->redirectWriteEventsForConnection_; }
+
+    virtual void
+    setFDEventHandler(FDEventHandlerPtr ptr)
+                                { GetOrig()->fdEventHandler_ = ptr; }
+
+    virtual void
+    setTag(tString str)         { GetOrig()->tag_ = str; }
+
+    virtual void
+    setUdata(pinggy::VoidPtr ptr)
+                                { GetOrig()->udata_ = ptr; }
+
+    virtual void
+    setInitialReadPoll(bool initialReadPoll)
+                                { GetOrig()->initialReadPoll_ = initialReadPoll; }
+
+    virtual void
+    setRegisteredFD(PollableFDPtr registeredFD)
+                                { GetOrig()->registeredFD_ = registeredFD; }
+
+    void
+    notifyWritePollEnabled()    { GetOrig()->WritePollEnabled(); }
+
+    void
+    notifyWritePollDisabled()   { GetOrig()->WritePollDisabled(); }
+
+    void
+    notifyReadPollEnabled()     { GetOrig()->ReadPollEnabled(); }
+
+    void
+    notifyReadPollDisabled()    { GetOrig()->ReadPollDisabled(); }
+
+    common::PollControllerPtr   pollController_;
+    FDEventHandlerPtr           fdEventHandler_;
+    tString                     tag_;
+    pinggy::VoidPtr             udata_;
+    bool                        initialReadPoll_;
+    PollableFDWPtr              registeredFD_;
+    bool                        redirectWriteEventsForConnection_;
 };
 
 #endif //CPP_COMMON_POLLABLE_FD_HH_

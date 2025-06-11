@@ -122,6 +122,9 @@ public:
     virtual bool
     IsValid()                   { return IsValidSocket(GetFd()); }
 
+    virtual tNetState
+    GetState() override          { return tNetState(); }
+
 private:
     ConnectionListenerHandlerPtr
                                 eventHandler;

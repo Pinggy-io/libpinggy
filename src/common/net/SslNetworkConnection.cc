@@ -18,18 +18,41 @@
 #include "SslNetworkConnection.hh"
 #include <platform/Log.hh>
 #include <openssl/err.h>
+#include "SslNetConnBio.hh"
 
 namespace net {
 
+class SslConnectFutureTaskHandler: virtual public SslConnectHandler
+{
+public:
+    SslConnectFutureTaskHandler(common::TaskPtr onSuccess, common::TaskPtr onFailed): onSuccess(onSuccess), onFailed(onFailed) { }
+
+    virtual void
+    SslConnected(SslNetworkConnectionPtr sslConnPtr, pinggy::VoidPtr asyncConnectPtr) override
+    {
+        onSuccess->Fire();
+    }
+
+    virtual void
+    SslConnectionFailed(SslNetworkConnectionPtr sslConnPtr, pinggy::VoidPtr asyncConnectPtr) override {
+        onFailed->Fire();
+    }
+
+private:
+    common::TaskPtr             onSuccess;
+    common::TaskPtr             onFailed;
+};
+DefineMakeSharedPtr(SslConnectFutureTaskHandler);
+
 SslNetworkConnection::SslNetworkConnection(SSL *ssl, sock_t fd):
         ssl(ssl), netConn(NewNetworkConnectionImplPtr(fd)), lastReturn(0), wroteFromCached(0),
-            connected(true), serverSide(true), privateCtx(false)
+            connected(true), serverSide(true), privateCtx(false), asyncConnectCompleted(true)
 {
 }
 
 SslNetworkConnection::SslNetworkConnection(SSL *ssl,
         NetworkConnectionPtr netCon): ssl(ssl), netConn(netCon), lastReturn(0), wroteFromCached(0),
-            connected(true), serverSide(true), privateCtx(false)
+            connected(true), serverSide(true), privateCtx(false), asyncConnectCompleted(true)
 {
     if (netConn == nullptr || !netConn->IsValid())
         throw NotValidException(netConn, "netConn is not valid");
@@ -41,7 +64,8 @@ SslNetworkConnection::SslNetworkConnection(SSL *ssl,
 
 SslNetworkConnection::SslNetworkConnection(NetworkConnectionPtr netConn,
         tString serverName): ssl(NULL), netConn(netConn), lastReturn(0), wroteFromCached(0),
-            connected(false), serverSide(false), sniServerName(serverName), privateCtx(false)
+            connected(false), serverSide(false), sniServerName(serverName), privateCtx(false),
+            asyncConnectCompleted(true)
 {
 }
 
@@ -137,14 +161,21 @@ SslNetworkConnection::Connect()
         throw CannotConnectException("Cannot create new ssl object");
     }
 
-    SSL_set_fd(ssl, netConn->GetFd());
+    if (netConn->IsRelayed() || netConn->IsDummy()) {
+        auto bio = netConnBioNewBio(netConn);
+        if (!bio) {
+            LOGSSLE("Error while creating bio")
+            SSL_free(ssl);
+            netConn->CloseConn();
+            return;
+        }
+        SSL_set_bio(ssl, bio, bio);
+    } else {
+        SSL_set_fd(ssl, netConn->GetFd());
+    }
 
     if (!SSL_set_tlsext_host_name(ssl, sniServerName.c_str())) {
         LOGSSLE("Cannot set sni");
-        // SSL_free(ssl);
-        // ssl = NULL;
-        // SSL_CTX_free(ctx);
-        // ctx = NULL;
         throw CannotSetSNIException("Cannot set sni");
     }
 
@@ -152,17 +183,78 @@ SslNetworkConnection::Connect()
     auto ret = SSL_connect(ssl);
     if (ret <= 0) {
         LOGSSLE("Error while initiation ssl");
-        // SSL_free(ssl);
-        // SSL_CTX_free(ctx);
         throw CannotConnectException("Cannot perform ssl connect");
     }
     connected = true;
 }
 
+void
+SslNetworkConnection::ConnectAsync(common::TaskPtr onSuccess, common::TaskPtr onFailed)
+{
+    auto handler = NewSslConnectFutureTaskHandlerPtr(onSuccess, onFailed);
+    ConnectAsync(handler, nullptr);
+}
+
+void
+SslNetworkConnection::ConnectAsync(SslConnectHandlerPtr handler, pinggy::VoidPtr asyncConnectPtr)
+{
+    if (serverSide)
+        throw ServerSideConnectionException("Attempting connect call from server side connection");
+    if (connected)
+        throw CannotConnectException("Attempting connect call from already established connection");
+
+    asyncConnectCompleted = false;
+
+    auto method = TLS_client_method();  /* Create new client-method instance */
+    auto ctx = SSL_CTX_new(method);   /* Create new context */
+    if ( ctx == NULL )
+    {
+        LOGSSLF("SSL_CTX_new");
+        throw CannotConnectException("Cannot create new context");
+    }
+    privateCtx = true;
+    SSL_CTX_set_min_proto_version(ctx, TLS1_3_VERSION);
+    SSL_CTX_set_max_proto_version(ctx, TLS1_3_VERSION);
+
+    loadBaseCertificate(ctx);
+
+    ssl = SSL_new(ctx);
+    if (ssl == NULL) {
+        throw CannotConnectException("Cannot create new ssl object");
+    }
+
+    netConn->SetBlocking(false);
+
+    if (netConn->IsRelayed() || netConn->IsDummy() || 1) {
+        auto bio = netConnBioNewBio(netConn);
+        if (!bio) {
+            LOGSSLE("Error while creating bio")
+            SSL_free(ssl);
+            netConn->CloseConn();
+            return;
+        }
+        SSL_set_bio(ssl, bio, bio);
+    } else {
+        SSL_set_fd(ssl, netConn->GetFd());
+    }
+
+    if (!SSL_set_tlsext_host_name(ssl, sniServerName.c_str())) {
+        LOGSSLE("Cannot set sni");
+        throw CannotSetSNIException("Cannot set sni");
+    }
+    this->asyncConnectPtr = asyncConnectPtr;
+    asyncConnectHandler = handler;
+    // handleFD();
+    this->RegisterFDEvenHandler(thisPtr);
+    DisableReadPoll();
+    EnableWritePoll();
+    LOGE("Async connection started for fd: ", netConn->GetFd());
+}
+
 ssize_t
 SslNetworkConnection::Read(void *data, size_t len, int flags)
 {
-    if (!connected)
+    if (!connected || !asyncConnectCompleted)
         throw SslReadException("Ssl connection is not established");
 
     auto ret = (ssize_t)SSL_read(ssl, data, (int)len);
@@ -201,8 +293,9 @@ SslNetworkConnection::Read(void *data, size_t len, int flags)
 ssize_t
 SslNetworkConnection::Peek(void *data, size_t len)
 {
-    if (!connected)
+    if (!connected || !asyncConnectCompleted)
         throw SslReadException("Ssl connection is not established");
+
     LOGT("PEEK: ", GetFd(), "len:", len);
 
     lastReturn = (ssize_t)SSL_peek(ssl, data, (int)len);
@@ -236,8 +329,9 @@ SslNetworkConnection::Peek(void *data, size_t len)
 ssize_t
 SslNetworkConnection::Write(RawDataPtr rwData, int flags)
 {
-    if (!connected)
+    if (!connected || !asyncConnectCompleted)
         throw SslWriteException("Ssl connection is not established");
+
     if (writeBuffer) {
         if (wroteFromCached)
             ABORT_WITH_MSG("wroteFromCached should not be non-zero");
@@ -271,8 +365,9 @@ SslNetworkConnection::Write(RawDataPtr rwData, int flags)
 ssize_t
 SslNetworkConnection::Write(const void *data, size_t len, int flags)
 {
-    if (!connected)
+    if (!connected || !asyncConnectCompleted)
         throw SslWriteException("Ssl connection is not established");
+
     ABORT_WITH_MSG("Deprecated: use rawdata based function");
     if (writeBuffer) {
         if (wroteFromCached)
@@ -326,8 +421,10 @@ SslNetworkConnection::CloseNClear(tString location)
             SSL_CTX_free(ctx);
         ssl = NULL;
     }
-    if(netConn)
-        return netConn->CloseConn(location);
+    if(netConn) {
+        netConn->CloseConn(location);
+        // netConn = nullptr;
+    }
     return 0;
 }
 
@@ -352,6 +449,32 @@ SslNetworkConnection::GetServerName()
     if (name)
         return NormalizeDomainName(tString(name));
     return "";
+}
+
+
+len_t
+SslNetworkConnection::HandleFDRead(PollableFDPtr)
+{
+    handleFD();
+    return 0;
+}
+
+len_t
+SslNetworkConnection::HandleFDWrite(PollableFDPtr)
+{
+    handleFD();
+    return 0;
+}
+
+len_t
+SslNetworkConnection::HandleFDError(PollableFDPtr fdPtr, int16_t ecode)
+{
+    LOGD("Closing by `HandleFDErrorWTag` for fd: ", fdPtr->GetFd(), " errno: ", ecode);
+    netConn->DeregisterFDEvenHandler();
+    netConn->CloseConn();
+    // SSL_free(ssl);
+    asyncConnectHandler->SslConnectionFailed(thisPtr, asyncConnectPtr);
+    return 0;
 }
 
 ssize_t
@@ -416,6 +539,55 @@ SslNetworkConnection::loadBaseCertificate(SSL_CTX *ctx)
 
     X509_free(cert);
     BIO_free(bio);
+}
+
+len_t
+SslNetworkConnection::handleFD()
+{
+    // Establish a secure connection
+    LOGT("Handling connect");
+    auto ret = SSL_connect(ssl);
+    switch(ret) {
+        case 0:
+            DeregisterFDEvenHandler();
+            asyncConnectHandler->SslConnectionFailed(thisPtr, asyncConnectPtr);
+            netConn->CloseConn();
+            // SSL_free(ssl);
+            LOGD("SSL connection failed: ", netConn->GetPeerAddress(), netConn->GetFd());
+            return 0;
+        case 1:
+            connected = true;
+            asyncConnectCompleted = true;
+            DeregisterFDEvenHandler();
+            asyncConnectHandler->SslConnected(thisPtr, asyncConnectPtr);
+            LOGD("SSL connected: ", netConn->GetPeerAddress(), netConn->GetFd());
+            return 1;
+        default:
+        {
+            auto sslErr = SSL_get_error(ssl, ret);
+            ERR_clear_error();
+            switch (sslErr)
+            {
+            case SSL_ERROR_WANT_READ:
+                LOGT("Enabling READPOLL", netConn->GetFd());
+                netConn->EnableReadPoll();
+                netConn->DisableWritePoll();
+                return ret;
+            case SSL_ERROR_WANT_WRITE:
+                LOGT("Enabling WRITE", netConn->GetFd());
+                netConn->EnableWritePoll();
+                netConn->DisableReadPoll();
+                return ret;
+            default:
+                LOGE("Cannot accept as unknown error: ", sslErr, netConn->GetPeerAddress(), netConn->GetFd());
+                netConn->DeregisterFDEvenHandler();
+                netConn->CloseConn();
+                // SSL_free(ssl);
+                asyncConnectHandler->SslConnectionFailed(thisPtr, asyncConnectPtr);
+            }
+            return ret;
+        }
+    }
 }
 
 } /* namespace net */

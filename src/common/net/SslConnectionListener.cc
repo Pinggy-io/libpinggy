@@ -21,108 +21,10 @@
 #include <openssl/x509v3.h>
 #include <set>
 #include "SslConnectionListener.hh"
+#include "SslNetConnBio.hh"
 
 
 namespace net {
-
-struct NetConnContainerBioData {
-    NetworkConnectionPtr        netConn;
-};
-
-static int
-netConnBioCreate(BIO *bio)
-{
-    auto myBioData = new NetConnContainerBioData();
-    if (!myBioData) {
-        LOGE("Could not create custom bio data");
-        return 0;
-    }
-    BIO_set_data(bio, myBioData); // Attach the custom context to the BIO
-    BIO_set_init(bio, 1);
-    return 1;
-}
-
-static int
-netConnBioDestroy(BIO *bio)
-{
-    if (!bio) return 0; // Null check
-    auto myBioData = (NetConnContainerBioData *)BIO_get_data(bio);
-    if (myBioData) {
-        // Free any custom resources here if necessary
-        delete myBioData;
-        BIO_set_data(bio, NULL); // Clear the context
-    }
-    BIO_set_init(bio, 0); // Mark the BIO as uninitialized
-    LOGD("FREEING up bio")
-    return 1; // Success
-}
-
-static int
-netConnBioRead(BIO *bio, char *buf, int len)
-{
-    auto myBioData = (NetConnContainerBioData *)BIO_get_data(bio);
-    Assert(myBioData);
-    Assert(myBioData->netConn);
-
-    int result = myBioData->netConn->Read(buf, len);
-    if (result <= 0) {
-        if (myBioData->netConn->TryAgain()) {
-            BIO_set_retry_read(bio);
-        }
-    }
-    return result;                          // Return bytes read or an error
-}
-
-static int
-netConnBioWrite(BIO *bio, const char *buf, int len)
-{
-    auto myBioData = (NetConnContainerBioData *)BIO_get_data(bio);
-    Assert(myBioData);
-    Assert(myBioData->netConn);
-
-    int result = myBioData->netConn->Write(buf, len);
-    if (result <= 0) {
-        if (myBioData->netConn->TryAgain()) {
-            BIO_set_retry_write(bio);
-        }
-    }
-
-    return result;                          // Return bytes written or an error
-}
-
-static long
-netConnBioCtrl(BIO *bio, int cmd, long num, void *ptr)
-{
-    switch (cmd) {
-        case BIO_CTRL_FLUSH:
-            return 1; // Flush is a no-op for many BIOs
-        default:
-            return 0; // Handle other control commands as needed
-    }
-}
-
-static BIO *
-netConnBioNewBio(NetworkConnectionPtr netConn)
-{
-    BIO_METHOD *bio_method = BIO_meth_new(BIO_TYPE_SOURCE_SINK, "custom accept bio");
-
-    BIO_meth_set_create(bio_method, netConnBioCreate);
-    BIO_meth_set_destroy(bio_method, netConnBioDestroy);
-    BIO_meth_set_write(bio_method, netConnBioWrite);
-    BIO_meth_set_read(bio_method, netConnBioRead);
-    BIO_meth_set_ctrl(bio_method, netConnBioCtrl);
-
-    BIO *bio = BIO_new(bio_method);
-    if (bio) {
-        auto myBioData = (NetConnContainerBioData *)BIO_get_data(bio);
-        Assert(myBioData);
-        Assert(myBioData->netConn == nullptr);
-
-        myBioData->netConn = netConn;
-    }
-
-    return bio;
-}
 
 #define NEW_SSL_NETWORKCONNECTION_PTR(...) NewSslNetworkConnectionPtr(new SslNetworkConnection(__VA_ARGS__))
 
@@ -306,6 +208,7 @@ SslConnectionListner::handleFDWPtr(PollableFDPtr pollableFD, pinggy::VoidPtr ptr
         LOGI("Cannot accept as connection closed: ", netConn->GetPeerAddress());
         netConn->DeregisterFDEvenHandler();
         netConn->CloseConn();
+        SSL_free(sslPtr->ssl);
         break;
     case 1:
         {
@@ -375,7 +278,7 @@ SslConnectionListner::AcceptSslAsync(NetworkConnectionPtr netConn, pinggy::VoidP
 
     SSL *ssl;
     ssl = SSL_new(defaultCtx);              /* get new SSL state with context */
-    if (netConn->IsRelayed()) {
+    if (netConn->IsRelayed() || netConn->IsDummy()) {
         auto bio = netConnBioNewBio(netConn);
         if (!bio) {
             LOGSSLE("Error while creating bio")

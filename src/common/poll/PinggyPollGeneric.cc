@@ -320,7 +320,7 @@ tInt PollControllerGeneric::PollOnce()
     int ret = poll(pollEventsForIterator, numPollEventsForIterator, timeout);
     if (ret < 0) {
         LOGE("poll() failed: ", app_get_strerror(app_get_errno()));
-        return ret;
+        return -1;
     }
 
     ExecuteCurrentTasks();

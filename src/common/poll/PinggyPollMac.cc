@@ -105,7 +105,7 @@ tInt PollControllerLinux::PollOnce()
     auto nfds = kevent(pollfd, NULL, 0, pollEvents, numEvents, localTimeSpecPtr);
 
     if (nfds == -1) {
-        return nfds;
+        return -1;
     }
 
     ExecuteCurrentTasks();

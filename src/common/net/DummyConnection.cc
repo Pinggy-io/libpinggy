@@ -55,15 +55,27 @@ DummyConnection::CreateDummyConnection(DummyConnectionPtr conns[2], int bufferLe
     return true;
 }
 
+std::tuple<DummyConnectionPtr, DummyConnectionPtr>
+DummyConnection::CreateDummyConnectionPair(int bufferLen)
+{
+    DummyConnectionPtr conns[2];
+    if (CreateDummyConnection(conns, bufferLen)) {
+        return {conns[0], conns[1]};
+    }
+    return {nullptr, nullptr};
+}
+
 DummyConnection::DummyConnection(): flags(0), lastRet(0), tryAgain(false)
 {
     netState.Valid = true;
+    netState.Dummy = true;
+    netState.Pollable = false;
 }
 
 void
 DummyConnection::setReadPoll()
 {
-    if (isReadPolling && IsRecvReady()) {
+    if (IsRecvReady()) {
         RaiseDummyReadPoll();
     }
 }
@@ -71,7 +83,7 @@ DummyConnection::setReadPoll()
 void
 DummyConnection::setWritePoll()
 {
-    if (isWritePolling && IsSendReady()) {
+    if (IsSendReady()) {
         RaiseDummyWritePoll();
     }
 }
@@ -261,54 +273,43 @@ DummyConnection::ShutDown(int how)
     return 0;
 }
 
-bool
-DummyConnection::IsSendReady()
-{
-    return writer->closed || (writer->queue.size() < bufferLen);
-}
-
-bool
-DummyConnection::IsRecvReady()
-{
-    return (reader->closed || reader->queue.size());
-}
-
 void
-DummyConnection::EnableWritePoll()
+DummyConnection::WritePollEnabled()
 {
     if (!isWritePolling) {
-        NetworkConnection::EnableWritePoll();
+        NetworkConnection::WritePollEnabled();
         isWritePolling = true;
-        if (IsSendReady())
-            RaiseDummyWritePoll();
     }
+
+    if (IsSendReady())
+        RaiseDummyWritePoll();
 }
 
 void
-DummyConnection::EnableReadPoll()
+DummyConnection::ReadPollEnabled()
 {
     if (!isReadPolling) {
-        NetworkConnection::EnableReadPoll();
+        NetworkConnection::ReadPollEnabled();
         isReadPolling = true;
-        if (IsRecvReady())
-            RaiseDummyReadPoll();
     }
+    if (IsRecvReady())
+        RaiseDummyReadPoll();
 }
 
 void
-DummyConnection::DisableReadPoll()
+DummyConnection::ReadPollDisabled()
 {
     if (isReadPolling) {
-        NetworkConnection::DisableReadPoll();
+        NetworkConnection::ReadPollDisabled();
         isReadPolling = false;
     }
 }
 
 void
-DummyConnection::DisableWritePoll()
+DummyConnection::WritePollDisabled()
 {
     if (isWritePolling) {
-        NetworkConnection::DisableWritePoll();
+        NetworkConnection::WritePollDisabled();
         isWritePolling = false;
     }
 }
@@ -317,6 +318,14 @@ int16_t
 DummyConnection::GetBufferSize()
 {
     return (int16_t)reader->queue.size();
+}
+
+tNetState
+DummyConnection::GetState()
+{
+    netState.RecvReady = reader->queue.size() > 0 || reader->closed;
+    netState.SendReady = writer->closed || (writer->queue.size() < bufferLen);
+    return netState;
 }
 
 void
