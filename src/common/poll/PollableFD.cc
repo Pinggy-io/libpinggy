@@ -19,7 +19,8 @@
 
 //==============================
 
-PollableFDPtr PollableFD::SetPollController(common::PollControllerPtr pollController)
+PollableFDPtr
+PollableFD::SetPollController(common::PollControllerPtr pollController)
 {
     if (isRedirectWriteEventsForConnection())
         throw std::runtime_error("Non blocking connection going on. Operation not allowed.");
@@ -39,7 +40,8 @@ PollableFDPtr PollableFD::SetPollController(common::PollControllerPtr pollContro
     return thisPtr;
 }
 
-PollableFDPtr PollableFD::RegisterFDEvenHandler(FDEventHandlerPtr fdEventHandler, pinggy::VoidPtr udata, bool edgeTrigger)
+PollableFDPtr
+PollableFD::RegisterFDEvenHandler(FDEventHandlerPtr fdEventHandler, pinggy::VoidPtr udata, bool edgeTrigger)
 {
     Assert(GetPController());
     if (isRedirectWriteEventsForConnection())
@@ -76,7 +78,8 @@ PollableFDPtr PollableFD::RegisterFDEvenHandler(FDEventHandlerPtr fdEventHandler
     return thisPtr;
 }
 
-PollableFDPtr PollableFD::DeregisterFDEvenHandler()
+PollableFDPtr
+PollableFD::DeregisterFDEvenHandler()
 {
     if (isRedirectWriteEventsForConnection())
         throw std::runtime_error("Non blocking connection going on. Operation not allowed.");
@@ -91,15 +94,9 @@ PollableFDPtr PollableFD::DeregisterFDEvenHandler()
     return thisPtr;
 }
 
-void PollableFD::EnableReadPoll()
-{
-    if (isRedirectWriteEventsForConnection())
-        throw std::runtime_error("Non blocking connection going on. Operation not allowed.");
-    if(GetPController() && getFDEventHandler())
-        GetPController()->EnableReader(getRegisteredFD());
-}
 
-void PollableFD::EnableWritePoll()
+void
+PollableFD::WritePollEnabled()
 {
     if (isRedirectWriteEventsForConnection())
         throw std::runtime_error("Non blocking connection going on. Operation not allowed.");
@@ -107,15 +104,8 @@ void PollableFD::EnableWritePoll()
         GetPController()->EnableWriter(getRegisteredFD());
 }
 
-void PollableFD::DisableReadPoll()
-{
-    if (isRedirectWriteEventsForConnection())
-        throw std::runtime_error("Non blocking connection going on. Operation not allowed.");
-    if(GetPController() && getFDEventHandler())
-        GetPController()->DisableReader(getRegisteredFD());
-}
-
-void PollableFD::DisableWritePoll()
+void
+PollableFD::WritePollDisabled()
 {
     if (isRedirectWriteEventsForConnection())
         throw std::runtime_error("Non blocking connection going on. Operation not allowed.");
@@ -123,7 +113,50 @@ void PollableFD::DisableWritePoll()
         GetPController()->DisableWriter(getRegisteredFD());
 }
 
-void PollableFD::RaiseDummyReadPoll()
+void
+PollableFD::ReadPollEnabled()
+{
+    if (isRedirectWriteEventsForConnection())
+        throw std::runtime_error("Non blocking connection going on. Operation not allowed.");
+    if(GetPController() && getFDEventHandler())
+        GetPController()->EnableReader(getRegisteredFD());
+}
+
+void
+PollableFD::ReadPollDisabled()
+{
+    if (isRedirectWriteEventsForConnection())
+        throw std::runtime_error("Non blocking connection going on. Operation not allowed.");
+    if(GetPController() && getFDEventHandler())
+        GetPController()->DisableReader(getRegisteredFD());
+}
+
+void
+PollableFD::EnableReadPoll()
+{
+    notifyReadPollEnabled();
+}
+
+void
+PollableFD::EnableWritePoll()
+{
+    notifyWritePollEnabled();
+}
+
+void
+PollableFD::DisableReadPoll()
+{
+    notifyReadPollDisabled();
+}
+
+void
+PollableFD::DisableWritePoll()
+{
+    notifyWritePollDisabled();
+}
+
+void
+PollableFD::RaiseDummyReadPoll()
 {
     if (isRedirectWriteEventsForConnection())
         throw std::runtime_error("Non blocking connection going on. Operation not allowed.");
@@ -133,7 +166,8 @@ void PollableFD::RaiseDummyReadPoll()
         setInitialReadPoll(true);
 }
 
-void PollableFD::RaiseDummyWritePoll()
+void
+PollableFD::RaiseDummyWritePoll()
 {
     if (isRedirectWriteEventsForConnection())
         throw std::runtime_error("Non blocking connection going on. Operation not allowed.");
@@ -141,7 +175,8 @@ void PollableFD::RaiseDummyWritePoll()
         GetPController()->RaiseWritePoll(getRegisteredFD());
 }
 
-void PollableFD::RegisterConnectHandler()
+void
+PollableFD::RegisterConnectHandler()
 {
     Assert(GetOrig() == thisPtr);
     if (redirectWriteEventsForConnection_)
@@ -155,7 +190,8 @@ void PollableFD::RegisterConnectHandler()
     redirectWriteEventsForConnection_ = true;
 }
 
-void PollableFD::DeregisterConnectHandler()
+void
+PollableFD::DeregisterConnectHandler()
 {
     if (!isRedirectWriteEventsForConnection())
         throw std::runtime_error("Non blocking connection is not going on. Operation not allowed.");
@@ -163,24 +199,8 @@ void PollableFD::DeregisterConnectHandler()
     redirectWriteEventsForConnection_ = false;
 }
 
-// common::PollStatePtr PollableFD::SlientPollDeregister()
-// {
-//     Assert(GetOrig() == thisPtr);
-//     auto registeredFd = getRegisteredFD();
-//     auto state = GetPController()->RetrieveState(registeredFd);
-//     GetPController()->DeregisterHandler(registeredFd);
-//     return state;
-// }
-
-// void PollableFD::SlientPollRegister(common::PollStatePtr state)
-// {
-//     Assert(GetOrig() == thisPtr);
-//     auto registeredFd = getRegisteredFD();
-//     GetPController()->RegisterHandler(registeredFd);
-//     GetPController()->RestoreState(registeredFd, state);
-// }
-
-len_t PollableFD::HandlePollRecv()
+len_t
+PollableFD::HandlePollRecv()
 {
     if (!getFDEventHandler())
         return 0;
@@ -191,7 +211,8 @@ len_t PollableFD::HandlePollRecv()
     return getFDEventHandler()->HandleFDRead(getRegisteredFD());
 }
 
-len_t PollableFD::HandlePollSend()
+len_t
+PollableFD::HandlePollSend()
 {
     if (redirectWriteEventsForConnection_) {
         return HandleConnect();
@@ -205,7 +226,8 @@ len_t PollableFD::HandlePollSend()
     return getFDEventHandler()->HandleFDWrite(getRegisteredFD());
 }
 
-len_t PollableFD::HandlePollError(int16_t err)
+len_t
+PollableFD::HandlePollError(int16_t err)
 {
     if (!getFDEventHandler())
         return 0;

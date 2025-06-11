@@ -30,6 +30,8 @@
 #include <utils/JsonH.hh>
 #include <tuple>
 
+#include "ConFlags.hh"
+
 namespace net {
 
 
@@ -101,25 +103,7 @@ mAddStaticAssert_Struct(struct ConnectionMetadata, ServerName, 52);
 static_assert(sizeof(struct ConnectionMetadata) == NETWORK_METADATA_SIZE, "Sizeof meta data must be 512");
 
 
-}
-
-enum ConnectionFlags { //Not required in public
-    ConFlag_NoProbeRequired     = 1 << 0,
-    ConFlag_NotAccountable      = 1 << 1,
-    ConFlag_LocalConnection     = 1 << 2,
-    ConFlag_VisitorConnection   = 1 << 3,
-    ConFlag_ConnectProxy        = 1 << 4,
-    ConFlag_Socks               = 1 << 5,
-    ConFlag_HoldedSocket        = 1 << 6,
-    ConFlag_RelayConnection     = 1 << 7,
-    ConFlag_AcceptSocket        = 1 << 8,
-
-
-    ConFlag_UserFlag1           = 1 << 15,
-    ConFlag_UserFlag2           = 1 << 16,
-    ConFlag_UserFlag3           = 1 << 17,
-    ConFlag_UserFlag4           = 1 << 18,
-};
+} // extern "C"
 
 union tNetState {
     struct {
@@ -130,9 +114,13 @@ union tNetState {
         tUint16                 Valid:1;
         tUint16                 Connected:1;
         tUint16                 Relayed:1;
+        tUint16                 Dummy:1;
+        tUint16                 Pollable:1;
+        tUint16                 RecvReady:1;
+        tUint16                 SendReady:1;
     };
     tUint16                     Raw;
-    tNetState(): Raw(0)         { Connected = true; }
+    tNetState(): Raw(0)         { Connected = true; Pollable = true; RecvReady = true; SendReady = true; }
 
     tNetState
     NewWithSsl()                { auto x = *this; x.Ssl = 1; return x; }
@@ -154,6 +142,18 @@ union tNetState {
 
     tNetState
     NewWithRelayed()            { auto x = *this; x.Relayed = 1; return x; }
+
+    tNetState
+    NewWithDummy()              { auto x = *this; x.Dummy = 1; return x; }
+
+    tNetState
+    NewWithPollable()           { auto x = *this; x.Pollable = 1; return x; }
+
+    tNetState
+    NewWithRecvReady()          { auto x = *this; x.RecvReady = 1; return x; }
+
+    tNetState
+    NewWithSendReady()          { auto x = *this; x.SendReady = 1; return x; }
 
 };
 
@@ -188,6 +188,18 @@ public:
 
     virtual
     bool IsBlocking() = 0;
+
+    virtual bool
+    IsPollable() override       { return GetState().Pollable; }
+
+    virtual bool
+    IsRecvReady() override      { return GetState().RecvReady; }
+
+    virtual bool
+    IsSendReady() override      { return GetState().SendReady; }
+
+    virtual tNetState
+    GetState() = 0;
 
 protected:
     virtual bool
@@ -325,8 +337,9 @@ public:
     virtual bool
     IsRelayed() final           { return GetState().Relayed; }
 
-    virtual tNetState
-    GetState() = 0;
+    virtual bool
+    IsDummy() final             { return GetState().Dummy; }
+
 };
 
 

@@ -35,21 +35,35 @@ public:
     static bool
     CreateDummyConnection(DummyConnectionPtr conns[2], int bufferLen = 0);
 
+    static std::tuple<DummyConnectionPtr, DummyConnectionPtr>
+    CreateDummyConnectionPair(int bufferLen = 0);
 
-    virtual bool
-    IsPollable() override       { return false; }
+    void
+    SetPeerAddress(SocketAddressPtr addr)
+                                { peerAddress = addr; }
+
+    void
+    SetLocalAddress(SocketAddressPtr addr)
+                                { localAddress = addr; }
+
+    void
+    SetServerName(const tString &name)
+                                { serverName = name; }
+
+    // virtual bool
+    // IsPollable() override       { return false; }
 
     virtual bool
     IsBlocking() override       { return false; }
 
     virtual std::string
-    GetServerName() override    { return ""; }
+    GetServerName() override    { return serverName; }
 
-    virtual net::SocketAddressPtr
-    GetPeerAddress() override   { return nullptr; }
+    virtual SocketAddressPtr
+    GetPeerAddress() override   { return peerAddress; }
 
-    virtual net::SocketAddressPtr
-    GetLocalAddress() override  { return nullptr; }
+    virtual SocketAddressPtr
+    GetLocalAddress() override  { return localAddress; }
 
     virtual sock_t
     GetFd() override            { return INVALID_SOCKET; }
@@ -116,26 +130,26 @@ public:
 
     //==
 
-    virtual bool
-    IsSendReady() override;
+    // virtual bool
+    // IsSendReady() override;
 
-    virtual bool
-    IsRecvReady() override;
+    // virtual bool
+    // IsRecvReady() override;
 
     virtual bool
     TryAgain() override         { return tryAgain; }
     //PollableFD
     virtual void
-    EnableWritePoll() override;
+    WritePollEnabled() override;
 
     virtual void
-    EnableReadPoll() override;
+    WritePollDisabled() override;
 
     virtual void
-    DisableReadPoll() override;
+    ReadPollEnabled() override;
 
     virtual void
-    DisableWritePoll() override;
+    ReadPollDisabled() override;
 
     int16_t
     GetBufferSize();
@@ -144,7 +158,7 @@ public:
     GetOrig() override          { return thisPtr; }
 
     virtual tNetState
-    GetState() override         { return netState; }
+    GetState() override;
 
 protected:
 
@@ -183,6 +197,10 @@ private:
     bool                        isWritePolling;
     DummyConnectionWPtr         counterPart;
     tNetState                   netState;
+
+    SocketAddressPtr            peerAddress;
+    SocketAddressPtr            localAddress;
+    tString                     serverName;
 };
 DeclareSharedPtr(DummyConnection);
 
