@@ -29,6 +29,8 @@ Run the script `crossbuilding/windows/opensslbuild.bat`
 
 `.\crossbuilding\windows\buildForWindows.bat C:\OpenSSL\ releases build`
 
+`.\crossbuilding\windows\buildForSingleArch.bat x86_64 MT`
+
 
 # Manual building
 Once OpenSSL is installed, manual build can be done using following commands
