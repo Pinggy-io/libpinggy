@@ -203,7 +203,7 @@ parseArguments(int argc, char *argv[])
         {"verbose", cli_no_argument, 0, 'V'},
         {"port", cli_required_argument, 0, 'p'},
         {"sni", cli_required_argument, 0, 's'},
-        {"inseceure", cli_required_argument, 0, 'i'},
+        {"inseceure", cli_required_argument, 0, 'n'},
         {NULL, cli_required_argument, 0, 'R'},
         {NULL, cli_required_argument, 0, 'L'},
         {NULL, cli_required_argument, 0, 'o'},
