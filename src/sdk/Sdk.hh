@@ -151,15 +151,15 @@ public:
     ~Sdk();
 
     bool
-    Connect(common::PollControllerPtr pollController=nullptr);
+    Connect();
 
     bool
-    Start(common::PollControllerPtr pollController=nullptr);
+    Start();
 
     bool
     Stop();
 
-    tInt
+    bool
     ResumeTunnel();
 
     bool
@@ -168,8 +168,8 @@ public:
     std::vector<tString>
     GetUrls();
 
-    tUint64
-    SendKeepAlive();
+    // tUint64
+    // SendKeepAlive();
 
     tString
     GetEndMessage();
@@ -183,7 +183,7 @@ public:
     port_t
     StartWebDebugging(port_t port=4300);
 
-    void
+    bool
     RequestPrimaryRemoteForwarding();
 
     void
@@ -259,13 +259,19 @@ private:
     tunnelInitiated();
 
     bool
-    startTunnel();
+    startPollingInCurrentThread();
 
     void
     throwWrongThreadException(tString funcname);
 
     void
     cleanup();
+
+    void
+    sendKeepAlive();
+
+    void
+    keepAliveTimeout(tUint64 tick);
 
     net::NetworkConnectionPtr   baseConnection;
     common::PollControllerPtr   pollController;
@@ -281,7 +287,6 @@ private:
     std::vector<tString>        authenticationMsg;
     std::vector<tString>        urls;
     tString                     lastError;
-    bool                        globalPollController;
     SDKConfigPtr                sdkConfig;
     SdkEventHandlerPtr          eventHandler;
     net::ConnectionListnerPtr   webDebugListener;
@@ -296,11 +301,11 @@ private:
     net::NetworkConnectionPtr   notificationConn;
 
     bool                        primaryReverseForwardingInitiated;
-    bool                        block;
-    bool                        automatic;
+    bool                        primaryReverseForwardingCompleted;
     bool                        primaryForwardingCompleted;
     bool                        stopped;
 
+    tUint64                     lastKeepAliveTickReceived;
 
     std::map<protocol::tReqId, std::tuple<UrlPtr, UrlPtr>> // pendingReqId [remote binding address to localBinding address]
                                 pendingRemoteForwardingMap;

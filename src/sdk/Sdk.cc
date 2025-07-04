@@ -115,14 +115,13 @@ Sdk::Sdk(SDKConfigPtr config, SdkEventHandlerPtr _eventHandler):
             started(false),
             running(false),
             primaryForwardingReqId(0),
-            globalPollController(false),
             sdkConfig(config),
             eventHandler(_eventHandler),
             primaryReverseForwardingInitiated(false),
-            block(false),
-            automatic(false),
+            primaryReverseForwardingCompleted(false),
             primaryForwardingCompleted(false),
-            stopped(false)
+            stopped(false),
+            lastKeepAliveTickReceived(0)
 {
     if (!config) {
         sdkConfig = config = NewSDKConfigPtr();
@@ -131,14 +130,11 @@ Sdk::Sdk(SDKConfigPtr config, SdkEventHandlerPtr _eventHandler):
 
 Sdk::~Sdk()
 {
-    if (session)
-        session->Cleanup();
-    if (webDebugListener)
-        webDebugListener->CloseConn();
+    cleanup();
 }
 
 bool
-Sdk::Connect(common::PollControllerPtr pollController)
+Sdk::Connect()
 {
     //==== Setup =========
 
@@ -150,19 +146,14 @@ Sdk::Connect(common::PollControllerPtr pollController)
     started = true;
     runningThreadId = std::this_thread::get_id();
 
-    if (pollController) {
-        globalPollController = true;
-    } else {
 #ifdef __WINDOWS_OS__
-        pollController = common::NewPollControllerGenericPtr();
+    auto pollController = common::NewPollControllerGenericPtr();
 #else
-        pollController = common::NewPollControllerLinuxPtr();
+    auto pollController = common::NewPollControllerLinuxPtr();
 #endif
-    }
 
     this->pollController = pollController;
     //=============
-
 
     auto serverAddress = sdkConfig->ServerAddress;
     baseConnection = net::NewNetworkConnectionImplPtr(serverAddress->GetHost(), serverAddress->GetPortStr());
@@ -183,17 +174,31 @@ Sdk::Connect(common::PollControllerPtr pollController)
     if (!baseConnection)
         return false;
 
-    startTunnel();
+    pollController->SetInterval(5*SECOND, thisPtr, &Sdk::sendKeepAlive);
 
-    return true;
+    startPollingInCurrentThread();
+
+    return authenticated;
 }
 
 bool
-Sdk::Start(common::PollControllerPtr pollController)
+Sdk::Start()
 {
-    block = true;
-    automatic = true;
-    return Connect(pollController); //entry point
+    if (!Connect()) { //entry point
+        LOGD("Not connected or authenticated");
+        return false;
+    }
+    if (!RequestPrimaryRemoteForwarding()) {
+        LOGD("Primary forwarding failed");
+        return false;
+    }
+
+    while(true) {
+        auto ret = ResumeTunnel();
+        if (!ret)
+            break;
+    }
+    return true;
 }
 
 bool Sdk::Stop()
@@ -210,20 +215,20 @@ bool Sdk::Stop()
     return true;
 }
 
-tInt
+bool
 Sdk::ResumeTunnel()
 {
     if (!started)
         throw std::runtime_error("tunnel is not started");
     if (stopped)
-        return -1;
+        return false;
     lockAccess.lock();
     running = true;
     runningThreadId = std::this_thread::get_id();
     auto ret = pollController->PollOnce();
     running = false;
     lockAccess.unlock();
-    return ret;
+    return (ret < 0 && app_get_errno() != EINTR ? false : true);
 }
 
 std::vector<tString>
@@ -240,18 +245,18 @@ Sdk::GetUrls()
     return urls;
 }
 
-tUint64
-Sdk::SendKeepAlive()
-{
-    if (!running) {
-        LOGE("Tunnel is not running");
-        return 0;
-    }
-    if (stopped)
-        return 0;
-    auto var = LockIfDifferentThread();
-    return session->SendKeepAlive();
-}
+// tUint64
+// Sdk::SendKeepAlive()
+// {
+//     if (!running) {
+//         LOGE("Tunnel is not running");
+//         return 0;
+//     }
+//     if (stopped)
+//         return 0;
+//     auto var = LockIfDifferentThread();
+//     return session->SendKeepAlive();
+// }
 
 tString
 Sdk::GetEndMessage()
@@ -316,14 +321,15 @@ Sdk::StartWebDebugging(port_t port)
 #define PRIMARY_REMOTE_FORWARDING_HOST "LOCALHOST"
 #define PRIMARY_REMOTE_FORWARDING_PORT 0
 
-void
+bool
 Sdk::RequestPrimaryRemoteForwarding()
 {
     if (!authenticated) {
         ABORT_WITH_MSG("You are not logged in. How did you managed to come here?" );
     }
 
-    auto lock = LockIfDifferentThread();
+    throwWrongThreadException(__func__);
+
     if (primaryReverseForwardingInitiated) {
         throw RemoteForwardingException("Primary reverse forwarding is running already for this tunnel");
     }
@@ -347,6 +353,10 @@ Sdk::RequestPrimaryRemoteForwarding()
     primaryForwardingReqId = session->SendRemoteForwardRequest(PRIMARY_REMOTE_FORWARDING_PORT,
                                                                 PRIMARY_REMOTE_FORWARDING_HOST,
                                                                 hostPort, host);
+
+    pollController->StartPolling();
+
+    return primaryReverseForwardingCompleted;
 }
 
 void
@@ -403,10 +413,8 @@ Sdk::HandleSessionAuthenticatedAsClient(std::vector<tString> messages)
     LOGD("OnAuthenticated");
     if (eventHandler)
         eventHandler->OnAuthenticated();
-    if (automatic) {
-        RequestPrimaryRemoteForwarding();
-    }
 
+    pollController->StopPolling();
 }
 
 void
@@ -430,8 +438,7 @@ Sdk::HandleSessionAuthenticationFailed(tString error, std::vector<tString> authe
         baseConnection->CloseConn();
     }
 
-    if (!globalPollController)
-        pollController->StopPolling();
+    pollController->StopPolling();
 }
 
 void
@@ -440,8 +447,10 @@ Sdk::HandleSessionRemoteForwardingSucceeded(protocol::tReqId reqId, std::vector<
     LOGT("Remote Fowarding succeeded");
 
     if (primaryForwardingReqId == reqId) {
+        DEFER({pollController->StopPolling();});
+
         if (primaryForwardingCompleted) {
-            Assert("Received multiple primary forwarding");
+            ABORT_WITH_MSG("Received multiple primary forwarding");
             return;
         }
 
@@ -453,7 +462,11 @@ Sdk::HandleSessionRemoteForwardingSucceeded(protocol::tReqId reqId, std::vector<
 
         if (eventHandler)
             eventHandler->OnPrimaryForwardingSucceeded(urls);
+
         LOGD("Primary forwarding done");
+
+        primaryReverseForwardingCompleted = true;
+
         return;
     }
 
@@ -487,8 +500,9 @@ Sdk::HandleSessionRemoteForwardingFailed(protocol::tReqId reqId, tString error)
     lastError = error;
 
     if (primaryForwardingReqId == reqId) {
+        DEFER({pollController->StopPolling();});
         if (primaryForwardingCompleted) {
-            Assert("Received multiple primary forwarding");
+            ABORT_WITH_MSG("Received multiple primary forwarding");
             return;
         }
 
@@ -506,9 +520,6 @@ Sdk::HandleSessionRemoteForwardingFailed(protocol::tReqId reqId, tString error)
             baseConnection->DeregisterFDEvenHandler();
             baseConnection->CloseConn();
         }
-
-        if (!globalPollController)
-            pollController->StopPolling();
 
         LOGD("Primary forwarding failed");
 
@@ -610,8 +621,9 @@ void
 Sdk::HandleSessionKeepAliveResponseReceived(tUint64 tick)
 {
     LOGT("Keepalive response recvd: tick: ", tick);
-    if (eventHandler)
-        eventHandler->KeepAliveResponse(tick);
+    lastKeepAliveTickReceived = tick;
+    // if (eventHandler)
+    //     eventHandler->KeepAliveResponse(tick);
 }
 
 void
@@ -621,11 +633,10 @@ Sdk::HandleSessionDisconnection(tString reason)
     if (!session)
         return;
 
-    session->Cleanup();
-    cleanup();
-
     if (eventHandler)
         eventHandler->OnDisconnected(reason, {reason});
+
+    cleanup();
 }
 
 void
@@ -634,21 +645,21 @@ Sdk::HandleSessionConnectionReset()
     //Nothing much to do. just stop the poll controller if possible.
     baseConnection = nullptr; //it would be closed by sessios once this function returns.
 
-    cleanup();
-
     if (eventHandler)
         eventHandler->OnDisconnected("Connection reset", {"Connection reset"});
+
+    cleanup();
 }
 
 void
 Sdk::HandleSessionError(tUint32 errorNo, tString what, tBool recoverable)
 {
-    if (!recoverable) {
-        session->Cleanup();
-        cleanup();
-    }
     if (eventHandler)
         eventHandler->OnHandleError(errorNo, what, recoverable);
+
+    if (!recoverable) {
+        cleanup();
+    }
 }
 
 void
@@ -801,24 +812,22 @@ Sdk::tunnelInitiated()
 }
 
 bool
-Sdk::startTunnel()
+Sdk::startPollingInCurrentThread()
 {
     lockAccess.lock();
     running = true;
 
-    auto [_netConn1, _netConn2] = net::NetworkConnectionImpl::CreateConnectionPair();
-    auto netConn = _netConn1;
-    notificationConn = _netConn2;
+    if (!notificationConn) {
+        auto [_netConn1, _netConn2] = net::NetworkConnectionImpl::CreateConnectionPair();
+        auto netConn = _netConn1;
+        notificationConn = _netConn2;
 
-    netConn->SetBlocking(false);
-    netConn->SetPollController(pollController)->RegisterFDEvenHandler(thisPtr, NOTIFICATION_FD);
+        netConn->SetBlocking(false);
+        netConn->SetPollController(pollController)->RegisterFDEvenHandler(thisPtr, NOTIFICATION_FD);
+    }
 
-    // accessLockInner.lock();
+    pollController->StartPolling();
 
-    if (!globalPollController && block)
-        this->pollController->StartPolling();
-
-    // accessLockInner.unlock();
     running = false;
     lockAccess.unlock();
     return true;
@@ -834,10 +843,11 @@ void Sdk::throwWrongThreadException(tString funcname)
 
 void Sdk::cleanup()
 {
-    if (!globalPollController) {
-        // pollController->DeregisterAllHandlers();
-        pollController->StopPolling();
+    if (session) {
+        session->Cleanup();
+        session = nullptr;
     }
+
     if (webDebugListener && webDebugListener->IsListening()) {
         webDebugListener->DeregisterFDEvenHandler();
         webDebugListener->CloseConn();
@@ -848,7 +858,34 @@ void Sdk::cleanup()
         notificationConn->CloseConn();
         notificationConn = nullptr;
     }
+
+    if (pollController) {
+        pollController->StopPolling();
+        pollController->DeregisterAllHandlers();
+        pollController = nullptr;
+    }
+    if (eventHandler) {
+        eventHandler = nullptr;
+    }
     stopped = true;
+}
+
+void Sdk::sendKeepAlive()
+{
+    if (session) {
+        auto tick = session->SendKeepAlive();
+        pollController->SetTimeout(4*SECOND, thisPtr, &Sdk::keepAliveTimeout, tick);
+        LOGT("Sending keepalive");
+    }
+}
+
+void Sdk::keepAliveTimeout(tUint64 tick)
+{
+    if (tick > (lastKeepAliveTickReceived+2)) {
+        LOGI("Connection probably gone");
+        Stop();
+        cleanup();
+    }
 }
 
 //===============================================

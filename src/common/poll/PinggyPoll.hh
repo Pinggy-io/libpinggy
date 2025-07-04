@@ -238,6 +238,9 @@ protected:
     virtual void
     ExecuteCurrentTasks() final;
 
+    virtual void
+    CleanupAllTasks() final;
+
 private:
     // std::priority_queue<PollableTaskPtr, std::vector<PollableTaskPtr>, std::greater<PollableTaskPtr>>;
     PriorityQueueMinHeap<PollableTaskPtr>

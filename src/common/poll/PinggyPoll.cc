@@ -90,4 +90,14 @@ void PollController::ExecuteCurrentTasks()
     }
 }
 
+void
+PollController::CleanupAllTasks()
+{
+    while (taskQueue.size() > 0) {
+        auto task = taskQueue.top();
+        task->DisArm();
+        taskQueue.pop();
+    }
+}
+
 }; // NameSpace Common

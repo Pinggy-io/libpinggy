@@ -690,33 +690,24 @@ pinggy_tunnel_connect(pinggy_ref_t ref)
     return pinggy_true;
 }
 
-static pinggy_int_t
-pinggy_tunnel_resume_int(pinggy_ref_t ref)
+PINGGY_EXPORT pinggy_bool_t
+pinggy_tunnel_resume(pinggy_ref_t ref)
 {
     auto sdk =  getSdk(ref);
     if (sdk == nullptr) {
         LOGE("null sdk");
-        return -1;
+        return pinggy_false;
     }
     try {
-        return sdk->ResumeTunnel();
+        return sdk->ResumeTunnel() ? pinggy_true : pinggy_false;
     } catch (const std::exception &e) {
         if (exception_callback) {
             exception_callback("CPP exception:", e.what());
         } else {
             LOGE("No exception handler found");
         }
-        return -1;
+        return pinggy_false;
     }
-}
-
-PINGGY_EXPORT pinggy_bool_t
-pinggy_tunnel_resume(pinggy_ref_t ref)
-{
-    auto ret = pinggy_tunnel_resume_int(ref);
-    if (ret < 0)
-        return (app_get_errno() == EINTR) ? pinggy_true : pinggy_false;
-    return pinggy_true;
 }
 
 PINGGY_EXPORT pinggy_bool_t
@@ -788,7 +779,8 @@ pinggy_tunnel_request_primary_forwarding(pinggy_ref_t ref)
         return;
     }
     try {
-        return sdk->RequestPrimaryRemoteForwarding();
+        sdk->RequestPrimaryRemoteForwarding();
+        return;
     } catch (const std::exception &e) {
         if (exception_callback) {
             exception_callback("CPP exception:", e.what());

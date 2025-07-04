@@ -17,12 +17,6 @@
 #include <Sdk.hh>
 #include <platform/Log.hh>
 #include <utils/Utils.hh>
-#include <poll/PinggyPollGeneric.hh>
-#ifndef __WINDOWS_OS__
-#include <poll/PinggyPollLinux.hh>
-// #include <getopt.h>
-#else
-#endif
 
 #include "cli_getopt.h"
 
@@ -321,16 +315,15 @@ main(int argc, char *argv[]) {
     auto sdkEventHandler = NewClientSdkEventHandlerPtr(config);
     auto sdk = sdk::NewSdkPtr(config->sdkConfig, sdkEventHandler);
     sdkEventHandler->sdk = sdk;
-#ifndef __WINDOWS_OS__
-    auto pollController = common::NewPollControllerLinuxPtr();
-#else
-    auto pollController = common::NewPollControllerGenericPtr();
-#endif
-    sdk->Start(pollController);
-    pollController->StartPolling();
+
+    sdk->Start();
 
     if (sdkEventHandler->error != "")
         std::cout << "Tunnel ended with msg: " << sdkEventHandler->error << std::endl;
+
+    sdk = nullptr;
+    config = nullptr;
+    sdkEventHandler = nullptr;
 
     return 0;
 }

@@ -25,7 +25,8 @@ Session::Session(net::NetworkConnectionPtr netConn, bool asServer):
         serverMode(asServer),
         state(SessionState_Init),
         lastReqId(1023),
-        endSent(false)
+        endSent(false),
+        keepAliveSentTick(0)
 {
     lastChannelId = 4;
     if (asServer)
@@ -163,9 +164,8 @@ Session::RejectRemoteForwardRequest(tReqId reqId, tString error)
 tUint64
 Session::SendKeepAlive()
 {
-    static tUint64 tick = 0;
-    auto msg = NewKeepAliveMsgPtr(tick);
-    tick += 1;
+    auto msg = NewKeepAliveMsgPtr(keepAliveSentTick);
+    keepAliveSentTick += 1;
     sendMsg(msg);
     return msg->Tick;
 }
