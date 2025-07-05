@@ -66,7 +66,7 @@ configure_file(platform_config.h.in platform_config.h @ONLY)
 
 function(AddPlatFormHeader target)
     if (MSVC)
-        target_compile_options(${target} PRIVATE /FI"${PINGGY_TOP_SOURCE_DIR}/platform_config.h")
+        target_compile_options(${target} PRIVATE /FI "${PINGGY_TOP_SOURCE_DIR}/platform_config.h")
     else()
         target_compile_options(${target} PRIVATE -include "${PINGGY_TOP_SOURCE_DIR}/platform_config.h")
     endif()

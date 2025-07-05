@@ -568,7 +568,7 @@ sock_t app_udp_client_connect_host(const char *host, const char *port, sockaddr_
             name.sin6_addr = ip;
 
             int off = 0;
-            if (!issockoptsuccess(setsockopt(sock, IPPROTO_IPV6, IPV6_V6ONLY, &off, sizeof(off)))) {
+            if (!issockoptsuccess(setsockopt(sock, IPPROTO_IPV6, IPV6_V6ONLY, (char *) & off, sizeof(off)))) {
                 LOGD("Could not unset IPV6_V6ONLY: %s", app_get_strerror(app_get_errno()));
             }
 
