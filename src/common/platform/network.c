@@ -628,7 +628,8 @@ struct sock_addrinfo *app_getaddrinfo_tcp(const char *host, const char *port)
         addresses[count].socktype  = rp->ai_socktype;
         addresses[count].protocol  = rp->ai_protocol;
         addresses[count].addrlen   = rp->ai_addrlen;
-        addresses[count].addr.addr = *(rp->ai_addr);
+        memcpy(&addresses[count].addr.addr, rp->ai_addr, rp->ai_addrlen);
+        //addresses[count].addr.addr = *(rp->ai_addr);
         addresses[count].valid = 1;
     }
     freeaddrinfo(res);
