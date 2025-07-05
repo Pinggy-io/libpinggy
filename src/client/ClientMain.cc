@@ -56,10 +56,48 @@ struct ClientConfig: virtual public pinggy::SharedObject
 };
 DefineMakeSharedPtr(ClientConfig);
 
+static std::vector<tString>
+parseForwarding(const tString& val) {
+    std::vector<tString> result;
+    tString value = val;
+
+    while (!value.empty()) {
+        if (value[0] == '[') {
+            // IPv6 address in brackets
+            size_t close = value.find(']');
+            if (close == tString::npos) {
+                result.push_back(value);
+                break;
+            }
+            // Include the closing bracket
+            tString ipv6 = value.substr(0, close + 1);
+            result.push_back(ipv6);
+            // Move past the closing bracket
+            value = value.substr(close + 1);
+            if (!value.empty() && value[0] == ':') {
+                value = value.substr(1);
+            } else {
+                break;
+            }
+        } else {
+            // Find next colon
+            size_t colon = value.find(':');
+            if (colon == tString::npos) {
+                result.push_back(value);
+                break;
+            }
+            result.push_back(value.substr(0, colon));
+            value = value.substr(colon + 1);
+        }
+    }
+
+    return result;
+}
+
 bool
 parseReverseTunnel(ClientConfigPtr config, tString value)
 {
-    auto values = SplitString(value, ":");
+    auto values = parseForwarding(value);
     if (value.length() < 2) {
         return false;
     }
@@ -75,7 +113,7 @@ parseReverseTunnel(ClientConfigPtr config, tString value)
 bool
 parseForwardTunnel(ClientConfigPtr config, tString value)
 {
-    auto values = SplitString(value, ":");
+    auto values = parseForwarding(value);
     if (values.size() < 2) {
         return false;
     }
