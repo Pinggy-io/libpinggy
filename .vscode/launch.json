@@ -1,0 +1,51 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug test-serilization",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/test/test_Serialization",
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "preLaunchTask": "build-test-serilization",
+            "stopOnEntry": false,
+            "env": {},
+            "sourceLanguages": ["cpp"]
+        },
+        {
+            "name": "Debug test-deserilization",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/test/test_Deserialization",
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "preLaunchTask": "build-test-deserilization",
+            "stopOnEntry": false,
+            "env": {},
+            "sourceLanguages": ["cpp"]
+        },
+        {
+            "name": "Debug test-pinggyclient",
+            "type": "lldb-dap",
+            "request": "launch",
+            "program": "${workspaceFolder}/pinggyclient",
+            "args": [ "-p443", "-R0:[::1]:4000", "a.pinggy.io"],
+            "cwd": "${workspaceFolder}",
+            "stopOnEntry": false,
+            "env": {},
+            // "sourceLanguages": ["cpp"]
+        },
+        {
+            "name": "Debug test-pythonclient",
+            "type": "lldb",
+            "request": "launch",
+            "program": "python3",
+            "args": [ "${workspaceFolder}/bindings/python/test.py"],
+            "cwd": "${workspaceFolder}",
+            "stopOnEntry": false,
+            "env": {},
+            "sourceLanguages": ["cpp"]
+        }
+    ]
+}

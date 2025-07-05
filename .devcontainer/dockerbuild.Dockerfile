@@ -24,6 +24,7 @@ RUN apt-get update && \
     vim \
     gdb \
     ssh \
+    valgrind \
     && apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
