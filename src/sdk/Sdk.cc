@@ -156,7 +156,7 @@ Sdk::Connect()
     //=============
 
     auto serverAddress = sdkConfig->ServerAddress;
-    baseConnection = net::NewNetworkConnectionImplPtr(serverAddress->GetHost(), serverAddress->GetPortStr());
+    baseConnection = net::NewNetworkConnectionImplPtr(serverAddress->GetRawHost(), serverAddress->GetPortStr());
 
     if (sdkConfig->Ssl){
         auto sslConnection = net::NewSslNetworkConnectionPtr(baseConnection, sdkConfig->SniServerName);
@@ -343,10 +343,10 @@ Sdk::RequestPrimaryRemoteForwarding()
     tString host = "";
     port_t hostPort = 0;
     if (sdkConfig->TcpForwardTo) {
-        host = sdkConfig->TcpForwardTo->GetHost();
+        host = sdkConfig->TcpForwardTo->GetRawHost();
         hostPort = sdkConfig->TcpForwardTo->GetPort();
     } else {
-        host = sdkConfig->UdpForwardTo->GetHost();
+        host = sdkConfig->UdpForwardTo->GetRawHost();
         hostPort = sdkConfig->UdpForwardTo->GetPort();
     }
 
@@ -383,8 +383,8 @@ Sdk::RequestAdditionalRemoteForwarding(UrlPtr bindAddress, UrlPtr forwardTo)
         throw RemoteForwardingException("primary reverse forwarding for this tunnel");
     }
 
-    auto reqId = session->SendRemoteForwardRequest(bindAddress->GetPort(), bindAddress->GetHost(),
-                                                    forwardTo->GetPort(), forwardTo->GetHost());
+    auto reqId = session->SendRemoteForwardRequest(bindAddress->GetPort(), bindAddress->GetRawHost(),
+                                                    forwardTo->GetPort(), forwardTo->GetRawHost());
 
     if (reqId > 0) {
         pendingRemoteForwardingMap[reqId] = {bindAddress, forwardTo};
@@ -478,8 +478,8 @@ Sdk::HandleSessionRemoteForwardingSucceeded(protocol::tReqId reqId, std::vector<
     auto [bindAddress, forwardTo] = pendingRemoteForwardingMap[reqId];
     pendingRemoteForwardingMap.erase(reqId);
 
-    auto remoteBinding = std::tuple(bindAddress->GetHost(), bindAddress->GetPort());
-    auto localForwarding = std::tuple(forwardTo->GetHost(), forwardTo->GetPort());
+    auto remoteBinding = std::tuple(bindAddress->GetRawHost(), bindAddress->GetPort());
+    auto localForwarding = std::tuple(forwardTo->GetRawHost(), forwardTo->GetPort());
 
     if (remoteForwardings.find(remoteBinding) != remoteForwardings.end()) {
         LOGE("This not supposed to happen"); //cannot test it ever
@@ -555,7 +555,7 @@ Sdk::HandleSessionNewChannelRequest(protocol::ChannelPtr channel)
             auto remoteBinding = std::tuple(toHost, toPort);
             if (remoteForwardings.find(remoteBinding) == remoteForwardings.end()) {
                 if (sdkConfig->TcpForwardTo) {
-                    toHost = sdkConfig->TcpForwardTo->GetHost();
+                    toHost = sdkConfig->TcpForwardTo->GetRawHost();
                     toPort = sdkConfig->TcpForwardTo->GetPort();
                 } else {
                     channel->Reject("Tcp forwarding not enabled");
@@ -599,7 +599,7 @@ Sdk::HandleSessionNewChannelRequest(protocol::ChannelPtr channel)
         }
 
         try {
-            netConn = net::NewUdpConnectionImplPtr(sdkConfig->UdpForwardTo->GetHost(), sdkConfig->UdpForwardTo->GetPortStr());
+            netConn = net::NewUdpConnectionImplPtr(sdkConfig->UdpForwardTo->GetRawHost(), sdkConfig->UdpForwardTo->GetPortStr());
         } catch(const std::exception& e) {
             LOGE("Could not connect to", sdkConfig->UdpForwardTo->ToString(), " due to ", e.what());
             channel->Reject("Could not connect to provided address");

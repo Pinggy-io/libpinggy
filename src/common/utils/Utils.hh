@@ -58,13 +58,16 @@ public:
     ~Url();
 
     tString
-    ToString()                  { return protocol + "://" + host + ":" + std::to_string(port) + path; }
+    ToString()                  { return protocol + "://" + GetHost() + ":" + std::to_string(port) + path; }
 
     tString
-    GetSockAddrString()         { return host + ":" + portStr; }
+    GetSockAddrString()         { return GetHost() + ":" + portStr; }
+
+    tString
+    GetHost()                   { return (host.empty() || !ipv6) ? host : "["+host+"]"; }
 
     const tString&
-    GetHost() const             { return host; }
+    GetRawHost()                { return host; }
 
     const tString&
     GetPath() const             { return path; }
@@ -100,12 +103,13 @@ public:
 
 
 private:
-    tString protocol;
-    tString host;
-    port_t port;
-    tString portStr;
-    tString path;
-    tString query;
+    tString                     protocol;
+    tString                     host;
+    port_t                      port;
+    tString                     portStr;
+    tString                     path;
+    tString                     query;
+    bool                        ipv6;
 };
 
 DefineMakeSharedPtr(Url);

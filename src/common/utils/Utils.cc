@@ -61,7 +61,7 @@ Url::Url(tString aurl, int defaultPort, tString defaultProto): port(0)
 }
 
 #elif 1
-Url::Url(tString url, int defaultPort, tString defaultProto): port(0)
+Url::Url(tString url, int defaultPort, tString defaultProto): port(0), ipv6(false)
 {
     tString nurl = url;
     std::transform(nurl.begin(), nurl.end(), nurl.begin(), [](unsigned char c){ return std::tolower(c); });
@@ -85,12 +85,16 @@ Url::Url(tString url, int defaultPort, tString defaultProto): port(0)
         auto v6end = nurl.find("]", pos);
         if(v6end == nurl.npos)
             throw std::invalid_argument("Invalid URL format");
-        hostEnd = v6end+1;
+        hostEnd = v6end;
+        pos += 1;
+        ipv6 = true;
         colonpos = nurl.find(":", hostEnd);
     }
     host = url.substr(pos, hostEnd - pos);
     if(host.length())
         pos += host.length();
+    if (ipv6)
+        pos += 1; //skip past `]`
     if(colonpos < slashpos && colonpos < querypos) {
         portStr = url.substr(colonpos+1, MIN(slashpos, querypos) - colonpos);
         port = std::stoi(portStr);
