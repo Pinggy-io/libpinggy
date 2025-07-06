@@ -107,7 +107,7 @@ DeclareSharedPtr(PollState);
 // #define  NANOS_IN_MILLI     (1000L)
 
 class PollController;
-class PollableTask : pinggy::SharedObject{
+class PollableTask : public virtual pinggy::SharedObject{
 public:
     PollableTask(TaskPtr task): deadline(0), repeat(0), task(task)
                                 {}
@@ -237,6 +237,9 @@ protected:
 
     virtual void
     ExecuteCurrentTasks() final;
+
+    virtual void
+    CleanupAllTasks() final;
 
 private:
     // std::priority_queue<PollableTaskPtr, std::vector<PollableTaskPtr>, std::greater<PollableTaskPtr>>;

@@ -75,6 +75,11 @@ bool operator<(const std::shared_ptr<T>& lhs, const std::shared_ptr<T>& rhs) {
 }
 
 
+template <typename T>
+bool operator==(const std::shared_ptr<T>& lhs, const std::shared_ptr<T>& rhs) {
+    return lhs->Hash() == rhs->Hash();
+}
+
 typedef std::shared_ptr<SharedObject> VoidPtr;
 
 #else

@@ -138,18 +138,30 @@ RELEASE_ARCHIVE_PATH="$SCRIPTPATH/../../$releaseDir"
 mkdir -p "$RELEASE_PATH"
 #==========================
 
+buildType=Release
+if [ "$PINGGY_DEBUG" == "yes" ]
+then
+  buildType=Debug
+fi
+
+if [ "$LOG_LEVEL" == "" ]
+then
+  LOG_LEVEL=LogLevelDebug
+fi
+
 try cmake -S . -B $BUILD_PATH/$ARCH/pinggy \
     -DPINGGY_BUILD_ARCH=$ARCH \
     -DOPENSSL_ROOT_DIR="$OPENSSL_ROOT_PATH" \
     -DCMAKE_BUILD_SERVER=no \
+    -DLOG_LEVEL=$LOG_LEVEL \
     -DPINGGY_RELEASE_DIR="$RELEASE_PATH" \
     -DPINGGY_HEADER_RELEASE_DIR="$RELEASE_HEADER_PATH" \
     -DPINGGY_ARCHIVE_RELEASE_DIR="$RELEASE_ARCHIVE_PATH" \
     -DCMAKE_INSTALL_PREFIX="$RELEASE_PATH" \
     -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64" \
     -DCMAKE_OSX_DEPLOYMENT_TARGET=11.0 \
-    -DCMAKE_BUILD_TYPE=Release
-try cmake --build $BUILD_PATH/$ARCH/pinggy -j --config Release
+    -DCMAKE_BUILD_TYPE=$buildType
+try cmake --build $BUILD_PATH/$ARCH/pinggy -j --config $buildType
 try cmake --build $BUILD_PATH/$ARCH/pinggy --target distribute
 
 if [ "$RELEASE_SO" == "yes" ]

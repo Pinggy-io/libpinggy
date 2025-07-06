@@ -196,6 +196,7 @@ private:
     std::queue<ProtoMsgPtr>     sendQueue;
     bool                        endSent;
     tString                     endReason;
+    tUint64                     keepAliveSentTick;
 };
 DefineMakeSharedPtr(Session);
 

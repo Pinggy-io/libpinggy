@@ -292,7 +292,7 @@ NetworkConnectionImpl::getNextAddressToConnect()
     if (fetchAddressFromSystem) {
         fetchAddressFromSystem = false;
         auto addresses = app_getaddrinfo_tcp(hostToConnect.c_str(), portToConnect.c_str());
-        for (auto addr = addresses; addr->valid; addr++) {
+        for (auto addr = addresses; addr && addr->valid; addr++) {
             sock_addrinfo tmpAdr = *addr;
             addressesToConnect.push(tmpAdr);
         }

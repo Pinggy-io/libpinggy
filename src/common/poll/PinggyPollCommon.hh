@@ -292,6 +292,7 @@ void PollControllerLinux::DeregisterAllHandlers()
     socketState.clear();
     nonPollables.clear();
     reinit = true;
+    CleanupAllTasks();
 }
 
 void PollControllerLinux::CleanupAfterFork()

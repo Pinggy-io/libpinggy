@@ -1,0 +1,25 @@
+{
+
+  "name": "Dev Docker Environment",
+  "image": "pinggy/pinggy_core_build:latest",
+  "mounts": [
+    "source=${localEnv:HOME}/pinggy,target=${localEnv:HOME}/pinggy,type=bind",
+    "source=${localEnv:HOME}/pinggy/.bash_history,target=/root/.bash_history,type=bind"
+  ],
+  "workspaceFolder": "${localWorkspaceFolder}",
+  "forwardPorts": [7878],
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash"
+      },
+      "extensions": [
+        "ms-vscode.cpptools",
+        "ms-python.python",
+        "golang.go",
+        "ms-vscode.makefile-tools"
+      ]
+    }
+  },
+  "remoteUser": "root"
+}

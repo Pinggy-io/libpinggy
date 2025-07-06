@@ -259,6 +259,8 @@ void PollControllerGeneric::DeregisterAllHandlers()
     fds.clear();
     socketState.clear();
     nonPollables.clear();
+
+    CleanupAllTasks();
 }
 
 void PollControllerGeneric::StartPolling()

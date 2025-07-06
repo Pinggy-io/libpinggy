@@ -225,13 +225,13 @@ SslConnectionListner::handleFDWPtr(PollableFDPtr pollableFD, pinggy::VoidPtr ptr
             {
             case SSL_ERROR_WANT_READ:
                 LOGT("Enabling READPOLL", netConn->GetFd());
-                // netConn->EnableReadPoll();
+                netConn->EnableReadPoll();
                 netConn->DisableWritePoll();
                 return ret;
             case SSL_ERROR_WANT_WRITE:
                 LOGT("Enabling WRITE", netConn->GetFd());
                 netConn->EnableWritePoll();
-                // netConn->DisableReadPoll();
+                netConn->DisableReadPoll();
                 return ret;
             default:
                 ERR_clear_error();

@@ -17,12 +17,6 @@
 #include <Sdk.hh>
 #include <platform/Log.hh>
 #include <utils/Utils.hh>
-#include <poll/PinggyPollGeneric.hh>
-#ifndef __WINDOWS_OS__
-#include <poll/PinggyPollLinux.hh>
-// #include <getopt.h>
-#else
-#endif
 
 #include "cli_getopt.h"
 
@@ -62,10 +56,48 @@ struct ClientConfig: virtual public pinggy::SharedObject
 };
 DefineMakeSharedPtr(ClientConfig);
 
+static std::vector<tString>
+parseForwarding(const tString& val) {
+    std::vector<tString> result;
+    tString value = val;
+
+    while (!value.empty()) {
+        if (value[0] == '[') {
+            // IPv6 address in brackets
+            size_t close = value.find(']');
+            if (close == tString::npos) {
+                result.push_back(value);
+                break;
+            }
+            // Include the closing bracket
+            tString ipv6 = value.substr(0, close + 1);
+            result.push_back(ipv6);
+            // Move past the closing bracket
+            value = value.substr(close + 1);
+            if (!value.empty() && value[0] == ':') {
+                value = value.substr(1);
+            } else {
+                break;
+            }
+        } else {
+            // Find next colon
+            size_t colon = value.find(':');
+            if (colon == tString::npos) {
+                result.push_back(value);
+                break;
+            }
+            result.push_back(value.substr(0, colon));
+            value = value.substr(colon + 1);
+        }
+    }
+
+    return result;
+}
+
 bool
 parseReverseTunnel(ClientConfigPtr config, tString value)
 {
-    auto values = SplitString(value, ":");
+    auto values = parseForwarding(value);
     if (value.length() < 2) {
         return false;
     }
@@ -81,7 +113,7 @@ parseReverseTunnel(ClientConfigPtr config, tString value)
 bool
 parseForwardTunnel(ClientConfigPtr config, tString value)
 {
-    auto values = SplitString(value, ":");
+    auto values = parseForwarding(value);
     if (values.size() < 2) {
         return false;
     }
@@ -203,7 +235,7 @@ parseArguments(int argc, char *argv[])
         {"verbose", cli_no_argument, 0, 'V'},
         {"port", cli_required_argument, 0, 'p'},
         {"sni", cli_required_argument, 0, 's'},
-        {"inseceure", cli_required_argument, 0, 'i'},
+        {"inseceure", cli_required_argument, 0, 'n'},
         {NULL, cli_required_argument, 0, 'R'},
         {NULL, cli_required_argument, 0, 'L'},
         {NULL, cli_required_argument, 0, 'o'},
@@ -321,16 +353,15 @@ main(int argc, char *argv[]) {
     auto sdkEventHandler = NewClientSdkEventHandlerPtr(config);
     auto sdk = sdk::NewSdkPtr(config->sdkConfig, sdkEventHandler);
     sdkEventHandler->sdk = sdk;
-#ifndef __WINDOWS_OS__
-    auto pollController = common::NewPollControllerLinuxPtr();
-#else
-    auto pollController = common::NewPollControllerGenericPtr();
-#endif
-    sdk->Start(pollController);
-    pollController->StartPolling();
+
+    sdk->Start();
 
     if (sdkEventHandler->error != "")
         std::cout << "Tunnel ended with msg: " << sdkEventHandler->error << std::endl;
+
+    sdk = nullptr;
+    config = nullptr;
+    sdkEventHandler = nullptr;
 
     return 0;
 }

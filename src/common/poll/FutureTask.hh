@@ -84,7 +84,6 @@ inline void FutureTaskImplMem<T, R, Args...>::Fire()
         std::apply([this](Args ... a) {
             (this->t.get()->*func)(a...);
         }, data);
-    func = nullptr;
 }
 
 template<typename R, typename ... Args>
