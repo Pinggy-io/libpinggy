@@ -884,7 +884,7 @@ void Sdk::keepAliveTimeout(tUint64 tick)
     if (tick > (lastKeepAliveTickReceived+2)) {
         LOGI("Connection probably gone");
         Stop();
-        cleanup();
+        HandleSessionConnectionReset();
     }
 }
 
