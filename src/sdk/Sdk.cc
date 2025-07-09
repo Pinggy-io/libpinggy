@@ -188,6 +188,14 @@ bool
 Sdk::ResumeTunnel()
 {
     if (reconnectNow) {
+        reconnectLock.lock();
+        DEFER({reconnectLock.unlock();});
+        if (state == SdkState_ReconnectWaiting) {
+            auto ret = pollController->PollOnce();
+            LOGI("Poll returned", ret);
+            auto success = (ret < 0 && app_get_errno() != EINTR ? false : true);
+            return success;
+        }
         cleanupForReconnection();
         state = SdkState_Reconnecting;
         if (reconnectCounter >= MAX_RECONNECTION_TRY) {
@@ -198,12 +206,14 @@ Sdk::ResumeTunnel()
         reconnectCounter += 1;
         if (!internalConnect()) { //entry point
             LOGD("Not connected or authenticated");
-            sleep(3);
+            state = SdkState_ReconnectWaiting;
+            pollController->SetTimeout(3*SECOND, thisPtr, &Sdk::setState, SdkState_Reconnecting);
             return true;
         }
         if (!RequestPrimaryRemoteForwarding()) {
             LOGD("Primary forwarding failed");
-            sleep(3);
+            state = SdkState_ReconnectWaiting;
+            pollController->SetTimeout(3*SECOND, thisPtr, &Sdk::setState, SdkState_Reconnecting);
             return true;
         }
         if (webDebugListener && webDebugListener->IsListening()) {
