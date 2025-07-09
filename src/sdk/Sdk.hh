@@ -34,6 +34,7 @@ enum SdkState {
     sdkState_PrimaryReverseForwardingFailed,
 
     SdkState_Initial,
+    SdkState_ReconnectWaiting,
     SdkState_Connecting,
     SdkState_Reconnecting,
     SdkState_Connected,
@@ -319,6 +320,9 @@ private:
     void
     initPollController();
 
+    void
+    setState(SdkState s)        { state = s; }
+
     net::NetworkConnectionPtr   baseConnection;
     common::PollControllerPtr   pollController;
     protocol::SessionPtr        session;
@@ -340,6 +344,7 @@ private:
     //Innder lock would be always locked by the tunnel
     //To access something, first lock the outer lock, send the notification then try the inner lock
     std::mutex                  lockAccess;
+    std::mutex                  reconnectLock; //we cannot use lock access as it will be used somewhere else
     Semaphore                   semaphore;
     net::NetworkConnectionPtr   notificationConn;
     net::NetworkConnectionPtr   _notificateMonitorConn;
