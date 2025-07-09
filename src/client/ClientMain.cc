@@ -204,6 +204,8 @@ printHelpOptions(const char *prog){
     printf("\n");
     printf("        -L ADDR:PORT\n");
     printf("                Listening address for webdebugging\n");
+    printf("        -r\n");
+    printf("            Enable autoreconnect\n");
     printf("\n");
 }
 
@@ -245,7 +247,7 @@ parseArguments(int argc, char *argv[])
     bool exitNow = false;
     tString serverPort = "443";
     const char *prog = argv[0];
-    while ((opt = cli_getopt_long(argc, argv, "ahvVno:R:L:p:s:", longopts, &longindex)) != -1) {
+    while ((opt = cli_getopt_long(argc, argv, "ahvVno:R:L:p:s:r", longopts, &longindex)) != -1) {
         bool success = true;
         switch (opt) {
             case 'a':
@@ -282,6 +284,9 @@ parseArguments(int argc, char *argv[])
                 break;
             case 's':
                 config->sdkConfig->SniServerName = cli_optarg;
+                break;
+            case 'r':
+                config->sdkConfig->AutoReconnect = true;
                 break;
             case 256: // Handling for --config
                 printf("Config option with value: %s\n", cli_optarg);
@@ -337,6 +342,30 @@ struct ClientSdkEventHandler: virtual public sdk::SdkEventHandler
     virtual void
     OnDisconnected(tString error, std::vector<tString> messages) override
                                 { this->error = error; }
+
+    virtual void
+    OnAutoReconnection(tString error, std::vector<tString> messages) override
+    {
+        std::cout << "Reconnecting" << std::endl;
+    }
+
+    virtual void
+    OnReconnecting(tUint16 count) override
+    {
+        std::cout << "Trying.. " << count << std::endl;
+    }
+
+    virtual void
+    OnReconnectionCompleted() override
+    {
+        std::cout << "Reconnected" << std::endl;
+    }
+
+    virtual void
+    OnReconnectionFailed(tUint16 tries) override
+    {
+        std::cout << "Reconnection failed after " << tries << " tries" << std::endl;
+    }
 
     tString                     error;
     ClientConfigPtr             config;
