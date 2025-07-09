@@ -30,7 +30,7 @@
             "type": "lldb-dap",
             "request": "launch",
             "program": "${workspaceFolder}/pinggyclient",
-            "args": [ "-p443", "-R0:[::1]:4000", "a.pinggy.io"],
+            "args": [ "-p443", "-R0:asdase:4545", "tcp@a.pinggy.io"],
             "cwd": "${workspaceFolder}",
             "stopOnEntry": false,
             "env": {},

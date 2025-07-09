@@ -136,28 +136,28 @@ struct ApiChannelEventHandler: public virtual sdk::SdkChannelEventHandler
                                 { }
 
     virtual pinggy_void_t
-    ChannelDataReceived()
+    ChannelDataReceived() override
     {
         if (!channelDataReceivedCB) return;
         channelDataReceivedCB(channelDataReceivedUserData, channelRef);
     }
 
     virtual pinggy_void_t
-    ChannelReadyToSend(tUint32 bufferLen)
+    ChannelReadyToSend(tUint32 bufferLen) override
     {
         if (!channelReadyToSendCB) return;
         channelReadyToSendCB(channelReadyToSendUserData, channelRef, bufferLen);
     }
 
     virtual pinggy_void_t
-    ChannelError(tString errorText)
+    ChannelError(tString errorText) override
     {
         if (!channelErrorCB) return;
         channelErrorCB(channelErrorUserData, channelRef, errorText.c_str(), errorText.length());
     }
 
     virtual pinggy_void_t
-    ChannelCleanup()
+    ChannelCleanup() override
     {
         if (!channelCleanupCB) return;
         channelCleanupCB(channelCleanupUserData, channelRef);
@@ -186,6 +186,13 @@ public:
     pinggy_on_additional_forwarding_failed_cb_t
                                 onAdditionalForwardingFailedCB;
     pinggy_on_disconnected_cb_t onDisconnectedCB;
+    pinggy_on_auto_reconnection_cb_t
+                                onAutoReconnectionCB;
+    pinggy_on_reconnecting_cb_t onReconnectingCB;
+    pinggy_on_reconnection_completed_cb_t
+                                onReconnectionCompletedCB;
+    pinggy_on_reconnection_failed_cb_t
+                                onReconnectionFailedCB;
     pinggy_on_tunnel_error_cb_t onErrorCB;
     pinggy_on_new_channel_cb_t  onNewChannelCB;
 
@@ -197,6 +204,10 @@ public:
     pinggy_void_p_t             onAdditionalForwardingSucceededUserData;
     pinggy_void_p_t             onAdditionalForwardingFailedUserData;
     pinggy_void_p_t             onDisconnectedUserData;
+    pinggy_void_p_t             onAutoReconnectionUserData;
+    pinggy_void_p_t             onReconnectingUserData;
+    pinggy_void_p_t             onReconnectionCompletedUserData;
+    pinggy_void_p_t             onReconnectionFailedUserData;
     pinggy_void_p_t             onErrorUserData;
     pinggy_void_p_t             onNewChannelUserData;
 
@@ -211,7 +222,12 @@ public:
                         onAdditionalForwardingSucceededCB(NULL),
                         onAdditionalForwardingFailedCB(NULL),
                         onDisconnectedCB(NULL),
+                        onAutoReconnectionCB(NULL),
+                        onReconnectingCB(NULL),
+                        onReconnectionCompletedCB(NULL),
+                        onReconnectionFailedCB(NULL),
                         onNewChannelCB(NULL),
+
                         onAuthenticatedUserData(NULL),
                         onAuthenticationFailedUserData(NULL),
                         onPrimaryForwardingSucceededUserData(NULL),
@@ -219,6 +235,11 @@ public:
                         onAdditionalForwardingSucceededUserData(NULL),
                         onAdditionalForwardingFailedUserData(NULL),
                         onDisconnectedUserData(NULL),
+                        onAutoReconnectionUserData(NULL),
+                        onReconnectingUserData(NULL),
+                        onReconnectionCompletedUserData(NULL),
+                        onReconnectionFailedUserData(NULL),
+                        onErrorUserData(NULL),
                         onNewChannelUserData(NULL),
                         sdk(INVALID_PINGGY_REF) {}
 
@@ -237,18 +258,18 @@ public:
         delete[] cVec; \
 
     virtual pinggy_void_t
-    OnConnected()
+    OnConnected() override
     {
         if (onConnectedCB) onConnectedCB(onConnectedUserData, sdk);
     }
 
     virtual pinggy_void_t
-    OnAuthenticated()
+    OnAuthenticated() override
     {
         if (onAuthenticatedCB) onAuthenticatedCB(onAuthenticatedUserData, sdk);
     }
     virtual pinggy_void_t
-    OnAuthenticationFailed(std::vector<tString> why)
+    OnAuthenticationFailed(std::vector<tString> why) override
     {
         if (!onAuthenticationFailedCB) return;
         GetCStringArray(cWhy, why)
@@ -256,7 +277,7 @@ public:
         ReleaseCStringArray(cWhy, why);
     }
     virtual pinggy_void_t
-    OnPrimaryForwardingSucceeded(std::vector<tString> urls)
+    OnPrimaryForwardingSucceeded(std::vector<tString> urls) override
     {
         if (!onPrimaryForwardingSucceededCB) {
             LOGD("onPrimaryForwardingSucceededCB does not exists");
@@ -267,13 +288,13 @@ public:
         ReleaseCStringArray(cUrls, urls);
     }
     virtual pinggy_void_t
-    OnPrimaryForwardingFailed(tString message)
+    OnPrimaryForwardingFailed(tString message) override
     {
         if (!onPrimaryForwardingFailedCB) return;
         onPrimaryForwardingFailedCB(onPrimaryForwardingFailedUserData, sdk, message.c_str());
     }
     virtual pinggy_void_t
-    OnRemoteForwardingSuccess(UrlPtr bindAddress, UrlPtr forwardTo)
+    OnRemoteForwardingSuccess(UrlPtr bindAddress, UrlPtr forwardTo) override
     {
         if (!onAdditionalForwardingSucceededCB) return;
         auto cBindAddress = bindAddress->GetSockAddrString();
@@ -281,7 +302,7 @@ public:
         onAdditionalForwardingSucceededCB(onAdditionalForwardingSucceededUserData, sdk, cBindAddress.c_str(), cForwardTo.c_str());
     }
     virtual pinggy_void_t
-    OnRemoteForwardingFailed(UrlPtr bindAddress, UrlPtr forwardTo, tString error)
+    OnRemoteForwardingFailed(UrlPtr bindAddress, UrlPtr forwardTo, tString error) override
     {
         if (!onAdditionalForwardingFailedCB) return;
         auto cBindAddress = bindAddress->GetSockAddrString();
@@ -290,25 +311,56 @@ public:
         onAdditionalForwardingFailedCB(onAdditionalForwardingFailedUserData, sdk, cBindAddress.c_str(), cForwardTo.c_str(), cError.c_str());
     }
     virtual pinggy_void_t
-    OnDisconnected(tString error, std::vector<tString> messages)
+    OnDisconnected(tString error, std::vector<tString> messages) override
     {
         if (!onDisconnectedCB) return;
         GetCStringArray(cMsg, messages);
         onDisconnectedCB(onDisconnectedUserData, sdk, error.c_str(), messages.size(), cMsg);
         ReleaseCStringArray(cMsg, messages);
     }
+
     virtual pinggy_void_t
-    KeepAliveResponse(tUint64 forTick)
+    OnAutoReconnection(tString error, std::vector<tString> messages) override
+    {
+        if (!onAutoReconnectionCB) return;
+        GetCStringArray(cMsg, messages);
+        onAutoReconnectionCB(onAutoReconnectionUserData, sdk, error.c_str(), messages.size(), cMsg);
+        ReleaseCStringArray(cMsg, messages);
+    }
+
+    virtual pinggy_void_t
+    OnReconnecting(tUint16 cnt) override
+    {
+        if (!onReconnectingCB) return;
+        onReconnectingCB(onReconnectingUserData, sdk, cnt);
+    }
+
+    virtual pinggy_void_t
+    OnReconnectionCompleted() override
+    {
+        if (!onReconnectionCompletedCB) return;
+        onReconnectionCompletedCB(onReconnectionCompletedUserData, sdk);
+    }
+
+    virtual pinggy_void_t
+    OnReconnectionFailed(tUint16 cnt) override
+    {
+        if (!onReconnectionFailedCB) return;
+        onReconnectionFailedCB(onReconnectionFailedUserData, sdk, cnt);
+    }
+
+    virtual pinggy_void_t
+    KeepAliveResponse(tUint64 forTick) override
     {
     }
     virtual pinggy_void_t
-    OnHandleError(tUint32 errorNo, tString what, tBool recoverable)
+    OnHandleError(tUint32 errorNo, tString what, tBool recoverable) override
     {
         if (!onErrorCB) return;
         onErrorCB(onErrorUserData, sdk, errorNo, what.c_str(), recoverable?1:0);
     }
     virtual bool
-    OnNewVisitorConnectionReceived(sdk::SdkChannelWraperPtr channel)
+    OnNewVisitorConnectionReceived(sdk::SdkChannelWraperPtr channel) override
     {
         if (!onNewChannelCB) return false;
         auto channelRef             = getRef(channel);
@@ -480,6 +532,17 @@ pinggy_config_set_ssl(pinggy_ref_t ref, pinggy_bool_t ssl)
 }
 
 PINGGY_EXPORT pinggy_void_t
+pinggy_config_set_auto_reconnect(pinggy_ref_t ref, pinggy_bool_t enable)
+{
+    auto sdkConf = getSDKConfig(ref);
+    if (!sdkConf) {
+        LOGE("No sdkConf found for the ref:", ref);
+        return;
+    }
+    sdkConf->AutoReconnect = enable;
+}
+
+PINGGY_EXPORT pinggy_void_t
 pinggy_config_set_sni_server_name(pinggy_ref_t ref, pinggy_char_p_t sni_server_name)
 {
     auto sdkConf = getSDKConfig(ref);
@@ -600,6 +663,17 @@ pinggy_config_get_ssl(pinggy_ref_t ref)
         return pinggy_false;
     }
     return sdkConf->Ssl ? pinggy_true : pinggy_false;
+}
+
+PINGGY_EXPORT pinggy_const_bool_t
+pinggy_config_get_auto_reconnect(pinggy_ref_t ref)
+{
+    auto sdkConf = getSDKConfig(ref);
+    if (!sdkConf) {
+        LOGE("No sdkConf found for the ref:", ref);
+        return pinggy_false;
+    }
+    return sdkConf->AutoReconnect ? pinggy_true : pinggy_false;
 }
 
 PINGGY_EXPORT pinggy_const_int_t
@@ -898,6 +972,39 @@ pinggy_tunnel_set_on_disconnected_callback(pinggy_ref_t sdkRef, pinggy_on_discon
     GetEventHandlerFromSdkRef(sdkRef, aev);
     aev->onDisconnectedCB = disconnected;
     aev->onDisconnectedUserData = user_data;
+    return pinggy_true;
+}
+
+PINGGY_EXPORT pinggy_bool_t
+pinggy_tunnel_set_on_auto_reconnection_callback(pinggy_ref_t sdkRef, pinggy_on_auto_reconnection_cb_t auto_reconnection, pinggy_void_p_t user_data)
+{
+    GetEventHandlerFromSdkRef(sdkRef, aev);
+    aev->onAutoReconnectionCB = auto_reconnection;
+    aev->onAutoReconnectionUserData = user_data;
+    return pinggy_true;
+}
+PINGGY_EXPORT pinggy_bool_t
+pinggy_tunnel_set_on_reconnecting_callback(pinggy_ref_t sdkRef, pinggy_on_reconnecting_cb_t reconnecting, pinggy_void_p_t user_data)
+{
+    GetEventHandlerFromSdkRef(sdkRef, aev);
+    aev->onReconnectingCB = reconnecting;
+    aev->onReconnectingUserData = user_data;
+    return pinggy_true;
+}
+PINGGY_EXPORT pinggy_bool_t
+pinggy_tunnel_set_on_reconnection_completed_callback(pinggy_ref_t sdkRef, pinggy_on_reconnection_completed_cb_t reconnection_completed, pinggy_void_p_t user_data)
+{
+    GetEventHandlerFromSdkRef(sdkRef, aev);
+    aev->onReconnectionCompletedCB = reconnection_completed;
+    aev->onReconnectionCompletedUserData = user_data;
+    return pinggy_true;
+}
+PINGGY_EXPORT pinggy_bool_t
+pinggy_tunnel_set_on_reconnection_failed_callback(pinggy_ref_t sdkRef, pinggy_on_reconnection_failed_cb_t reconnection_failed, pinggy_void_p_t user_data)
+{
+    GetEventHandlerFromSdkRef(sdkRef, aev);
+    aev->onReconnectionFailedCB = reconnection_failed;
+    aev->onReconnectionFailedUserData = user_data;
     return pinggy_true;
 }
 
