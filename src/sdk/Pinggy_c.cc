@@ -738,8 +738,8 @@ pinggy_tunnel_start(pinggy_ref_t ref)
     return pinggy_true;
 }
 
-PINGGY_EXPORT pinggy_bool_t
-pinggy_tunnel_connect(pinggy_ref_t ref)
+static pinggy_bool_t
+pinggy_tunnel_connect_v2(pinggy_ref_t ref, pinggy_bool_t blocking)
 {
     auto sdk =  getSdk(ref);
     if (sdk == nullptr) {
@@ -748,7 +748,7 @@ pinggy_tunnel_connect(pinggy_ref_t ref)
     }
 
     try {
-        if (!sdk->Connect()) {
+        if (!sdk->Connect(blocking == pinggy_true)) {
             LOGI("Didn't work");
             return pinggy_false;
         }
@@ -762,6 +762,18 @@ pinggy_tunnel_connect(pinggy_ref_t ref)
     }
 
     return pinggy_true;
+}
+
+PINGGY_EXPORT pinggy_bool_t
+pinggy_tunnel_connect(pinggy_ref_t ref)
+{
+    return pinggy_tunnel_connect_v2(ref, pinggy_false);
+}
+
+PINGGY_EXPORT pinggy_bool_t
+pinggy_tunnel_connect_blocking(pinggy_ref_t ref)
+{
+    return pinggy_tunnel_connect_v2(ref, pinggy_true);
 }
 
 PINGGY_EXPORT pinggy_bool_t
@@ -844,8 +856,8 @@ pinggy_tunnel_start_web_debugging(pinggy_ref_t ref, pinggy_uint16_t port)
     }
 }
 
-PINGGY_EXPORT pinggy_void_t
-pinggy_tunnel_request_primary_forwarding(pinggy_ref_t ref)
+static pinggy_void_t
+pinggy_tunnel_request_primary_forwarding_v2(pinggy_ref_t ref, pinggy_bool_t blocking)
 {
     auto sdk =  getSdk(ref);
     if (sdk == nullptr) {
@@ -853,7 +865,7 @@ pinggy_tunnel_request_primary_forwarding(pinggy_ref_t ref)
         return;
     }
     try {
-        sdk->RequestPrimaryRemoteForwarding();
+        sdk->RequestPrimaryRemoteForwarding(blocking==pinggy_true);
         return;
     } catch (const std::exception &e) {
         if (exception_callback) {
@@ -863,6 +875,18 @@ pinggy_tunnel_request_primary_forwarding(pinggy_ref_t ref)
         }
         return;
     }
+}
+
+PINGGY_EXPORT pinggy_void_t
+pinggy_tunnel_request_primary_forwarding(pinggy_ref_t ref)
+{
+    pinggy_tunnel_request_primary_forwarding_v2(ref, pinggy_false);
+}
+
+PINGGY_EXPORT pinggy_void_t
+pinggy_tunnel_request_primary_forwarding_blocking(pinggy_ref_t ref)
+{
+    pinggy_tunnel_request_primary_forwarding_v2(ref, pinggy_true);
 }
 
 PINGGY_EXPORT pinggy_void_t

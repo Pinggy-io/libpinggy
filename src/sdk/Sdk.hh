@@ -38,6 +38,8 @@ enum SdkState {
     SdkState_Connecting,
     SdkState_Reconnecting,
     SdkState_Connected,
+    SdkState_SessionInitiating,
+    SdkState_SessionInitiated,
     SdkState_Authenticating,
     SdkState_Authenticated,
     sdkState_PrimaryReverseForwardingInitiated,
@@ -183,7 +185,7 @@ public:
     ~Sdk();
 
     bool
-    Connect();
+    Connect(bool block = false);
 
     bool
     Start();
@@ -216,7 +218,7 @@ public:
     StartWebDebugging(port_t port=4300);
 
     bool
-    RequestPrimaryRemoteForwarding();
+    RequestPrimaryRemoteForwarding(bool block = false);
 
     void
     RequestAdditionalRemoteForwarding(UrlPtr bindAddress, UrlPtr forwardTo);
@@ -291,7 +293,7 @@ private:
     tunnelInitiated();
 
     bool
-    internalConnect();
+    internalConnect(bool block);
 
     bool
     startPollingInCurrentThread();

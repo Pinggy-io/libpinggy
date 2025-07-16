@@ -509,6 +509,16 @@ pinggy_tunnel_start(pinggy_ref_t tunnel);
 PINGGY_EXPORT pinggy_bool_t
 pinggy_tunnel_connect(pinggy_ref_t tunnel);
 
+
+/**
+ * @brief Connect and authenticate the connection. It would call `authenticate` callback or `authentication_failed` callback if callbacks are setup.
+ *        Unlike `pinggy_tunnel_connect`, application does not needs to call `pinggy_tunnel_resume` after this call.
+ * @param tunnel
+ * @return whether authentication was successfull or not
+ */
+PINGGY_EXPORT pinggy_bool_t
+pinggy_tunnel_connect_blocking(pinggy_ref_t tunnel);
+
 /**
  * @brief This is the resume function. Applications are expected to call this function in infinite loop
  * unless it returns false. It would work only with `pinggy_tunnel_connect`
@@ -546,12 +556,23 @@ pinggy_tunnel_start_web_debugging(pinggy_ref_t tunnel, pinggy_uint16_t listening
 /**
  * @brief Request remote forwarding. It would request the server to start the forwarding.
  * Server would in return provide the domain name. It also call tunnel_initiated and tunnel_initiation_failed
- * callbacks
+ * callbacks. Application needs to call `pinggy_tunnel_resume` to get those callbacks.
  * @param tunnel
  * @return
  */
 PINGGY_EXPORT pinggy_void_t
 pinggy_tunnel_request_primary_forwarding(pinggy_ref_t tunnel);
+
+
+/**
+ * @brief Request remote forwarding. It would request the server to start the forwarding.
+ * Server would in return provide the domain name. It also call tunnel_initiated and tunnel_initiation_failed
+ * callbacks. Application does not need to call `pinggy_tunnel_resume` to get those callbacks.
+ * @param tunnel
+ * @return
+ */
+PINGGY_EXPORT pinggy_void_t
+pinggy_tunnel_request_primary_forwarding_blocking(pinggy_ref_t tunnel);
 
 /**
  * @brief
@@ -875,17 +896,51 @@ pinggy_tunnel_channel_get_src_host(pinggy_ref_t channel, pinggy_capa_t buffer_le
 
 //========================================
 //==============================================================
-#define DECLARE_CONFIG_GET_FUNC(funcname) \
-PINGGY_EXPORT pinggy_const_int_t \
-funcname(pinggy_capa_t capa, pinggy_char_p_t val)
 
-DECLARE_CONFIG_GET_FUNC(pinggy_version);
-DECLARE_CONFIG_GET_FUNC(pinggy_git_commit);
-DECLARE_CONFIG_GET_FUNC(pinggy_build_timestamp);
-DECLARE_CONFIG_GET_FUNC(pinggy_libc_version);
-DECLARE_CONFIG_GET_FUNC(pinggy_build_os);
+/**
+ * @brief Get pinggy library version. The library gets this information from the latest tag.
+ * @param capa capacity of provided pointer (`val`)
+ * @param val  pointer to char buffer where version would be copied.
+ * @return number of bytes copied to the buffer
+ */
+PINGGY_EXPORT pinggy_const_int_t
+pinggy_version(pinggy_capa_t capa, pinggy_char_p_t val);
 
-#undef DECLARE_CONFIG_GET_FUNC
+/**
+ * @brief Get the exact commit id for the source during build time.
+ * @param capa capacity of provided pointer (`val`)
+ * @param val  pointer to char buffer where commit id would be copied.
+ * @return number of bytes copied to the buffer
+ */
+PINGGY_EXPORT pinggy_const_int_t
+pinggy_git_commit(pinggy_capa_t capa, pinggy_char_p_t val);
+
+/**
+ * @brief Get the timestamp when this library was build.
+ * @param capa capacity of provided pointer (`val`)
+ * @param val  pointer to char buffer where timestamp would be copied.
+ * @return number of bytes copied to the buffer
+ */
+PINGGY_EXPORT pinggy_const_int_t
+pinggy_build_timestamp(pinggy_capa_t capa, pinggy_char_p_t val);
+
+/**
+ * @brief Get the libc version. This data can be incorrect or incomplete. Kindly allocate generous amount of buffer as this can be as very large.
+ * @param capa capacity of provided pointer (`val`)
+ * @param val  pointer to char buffer where libc version would be copied.
+ * @return number of bytes copied to the buffer
+ */
+PINGGY_EXPORT pinggy_const_int_t
+pinggy_libc_version(pinggy_capa_t capa, pinggy_char_p_t val);
+
+/**
+ * @brief Get the os information of the build system.
+ * @param capa capacity of provided pointer (`val`)
+ * @param val  pointer to char buffer where os information would be copied.
+ * @return number of bytes copied to the buffer
+ */
+PINGGY_EXPORT pinggy_const_int_t
+pinggy_build_os(pinggy_capa_t capa, pinggy_char_p_t val);
 //==============================================================
 
 //==========================================

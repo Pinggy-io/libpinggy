@@ -132,7 +132,7 @@ Sdk::~Sdk()
 }
 
 bool
-Sdk::Connect()
+Sdk::Connect(bool block)
 {
     //==== Setup =========
 
@@ -150,17 +150,17 @@ Sdk::Connect()
 
     //=============
 
-    return internalConnect();
+    return internalConnect(block);
 }
 
 bool
 Sdk::Start()
 {
-    if (!Connect()) { //entry point
+    if (!Connect(true)) { //entry point
         LOGD("Not connected or authenticated");
         return false;
     }
-    if (!RequestPrimaryRemoteForwarding()) {
+    if (!RequestPrimaryRemoteForwarding(true)) {
         LOGD("Primary forwarding failed");
         return false;
     }
@@ -204,13 +204,13 @@ Sdk::ResumeTunnel()
             return false;
         }
         reconnectCounter += 1;
-        if (!internalConnect()) { //entry point
+        if (!internalConnect(true)) { //entry point
             LOGD("Not connected or authenticated");
             state = SdkState_ReconnectWaiting;
             pollController->SetTimeout(3*SECOND, thisPtr, &Sdk::setState, SdkState_Reconnecting);
             return true;
         }
-        if (!RequestPrimaryRemoteForwarding()) {
+        if (!RequestPrimaryRemoteForwarding(true)) {
             LOGD("Primary forwarding failed");
             state = SdkState_ReconnectWaiting;
             pollController->SetTimeout(3*SECOND, thisPtr, &Sdk::setState, SdkState_Reconnecting);
@@ -230,7 +230,7 @@ Sdk::ResumeTunnel()
         return false;
     }
 
-    if (state < sdkState_PrimaryReverseForwardingSucceeded)
+    if (state < SdkState_Connected)
         throw std::runtime_error("tunnel is not started");
 
     if (stopped)
@@ -321,7 +321,7 @@ Sdk::StartWebDebugging(port_t port)
 #define PRIMARY_REMOTE_FORWARDING_PORT 0
 
 bool
-Sdk::RequestPrimaryRemoteForwarding()
+Sdk::RequestPrimaryRemoteForwarding(bool block)
 {
     if (state != SdkState_Authenticated) {
         ABORT_WITH_MSG("You are not logged in. How did you managed to come here?" );
@@ -349,6 +349,8 @@ Sdk::RequestPrimaryRemoteForwarding()
     primaryForwardingReqId = session->SendRemoteForwardRequest(PRIMARY_REMOTE_FORWARDING_PORT,
                                                                 PRIMARY_REMOTE_FORWARDING_HOST,
                                                                 hostPort, host);
+    if (!block)
+        return true;
 
     pollController->StartPolling();
 
@@ -396,10 +398,10 @@ Sdk::HandleSessionInitiated()
 {
     LOGD("Initiated");
 
-    if (state != SdkState_Connecting && state != SdkState_Reconnecting)
+    if (state != SdkState_SessionInitiating)
         return;
     // connected = true;
-    state = SdkState_Connected;
+    state = SdkState_SessionInitiated;
     if (eventHandler)
         eventHandler->OnConnected();
     authenticate();
@@ -799,7 +801,7 @@ Sdk::HandleConnectionFailed(net::NetworkConnectionImplPtr netConn)
 void
 Sdk::authenticate()
 {
-    if (state != SdkState_Connected)
+    if (state != SdkState_SessionInitiated)
         ABORT_WITH_MSG("You are not connected, how did you managed to call this?");
 
     state = SdkState_Authenticating;
@@ -826,7 +828,7 @@ Sdk::tunnelInitiated()
     return;
 }
 
-bool Sdk::internalConnect()
+bool Sdk::internalConnect(bool block)
 {
     try {
         auto serverAddress = sdkConfig->ServerAddress;
@@ -846,6 +848,8 @@ bool Sdk::internalConnect()
     if (!baseConnection)
         return false;
 
+    state = SdkState_Connected;
+
     baseConnection->SetPollController(pollController);
 
     session = protocol::NewSessionPtr(baseConnection);
@@ -855,6 +859,11 @@ bool Sdk::internalConnect()
     keepAliveTask = pollController->SetInterval(5*SECOND, thisPtr, &Sdk::sendKeepAlive);
 
     initiateNotificationChannel();
+
+    state = SdkState_SessionInitiating;
+
+    if (!block)
+        return true;
 
     startPollingInCurrentThread();
 
