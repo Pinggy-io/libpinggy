@@ -117,6 +117,8 @@ Sdk::Sdk(SDKConfigPtr config, SdkEventHandlerPtr _eventHandler):
             sdkConfig(config),
             eventHandler(_eventHandler),
             stopped(false),
+            reconnectNow(false),
+            cleanupNow(false),
             lastKeepAliveTickReceived(0),
             state(SdkState_Initial),
             reconnectCounter(0)
