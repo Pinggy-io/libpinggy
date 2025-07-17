@@ -36,7 +36,7 @@ fi
 
 if [ "$PINGGY_DEBUG" == "" ]
 then
-  PINGGY_DEBUG="yes"
+  PINGGY_DEBUG="no"
 fi
 
 if [ "$LOG_LEVEL" == "" ]
