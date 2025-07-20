@@ -359,14 +359,22 @@ tInt PollControllerGeneric::PollOnce()
 
             newDummyPoll.erase(eventFd);
             auto entry = fds[eventFd];
-            if (pfd->revents & POLLIN) {
+            auto ev = pfd->revents;
+            if (ev & POLLIN) {
                 entry->HandlePollRecv();
             }
-            if (pfd->revents & POLLOUT) {
+            if (ev & POLLOUT) {
                 entry->HandlePollSend();
             }
-            if (pfd->revents & (POLLERR | POLLHUP | POLLNVAL)) {
-                entry->HandlePollError(pfd->revents);
+            if (ev & (~(POLLIN | POLLOUT))) {
+                if (ev & POLLHUP) {
+                    if (ev & POLLIN) {
+                        LOGD("EPOLLHUP, ignoring ", ev, " fd: ", eventFd);
+                        continue;
+                    }
+                }
+                if (ev & (POLLERR | POLLHUP | POLLNVAL))
+                    entry->HandlePollError(ev);
             }
         }
 
@@ -403,6 +411,7 @@ void PollControllerGeneric::CleanupAfterFork()
     fds.clear();
     socketState.clear();
     nonPollables.clear();
+    CleanupAllTasks();
 }
 
 void PollControllerGeneric::enableDisableHandler(sock_t fd, short mode, bool enable)

@@ -23,6 +23,7 @@
 #include <stddef.h>
 #include <netinet/tcp.h>
 #include <fcntl.h>
+#include <sys/stat.h>
 #else
 #include <ws2tcpip.h>
 #endif
@@ -258,10 +259,13 @@ int send_fd(int unix_sock, int fd)
 
     return sendmsg(unix_sock, &msg, 0);
 }
-sock_t app_uds_client_connect(const char *fpath) {
+
+static sock_t
+app_uds_client_connect_with_log(const char *fpath, int log)
+{
     sock_t client_fd = socket(AF_UNIX, SOCK_STREAM, 0);
     if (client_fd == -1) {
-        LOGEE("Can't open socket");
+        if (log) LOGEE("Can't open socket");
         return (sock_t)-1;
     }
 
@@ -276,14 +280,39 @@ sock_t app_uds_client_connect(const char *fpath) {
 
     if(connect(client_fd, (struct sockaddr *)&server_addr, sock_len))
     {
-        LOGEE("Could not connect");
+        if (log) LOGEE("Could not connect %s", fpath);
         close(client_fd);
         return (sock_t)-1;
     }
     return client_fd;
 }
 
-sock_t app_uds_listener(const char *fpath) {
+sock_t
+app_uds_client_connect(const char *fpath) {
+    return app_uds_client_connect_with_log(fpath, 1);
+}
+
+sock_t
+app_uds_listener(const char *fpath)
+{
+    if (fpath == NULL) {
+        errno = ENOENT;
+        return -1;
+    }
+    if (fpath[0] != '@') {
+        struct stat st;
+        if (stat(fpath, &st) == 0) {
+            int temp_fd = app_uds_client_connect_with_log(fpath, 0);
+            if (temp_fd < 0)
+            {
+                unlink(fpath);
+            } else {
+                close(temp_fd);
+                errno = EBUSY;
+                return -1;
+            }
+        }
+    }
     sock_t listener_d = socket(AF_UNIX, SOCK_STREAM, 0);
     if (listener_d == -1) {
         LOGEE("Can't open socket");
@@ -925,6 +954,25 @@ int is_blocking(sock_t fd)
     return 1;
 }
 #endif
+
+
+int
+is_ip_address(const char *hostname)
+{
+    struct in_addr ipv4_addr;
+    struct in6_addr ipv6_addr;
+
+    // Check IPv4
+    if (app_inet_pton(AF_INET, hostname, &ipv4_addr) == 1)
+        return 1;
+
+    // Check IPv6
+    if (app_inet_pton(AF_INET6, hostname, &ipv6_addr) == 1)
+        return 1;
+
+    // Not an IP address
+    return 0;
+}
 
 #undef MAXLINE //2048
 #undef CONTROL_LEN //1024

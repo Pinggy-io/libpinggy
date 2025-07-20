@@ -109,14 +109,14 @@ DeclareSharedPtr(PollState);
 class PollController;
 class PollableTask : public virtual pinggy::SharedObject{
 public:
-    PollableTask(TaskPtr task): deadline(0), repeat(0), task(task)
+    PollableTask(TaskPtr task): deadline(0), isRepeat(false), task(task)
                                 {}
 
     virtual
     ~PollableTask()             {}
 
     virtual void
-    DisArm()                    { task = nullptr; }
+    DisArm()                    { task = nullptr; isRepeat = false; }
 
     virtual void
     Fire()                      { if (task) task->Fire(); }
@@ -126,8 +126,10 @@ public:
 
 private:
     friend class PollController;
+    tDuration                   alignment;
+    tDuration                   timeout;
     tTime                       deadline;
-    tTime                       repeat;
+    bool                        isRepeat;
     TaskPtr                     task;
 };
 DefineMakeSharedPtr(PollableTask);
@@ -188,7 +190,7 @@ public:
     StopPolling() = 0;
 
     virtual PollableTaskPtr
-    AddFutureTask(tDuration timeout, tDuration align, tDuration repeat, TaskPtr task) final;
+    AddFutureTask(tDuration timeout, tDuration align, bool repeat, TaskPtr task) final;
 
     template<typename ...Args>
     PollableTaskPtr
@@ -263,7 +265,7 @@ inline PollableTaskPtr
 PollController::SetTimeout(tDuration timeout, tDuration align, void(* func)(Args...), Args ...args)
 {
     auto task = NewFutureTaskImplPtr(func, args...);
-    return AddFutureTask(timeout, align, (tDuration)0, task);
+    return AddFutureTask(timeout, align, false, task);
 }
 
 template<typename T, typename ...Args>
@@ -278,7 +280,7 @@ inline PollableTaskPtr
 PollController::SetTimeout(tDuration timeout, tDuration align, std::shared_ptr<T> _t, void (T::*func)(Args...), Args ...args)
 {
     auto task = NewFutureTaskImplPtr(_t, func, args...);
-    return AddFutureTask(timeout, align, (tDuration)0, task);
+    return AddFutureTask(timeout, align, false, task);
 }
 
 //============
@@ -293,7 +295,7 @@ template<typename ...Args>
 inline PollableTaskPtr PollController::SetInterval(tDuration timeout, tDuration align, void(*func)(Args...), Args ...args)
 {
     auto task = NewFutureTaskImplPtr(func, args...);
-    return AddFutureTask(timeout, align, timeout, task);
+    return AddFutureTask(timeout, align, true, task);
 }
 
 template<typename T, typename ...Args>
@@ -306,7 +308,7 @@ template<typename T, typename ...Args>
 inline PollableTaskPtr PollController::SetInterval(tDuration timeout, tDuration align, std::shared_ptr<T> _t, void(T::* func)(Args...), Args ...args)
 {
     auto task = NewFutureTaskImplPtr(_t, func, args...);
-    return AddFutureTask(timeout, align, timeout, task);
+    return AddFutureTask(timeout, align, true, task);
 }
 
 }; //NameSpace Common

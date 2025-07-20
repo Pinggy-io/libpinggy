@@ -27,7 +27,7 @@
 
 namespace net {
 
-DeclareClassWithSharedPtr(SslConnectionListner);
+DeclareClassWithSharedPtr(SslConnectionListener);
 DeclareClassWithSharedPtr(SslNetworkConnection);
 
 abstract class SslConnectHandler: virtual public pinggy::SharedObject
@@ -208,7 +208,7 @@ private:
     len_t
     handleFD();
 
-    friend class                SslConnectionListner;
+    friend class                SslConnectionListener;
 
     SSL                        *ssl;
     NetworkConnectionPtr        netConn;

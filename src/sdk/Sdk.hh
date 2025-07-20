@@ -28,6 +28,24 @@
 namespace sdk
 {
 
+enum SdkState {
+    SdkState_Invalid = 0,
+    SdkState_AuthenticationFailed,
+    sdkState_PrimaryReverseForwardingFailed,
+
+    SdkState_Initial,
+    SdkState_ReconnectWaiting,
+    SdkState_Connecting,
+    SdkState_Reconnecting,
+    SdkState_Connected,
+    SdkState_SessionInitiating,
+    SdkState_SessionInitiated,
+    SdkState_Authenticating,
+    SdkState_Authenticated,
+    sdkState_PrimaryReverseForwardingInitiated,
+    sdkState_PrimaryReverseForwardingSucceeded,
+};
+
 struct SDKConfig: virtual public pinggy::SharedObject
 {
     SDKConfig();
@@ -73,6 +91,8 @@ struct SDKConfig: virtual public pinggy::SharedObject
     tString                     SniServerName;
 
     bool                        Insecure;
+
+    bool                        AutoReconnect;
 
 private:
     friend class Sdk;
@@ -126,6 +146,20 @@ public:
     OnHandleError(tUint32 errorNo, tString what, tBool recoverable)
                                 { }
 
+    virtual void
+    OnAutoReconnection(tString error, std::vector<tString> messages)
+                                { }
+
+    virtual void
+    OnReconnecting(tUint16)     { }
+
+    virtual void
+    OnReconnectionCompleted()   { }
+
+    virtual void
+    OnReconnectionFailed(tUint16)
+                                { }
+
     //return false to let the sdk handle connection
     virtual bool
     OnNewVisitorConnectionReceived(SdkChannelWraperPtr channel)
@@ -151,7 +185,7 @@ public:
     ~Sdk();
 
     bool
-    Connect();
+    Connect(bool block = false);
 
     bool
     Start();
@@ -163,7 +197,7 @@ public:
     ResumeTunnel();
 
     bool
-    IsAuthenticated()           {return authenticated;}
+    IsAuthenticated()           {return state >= SdkState_Authenticated;}
 
     std::vector<tString>
     GetUrls();
@@ -184,13 +218,13 @@ public:
     StartWebDebugging(port_t port=4300);
 
     bool
-    RequestPrimaryRemoteForwarding();
+    RequestPrimaryRemoteForwarding(bool block = false);
 
     void
     RequestAdditionalRemoteForwarding(UrlPtr bindAddress, UrlPtr forwardTo);
 
     bool
-    IsTunnelActive()            { return (started && (!stopped)); }
+    IsTunnelActive()            { return (state >= SdkState_Authenticating && (!stopped)); }
 
 //protocol::SessionEventHandler
     virtual void
@@ -229,7 +263,7 @@ public:
     NewVisitor(net::NetworkConnectionPtr netCon) override;
 
     virtual void
-    ConnectionListenerClosed(net::ConnectionListnerPtr listener) override;
+    ConnectionListenerClosed(net::ConnectionListenerPtr listener) override;
 
 
 //net::FDEventHandler
@@ -259,7 +293,13 @@ private:
     tunnelInitiated();
 
     bool
+    internalConnect(bool block);
+
+    bool
     startPollingInCurrentThread();
+
+    void
+    initiateNotificationChannel();
 
     void
     throwWrongThreadException(tString funcname);
@@ -273,13 +313,22 @@ private:
     void
     keepAliveTimeout(tUint64 tick);
 
+    void
+    stopWebDebugger();
+
+    void
+    cleanupForReconnection();
+
+    void
+    initPollController();
+
+    void
+    setState(SdkState s)        { state = s; }
+
     net::NetworkConnectionPtr   baseConnection;
     common::PollControllerPtr   pollController;
     protocol::SessionPtr        session;
 
-    bool                        connected;
-    bool                        authenticated;
-    bool                        started;
     bool                        running;
 
     protocol::tReqId            primaryForwardingReqId;
@@ -289,7 +338,7 @@ private:
     tString                     lastError;
     SDKConfigPtr                sdkConfig;
     SdkEventHandlerPtr          eventHandler;
-    net::ConnectionListnerPtr   webDebugListener;
+    net::ConnectionListenerPtr  webDebugListener;
     PortConfigPtr               portConfig;
 
     std::thread::id             runningThreadId;
@@ -297,20 +346,25 @@ private:
     //Innder lock would be always locked by the tunnel
     //To access something, first lock the outer lock, send the notification then try the inner lock
     std::mutex                  lockAccess;
+    std::mutex                  reconnectLock; //we cannot use lock access as it will be used somewhere else
     Semaphore                   semaphore;
     net::NetworkConnectionPtr   notificationConn;
+    net::NetworkConnectionPtr   _notificateMonitorConn;
 
-    bool                        primaryReverseForwardingInitiated;
-    bool                        primaryReverseForwardingCompleted;
-    bool                        primaryForwardingCompleted;
     bool                        stopped;
+    bool                        reconnectNow;
+    bool                        cleanupNow;
 
     tUint64                     lastKeepAliveTickReceived;
+    SdkState                    state;
 
     std::map<protocol::tReqId, std::tuple<UrlPtr, UrlPtr>> // pendingReqId [remote binding address to localBinding address]
                                 pendingRemoteForwardingMap;
     std::map<std::tuple<tString, port_t>, std::tuple<tString, port_t>>
                                 remoteForwardings;
+
+    common::PollableTaskPtr     keepAliveTask;
+    tInt16                      reconnectCounter;
 };
 DefineMakeSharedPtr(Sdk);
 

@@ -51,35 +51,35 @@ c_log(char *fl, int type, char *fmt, ...) __attribute__ ((__format__(printf, 3, 
 #if LOG_LEVEL <= LogLevelTrace
     #define LOGT(fmt, ...) c_log(__FILE__ ":" APP_2STR(__LINE__), LogLevelTrace, fmt, ##__VA_ARGS__)
 #else
-    #define LOGT(...) //__LOG(nullLoggerSink,  "TRACE:: ")
+    #define LOGT(...) do {}while(0) //__LOG(nullLoggerSink,  "TRACE:: ")
     // #define LOGTE(...) //__LOG(nullLoggerSink,  "TRACE:: ")
 #endif
 
 #if LOG_LEVEL <= LogLevelDebug
     #define LOGD(fmt, ...) c_log(__FILE__ ":" APP_2STR(__LINE__), LogLevelDebug, fmt, ##__VA_ARGS__)
 #else
-    #define LOGD(...) //__LOG(nullLoggerSink,  "DEBUG:: ")
+    #define LOGD(...) do {}while(0) //__LOG(nullLoggerSink,  "DEBUG:: ")
     // #define LOGDE(...) //__LOG(nullLoggerSink,  "DEBUG:: ")
 #endif
 
 #if LOG_LEVEL <= LogLevelInfo
     #define LOGI(fmt, ...) c_log(__FILE__ ":" APP_2STR(__LINE__), LogLevelInfo, fmt, ##__VA_ARGS__)
 #else
-    #define LOGI(x) //__LOG(nullLoggerSink,  " INFO:: ")
+    #define LOGI(x) do {}while(0) //__LOG(nullLoggerSink,  " INFO:: ")
     // #define LOGIE(x) //__LOG(nullLoggerSink,  " INFO:: ")
 #endif
 
 #if LOG_LEVEL <= LogLevelError
     #define LOGE(fmt, ...) c_log(__FILE__ ":" APP_2STR(__LINE__), LogLevelError, fmt, ##__VA_ARGS__)
 #else
-    #define LOGE(...)// __LOG(nullLoggerSink,  "ERROR:: ")
+    #define LOGE(...) do {}while(0) // __LOG(nullLoggerSink,  "ERROR:: ")
     // #define LOGEE(...)// __LOG(nullLoggerSink,  "ERROR:: ")
 #endif
 
 #if LOG_LEVEL <= LogLevelFatal
     #define LOGF(fmt, ...) c_log(__FILE__ ":" APP_2STR(__LINE__), LogLevelFatal, fmt, ##__VA_ARGS__)
 #else
-    #define LOGF(...) //__LOG(nullLoggerSink,  "FATAL:: ")
+    #define LOGF(...) do {}while(0) //__LOG(nullLoggerSink,  "FATAL:: ")
     // #define LOGFE(...) //__LOG(nullLoggerSink,  "FATAL:: ")
 #endif
 

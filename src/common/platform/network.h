@@ -258,6 +258,8 @@ int unset_close_on_exec(sock_t fd);
 int set_blocking(sock_t fd, int blocking);
 int is_blocking(sock_t fd);
 
+int is_ip_address(const char *hostname);
+
 #ifdef __cplusplus
 }
 #endif

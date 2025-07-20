@@ -197,7 +197,6 @@ void PollControllerLinux::DeregisterHandler(common::PollEventHandlerPtr handler)
     sock_t fd = handler->GetFd();
     LOGT( "removing fd:" << fd);
     Assert(pollfd > 0);
-    Assert(fds.find(fd) != fds.end());
     if (fds.find(fd) == fds.end())
         return;
 
@@ -303,6 +302,7 @@ void PollControllerLinux::CleanupAfterFork()
     fds.clear();
     socketState.clear();
     nonPollables.clear();
+    CleanupAllTasks();
 }
 
 #else

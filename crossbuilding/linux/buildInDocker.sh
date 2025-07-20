@@ -110,10 +110,22 @@ then
     popd
     rm -rf $OPENSSL_SOURCE_PATH
   fi
+fi
 
+buildType=Release
+if [ "$PINGGY_DEBUG" == "yes" ]
+then
+  buildType=Debug
+fi
+
+if [ "$LOG_LEVEL" == "" ]
+then
+  LOG_LEVEL=LogLevelDebug
 fi
 
 mkdir -p "$RELEASE_PATH"
+
+set -x
 
 try cmake -S . -B $BUILD_PATH/$ARCH/pinggy \
     -DCMAKE_TOOLCHAIN_FILE=$TOOLCHAIN_FILE \
@@ -124,8 +136,8 @@ try cmake -S . -B $BUILD_PATH/$ARCH/pinggy \
     -DPINGGY_HEADER_RELEASE_DIR="$RELEASE_HEADER_PATH" \
     -DPINGGY_ARCHIVE_RELEASE_DIR="$RELEASE_ARCHIVE_PATH" \
     -DCMAKE_INSTALL_PREFIX="$RELEASE_PATH" \
-    -DCMAKE_BUILD_TYPE=Release
-try cmake --build $BUILD_PATH/$ARCH/pinggy -j --config Release
+    -DCMAKE_BUILD_TYPE=$buildType
+try cmake --build $BUILD_PATH/$ARCH/pinggy -j --config $buildType
 try cmake --build $BUILD_PATH/$ARCH/pinggy --target distribute
 
 if [ "$RELEASE_SO" == "yes" ]

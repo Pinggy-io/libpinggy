@@ -329,7 +329,7 @@ public:
     GetAddressMetadata();
 
     virtual const ConnectionMetadata //Not required in public
-    GetConnectionMetadata();
+    GetConnectionMetadata(tString indentifier = "PINGGY", tString serverName="");
 
     virtual bool
     IsConnected() final         { return GetState().Connected; }

@@ -33,9 +33,19 @@ else
   releaseDir="$RELEASE_DIR_NAME"
 fi
 
+
+if [ "$PINGGY_DEBUG" == "" ]
+then
+  PINGGY_DEBUG="no"
+fi
+
+if [ "$LOG_LEVEL" == "" ]
+then
+  LOG_LEVEL=LogLevelDebug
+fi
+
 for arch in ${arches[@]}
 do
-
   try docker run --rm \
       -u $(id -u):$(id -g) \
       -e HOST_UID=$(id -u) \
@@ -43,6 +53,8 @@ do
       -e RELEASE_SO=${RELEASE_SO} \
       -e RELEASE_SSL=${RELEASE_SSL} \
       -e RELEASE_CLI=${RELEASE_CLI} \
+      -e PINGGY_DEBUG=${PINGGY_DEBUG} \
+      -e LOG_LEVEL=${LOG_LEVEL} \
       -v $REPO_PATH:/workspace \
       -e RELEASE_DIR_NAME="$RELEASE_DIR_NAME" \
       $dockernametag \

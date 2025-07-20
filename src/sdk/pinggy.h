@@ -195,6 +195,18 @@ typedef pinggy_void_t (*pinggy_on_additional_forwarding_failed_cb_t)            
 typedef pinggy_void_t (*pinggy_on_disconnected_cb_t)                            \
                             (pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_const_char_p_t error, pinggy_len_t msg_size, pinggy_char_p_p_t msg);
 
+typedef pinggy_void_t (*pinggy_on_auto_reconnection_cb_t)                            \
+                            (pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_const_char_p_t error, pinggy_len_t num_msgs, pinggy_char_p_p_t messages);
+
+typedef pinggy_void_t (*pinggy_on_reconnecting_cb_t)                                 \
+                            (pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_uint16_t retry_cnt);
+
+typedef pinggy_void_t (*pinggy_on_reconnection_completed_cb_t)                       \
+                            (pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref);
+
+typedef pinggy_void_t (*pinggy_on_reconnection_failed_cb_t)                          \
+                            (pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_uint16_t retry_cnt);
+
 typedef pinggy_void_t (*pinggy_on_tunnel_error_cb_t)                            \
                             (pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_uint32_t error_no, pinggy_const_char_p_t error, pinggy_bool_t recoverable);
 
@@ -324,6 +336,15 @@ PINGGY_EXPORT pinggy_void_t
 pinggy_config_set_ssl(pinggy_ref_t config, pinggy_bool_t ssl);
 
 /**
+ * @brief Enable or disable auto reconnection. By default it is disabled.
+ * @param config  reference to tunnel config
+ * @param enable
+ * @return
+ */
+PINGGY_EXPORT pinggy_void_t
+pinggy_config_set_auto_reconnect(pinggy_ref_t config, pinggy_bool_t enable);
+
+/**
  * @brief Another developer only config
  * @param config  reference to tunnel config
  * @param sni_server_name
@@ -428,6 +449,14 @@ PINGGY_EXPORT pinggy_const_bool_t
 pinggy_config_get_advanced_parsing(pinggy_ref_t config);
 
 /**
+ * @brief Get whether auto reconnect is enabled or not
+ * @param config  reference to tunnel config
+ * @return return whether auto reconnect is enabled or not
+ */
+PINGGY_EXPORT pinggy_const_bool_t
+pinggy_config_get_auto_reconnect(pinggy_ref_t config);
+
+/**
  * @brief Get whether ssl is enabled or not
  * @param config  reference to tunnel config
  * @return return whether ssl is enabled or not
@@ -480,6 +509,16 @@ pinggy_tunnel_start(pinggy_ref_t tunnel);
 PINGGY_EXPORT pinggy_bool_t
 pinggy_tunnel_connect(pinggy_ref_t tunnel);
 
+
+/**
+ * @brief Connect and authenticate the connection. It would call `authenticate` callback or `authentication_failed` callback if callbacks are setup.
+ *        Unlike `pinggy_tunnel_connect`, application does not needs to call `pinggy_tunnel_resume` after this call.
+ * @param tunnel
+ * @return whether authentication was successfull or not
+ */
+PINGGY_EXPORT pinggy_bool_t
+pinggy_tunnel_connect_blocking(pinggy_ref_t tunnel);
+
 /**
  * @brief This is the resume function. Applications are expected to call this function in infinite loop
  * unless it returns false. It would work only with `pinggy_tunnel_connect`
@@ -517,12 +556,23 @@ pinggy_tunnel_start_web_debugging(pinggy_ref_t tunnel, pinggy_uint16_t listening
 /**
  * @brief Request remote forwarding. It would request the server to start the forwarding.
  * Server would in return provide the domain name. It also call tunnel_initiated and tunnel_initiation_failed
- * callbacks
+ * callbacks. Application needs to call `pinggy_tunnel_resume` to get those callbacks.
  * @param tunnel
  * @return
  */
 PINGGY_EXPORT pinggy_void_t
 pinggy_tunnel_request_primary_forwarding(pinggy_ref_t tunnel);
+
+
+/**
+ * @brief Request remote forwarding. It would request the server to start the forwarding.
+ * Server would in return provide the domain name. It also call tunnel_initiated and tunnel_initiation_failed
+ * callbacks. Application does not need to call `pinggy_tunnel_resume` to get those callbacks.
+ * @param tunnel
+ * @return
+ */
+PINGGY_EXPORT pinggy_void_t
+pinggy_tunnel_request_primary_forwarding_blocking(pinggy_ref_t tunnel);
 
 /**
  * @brief
@@ -617,6 +667,46 @@ pinggy_tunnel_set_on_additional_forwarding_failed_callback(pinggy_ref_t tunnel, 
  */
 PINGGY_EXPORT pinggy_bool_t
 pinggy_tunnel_set_on_disconnected_callback(pinggy_ref_t tunnel, pinggy_on_disconnected_cb_t disconnected, pinggy_void_p_t user_data);
+
+/**
+ * @brief tunnel auto_reconnection callback. This function will be called when tunnel starts reconnecting.
+ * @param tunnel
+ * @param auto_reconnection
+ * @param user_data user data that will pass when library call this call back
+ * @return
+ */
+PINGGY_EXPORT pinggy_bool_t
+pinggy_tunnel_set_on_auto_reconnection_callback(pinggy_ref_t tunnel, pinggy_on_auto_reconnection_cb_t auto_reconnection, pinggy_void_p_t user_data);
+
+/**
+ * @brief tunnel reconnecting callback. This function will be called just before reconnection try. This is the time to reset state variables as all the lifecycle callback might get called.
+ * @param tunnel
+ * @param reconnecting
+ * @param user_data user data that will pass when library call this call back
+ * @return
+ */
+PINGGY_EXPORT pinggy_bool_t
+pinggy_tunnel_set_on_reconnecting_callback(pinggy_ref_t tunnel, pinggy_on_reconnecting_cb_t reconnecting, pinggy_void_p_t user_data);
+
+/**
+ * @brief tunnel reconnection_completed callback. reconnection_completed will be called after reconnection completed successfully.
+ * @param tunnel
+ * @param disconnected
+ * @param user_data user data that will pass when library call this call back
+ * @return
+ */
+PINGGY_EXPORT pinggy_bool_t
+pinggy_tunnel_set_on_reconnection_completed_callback(pinggy_ref_t tunnel, pinggy_on_reconnection_completed_cb_t reconnection_completed, pinggy_void_p_t user_data);
+
+/**
+ * @brief tunnel reconnection_failed callback. Sdk gives up reconnection after certain times. It calles this function when it gives up.
+ * @param tunnel
+ * @param disconnected
+ * @param user_data user data that will pass when library call this call back
+ * @return
+ */
+PINGGY_EXPORT pinggy_bool_t
+pinggy_tunnel_set_on_reconnection_failed_callback(pinggy_ref_t tunnel, pinggy_on_reconnection_failed_cb_t reconnection_failed, pinggy_void_p_t user_data);
 
 /**
  * @brief set error handler
@@ -806,17 +896,51 @@ pinggy_tunnel_channel_get_src_host(pinggy_ref_t channel, pinggy_capa_t buffer_le
 
 //========================================
 //==============================================================
-#define DECLARE_CONFIG_GET_FUNC(funcname) \
-PINGGY_EXPORT pinggy_const_int_t \
-funcname(pinggy_capa_t capa, pinggy_char_p_t val)
 
-DECLARE_CONFIG_GET_FUNC(pinggy_version);
-DECLARE_CONFIG_GET_FUNC(pinggy_git_commit);
-DECLARE_CONFIG_GET_FUNC(pinggy_build_timestamp);
-DECLARE_CONFIG_GET_FUNC(pinggy_libc_version);
-DECLARE_CONFIG_GET_FUNC(pinggy_build_os);
+/**
+ * @brief Get pinggy library version. The library gets this information from the latest tag.
+ * @param capa capacity of provided pointer (`val`)
+ * @param val  pointer to char buffer where version would be copied.
+ * @return number of bytes copied to the buffer
+ */
+PINGGY_EXPORT pinggy_const_int_t
+pinggy_version(pinggy_capa_t capa, pinggy_char_p_t val);
 
-#undef DECLARE_CONFIG_GET_FUNC
+/**
+ * @brief Get the exact commit id for the source during build time.
+ * @param capa capacity of provided pointer (`val`)
+ * @param val  pointer to char buffer where commit id would be copied.
+ * @return number of bytes copied to the buffer
+ */
+PINGGY_EXPORT pinggy_const_int_t
+pinggy_git_commit(pinggy_capa_t capa, pinggy_char_p_t val);
+
+/**
+ * @brief Get the timestamp when this library was build.
+ * @param capa capacity of provided pointer (`val`)
+ * @param val  pointer to char buffer where timestamp would be copied.
+ * @return number of bytes copied to the buffer
+ */
+PINGGY_EXPORT pinggy_const_int_t
+pinggy_build_timestamp(pinggy_capa_t capa, pinggy_char_p_t val);
+
+/**
+ * @brief Get the libc version. This data can be incorrect or incomplete. Kindly allocate generous amount of buffer as this can be as very large.
+ * @param capa capacity of provided pointer (`val`)
+ * @param val  pointer to char buffer where libc version would be copied.
+ * @return number of bytes copied to the buffer
+ */
+PINGGY_EXPORT pinggy_const_int_t
+pinggy_libc_version(pinggy_capa_t capa, pinggy_char_p_t val);
+
+/**
+ * @brief Get the os information of the build system.
+ * @param capa capacity of provided pointer (`val`)
+ * @param val  pointer to char buffer where os information would be copied.
+ * @return number of bytes copied to the buffer
+ */
+PINGGY_EXPORT pinggy_const_int_t
+pinggy_build_os(pinggy_capa_t capa, pinggy_char_p_t val);
 //==============================================================
 
 //==========================================

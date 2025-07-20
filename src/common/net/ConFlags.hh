@@ -22,16 +22,17 @@ namespace net
 
 
 enum ConnectionFlags_Public { //Not required in public
-    ConFlag_Reserved_1          = 1 << 0,
-    ConFlag_Reserved_2          = 1 << 1,
-    ConFlag_Reserved_3          = 1 << 2,
-    ConFlag_Reserved_4          = 1 << 3,
-    ConFlag_Reserved_5          = 1 << 4,
-    ConFlag_Reserved_6          = 1 << 5,
-    ConFlag_Reserved_7          = 1 << 6,
-    ConFlag_Reserved_8          = 1 << 7,
-    ConFlag_AcceptSocket        = 1 << 8,
+    ConFlag_Reserved_0          = 1 << 0,
+    ConFlag_Reserved_1          = 1 << 1,
+    ConFlag_Reserved_2          = 1 << 2,
+    ConFlag_Reserved_3          = 1 << 3,
+    ConFlag_Reserved_4          = 1 << 4,
+    ConFlag_Reserved_5          = 1 << 5,
+    ConFlag_Reserved_6          = 1 << 6,
+    ConFlag_Reserved_7          = 1 << 7,
+    ConFlag_Reserved_8          = 1 << 8,
     ConFlag_Reserved_9          = 1 << 9,
+    ConFlag_Reserved_10         = 1 << 10,
 
     ConFlag_Reserved_15         = 1 << 15,
     ConFlag_Reserved_16         = 1 << 16,
