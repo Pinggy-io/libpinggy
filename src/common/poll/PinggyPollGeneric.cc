@@ -411,6 +411,7 @@ void PollControllerGeneric::CleanupAfterFork()
     fds.clear();
     socketState.clear();
     nonPollables.clear();
+    CleanupAllTasks();
 }
 
 void PollControllerGeneric::enableDisableHandler(sock_t fd, short mode, bool enable)

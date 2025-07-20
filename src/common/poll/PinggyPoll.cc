@@ -23,7 +23,7 @@ PollController::PollController() : pollTime(GetCurrentTimeInNS())
 }
 
 PollableTaskPtr
-PollController::AddFutureTask(tDuration timeout, tDuration align, tDuration repeat, TaskPtr task)
+PollController::AddFutureTask(tDuration timeout, tDuration align, bool repeat, TaskPtr task)
 {
     auto curTime = pollTime;
     auto deadline = curTime + timeout;
@@ -31,15 +31,21 @@ PollController::AddFutureTask(tDuration timeout, tDuration align, tDuration repe
         align = (align / MILLISECOND) * MILLISECOND;
     }
     align = align > 0 ? align : MILLISECOND;
-    if ( align > 0 ) {
-        deadline = ((curTime + align - 1 + timeout)/align) * align;
+
+    tDuration misaligned = timeout%align;
+    timeout += (misaligned ? (align - misaligned) : 0); //aligning timeout
+    if (timeout == 0) {
+        timeout += align;
     }
-    if (repeat > 0) {
-        repeat = ((repeat + align - 1)/align)*align;
-    }
+    deadline = curTime + timeout;
+    misaligned = deadline%align;
+    deadline += (misaligned ? (align - misaligned) : 0);
+
     auto pollableTask = NewPollableTaskPtr(task);
-    pollableTask->deadline = deadline;
-    pollableTask->repeat = repeat;
+    pollableTask->deadline          = deadline;
+    pollableTask->isRepeat          = repeat;
+    pollableTask->timeout           = timeout;
+    pollableTask->alignment         = align;
 
     taskQueue.push(pollableTask);
 
@@ -62,12 +68,14 @@ tDuration PollController::GetNextTaskTimeout()
     return task->deadline - pollTime;
 }
 
-bool PollController::HaveFutureTasks()
+bool
+PollController::HaveFutureTasks()
 {
     return taskQueue.size() > 0;
 }
 
-void PollController::ExecuteCurrentTasks()
+void
+PollController::ExecuteCurrentTasks()
 {
     pollTime = GetCurrentTimeInNS();
 
@@ -82,8 +90,8 @@ void PollController::ExecuteCurrentTasks()
         taskQueue.pop();
 
         task->Fire();
-        if (task->repeat > 0) {
-            task->deadline += task->repeat;
+        if (task->isRepeat) {
+            task->deadline += task->timeout;
             LOGT("Repeat pushing")
             taskQueue.push(task);
         }

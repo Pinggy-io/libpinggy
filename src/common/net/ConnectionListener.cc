@@ -24,7 +24,7 @@
 
 namespace net {
 
-ConnectionListnerImpl::ConnectionListnerImpl(sock_t fd):
+ConnectionListenerImpl::ConnectionListenerImpl(sock_t fd):
         fd(fd), port(0), flagsForChild(0), ipv6(false),
         blocking(true), tryAgain(false)
 {
@@ -34,28 +34,28 @@ ConnectionListnerImpl::ConnectionListnerImpl(sock_t fd):
     }
 }
 
-ConnectionListnerImpl::ConnectionListnerImpl(std::string path):
+ConnectionListenerImpl::ConnectionListenerImpl(std::string path):
         fd(InValidSocket), port(0),
         socketPath(path), flagsForChild(0), ipv6(false),
         blocking(true), tryAgain(false)
 {
 }
 
-ConnectionListnerImpl::ConnectionListnerImpl(port_t port, bool ipv6):
+ConnectionListenerImpl::ConnectionListenerImpl(port_t port, bool ipv6):
         fd(InValidSocket), port(port),
         flagsForChild(0), ipv6(ipv6),
         blocking(true), tryAgain(false)
 {
 }
 
-ConnectionListnerImpl::~ConnectionListnerImpl()
+ConnectionListenerImpl::~ConnectionListenerImpl()
 {
     LOGT("Removing" << fd)
     CloseNCleanSocket(fd);
 }
 
 bool
-ConnectionListnerImpl::StartListening()
+ConnectionListenerImpl::StartListening()
 {
     if (IsValidSocket(fd)) {
         return true;
@@ -87,7 +87,7 @@ ConnectionListnerImpl::StartListening()
 }
 
 sock_t
-ConnectionListnerImpl::AcceptSocket()
+ConnectionListenerImpl::AcceptSocket()
 {
     sock_t newsock = app_accept(fd, NULL, NULL);
     if (newsock < 0) {
@@ -101,7 +101,7 @@ ConnectionListnerImpl::AcceptSocket()
 }
 
 NetworkConnectionPtr
-ConnectionListnerImpl::Accept()
+ConnectionListenerImpl::Accept()
 {
     tryAgain = false;
     sock_t newsock = app_accept(fd, NULL, NULL);
@@ -124,7 +124,7 @@ ConnectionListnerImpl::Accept()
 }
 
 int
-ConnectionListnerImpl::CloseNClear(tString location)
+ConnectionListenerImpl::CloseNClear(tString location)
 {
     if(IsValidSocket(fd)) {
         LOGD(this, location, "Closing fd:", fd);
@@ -136,7 +136,7 @@ ConnectionListnerImpl::CloseNClear(tString location)
 }
 
 void
-ConnectionListnerImpl::SetBlocking(bool block)
+ConnectionListenerImpl::SetBlocking(bool block)
 {
     if(set_blocking(fd, block?1:0)) {
         blocking = block;
@@ -144,7 +144,7 @@ ConnectionListnerImpl::SetBlocking(bool block)
 }
 
 void
-ConnectionListner::RegisterListenerHandler(ConnectionListenerHandlerPtr hndlr, len_t acceptConn)
+ConnectionListener::RegisterListenerHandler(ConnectionListenerHandlerPtr hndlr, len_t acceptConn)
 {
     eventHandler = hndlr;
     RegisterFDEvenHandler(thisPtr);
@@ -152,7 +152,7 @@ ConnectionListner::RegisterListenerHandler(ConnectionListenerHandlerPtr hndlr, l
 }
 
 void
-ConnectionListner::RegisterListenerHandler(common::PollControllerPtr pollController, ConnectionListenerHandlerPtr hndlr, len_t acceptConn)
+ConnectionListener::RegisterListenerHandler(common::PollControllerPtr pollController, ConnectionListenerHandlerPtr hndlr, len_t acceptConn)
 {
     eventHandler = hndlr;
     SetPollController(pollController);
@@ -161,12 +161,12 @@ ConnectionListner::RegisterListenerHandler(common::PollControllerPtr pollControl
 }
 
 len_t
-ConnectionListner::HandleFDRead(PollableFDPtr)
+ConnectionListener::HandleFDRead(PollableFDPtr)
 {
     auto blocking = IsBlocking();
     len_t cnt = 0;
     while(1) {
-        if (FlagsForChild()&ConFlag_AcceptSocket) {
+        if (GetAcceptRawSocket()) {
             auto newFd = AcceptSocket();
             if (!IsValidSocket(newFd)) {
                 if (!TryAgain()) {
@@ -199,7 +199,7 @@ ConnectionListner::HandleFDRead(PollableFDPtr)
 }
 
 len_t
-ConnectionListner::HandleFDError(PollableFDPtr, int16_t shortInt)
+ConnectionListener::HandleFDError(PollableFDPtr, int16_t shortInt)
 {
     LOGE("HandlerPollError: " << GetFd() << " " << app_get_strerror(shortInt));
     return 0;
@@ -208,9 +208,9 @@ ConnectionListner::HandleFDError(PollableFDPtr, int16_t shortInt)
 //=============
 
 sock_t
-ConnectionListner::AcceptSocket()
+ConnectionListener::AcceptSocket()
 {
-    throw ConnectionListnerException("Not implemented", thisPtr);
+    throw ConnectionListenerException("Not implemented", thisPtr);
     return INVALID_SOCKET;
 }
 

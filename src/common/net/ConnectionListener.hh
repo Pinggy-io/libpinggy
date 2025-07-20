@@ -23,27 +23,27 @@
 
 namespace net {
 
-DeclareClassWithSharedPtr(ConnectionListner);
+DeclareClassWithSharedPtr(ConnectionListener);
 
-class ConnectionListnerException: public std::exception, public virtual pinggy::SharedObject
+class ConnectionListenerException: public std::exception, public virtual pinggy::SharedObject
 {
 public:
-    ConnectionListnerException(tString message, ConnectionListnerPtr connListener) : message(message), connListener(connListener)
+    ConnectionListenerException(tString message, ConnectionListenerPtr connListener) : message(message), connListener(connListener)
                                 { }
 
-    virtual ~ConnectionListnerException()
+    virtual ~ConnectionListenerException()
                                 { }
 
     virtual const char*
     what() const noexcept override
                                 { return message.c_str(); }
 
-    virtual ConnectionListnerPtr
+    virtual ConnectionListenerPtr
     GetListener()               { return connListener; }
 
 private:
     tString                     message;
-    ConnectionListnerPtr        connListener;
+    ConnectionListenerPtr       connListener;
 };
 
 abstract class ConnectionListenerHandler: public virtual pinggy::SharedObject {
@@ -56,22 +56,22 @@ public:
     NewVisitor(NetworkConnectionPtr netCon) = 0;
 
     virtual void
-    NewVisitorSocket(sock_t fd, ConnectionListnerPtr listener)
-                                { throw ConnectionListnerException("Not implemented", listener); }
+    NewVisitorSocket(sock_t fd, ConnectionListenerPtr listener)
+                                { throw ConnectionListenerException("Not implemented", listener); }
 
     virtual void
-    ConnectionListenerClosed(ConnectionListnerPtr listener)
+    ConnectionListenerClosed(ConnectionListenerPtr listener)
                                 { }
 };
 DeclareClassWithSharedPtr(ConnectionListenerHandler);
 
-class ConnectionListner: public virtual NetworkSocket, public virtual FDEventHandler {
+class ConnectionListener: public virtual NetworkSocket, public virtual FDEventHandler {
 public:
-    ConnectionListner(): maxSeqAccepts(1)
+    ConnectionListener(): maxSeqAccepts(1), acceptRawSocket(false)
                                 { }
 
     virtual
-    ~ConnectionListner()        { }
+    ~ConnectionListener()       { }
 
     virtual bool
     StartListening() = 0;
@@ -123,24 +123,31 @@ public:
     IsValid()                   { return IsValidSocket(GetFd()); }
 
     virtual tNetState
-    GetState() override          { return tNetState(); }
+    GetState() override         { return tNetState(); }
+
+    virtual void
+    SetAcceptRawSocket()        { acceptRawSocket = true; }
+
+    virtual bool
+    GetAcceptRawSocket()        { return acceptRawSocket; }
 
 private:
     ConnectionListenerHandlerPtr
                                 eventHandler;
     len_t                       maxSeqAccepts;
+    bool                        acceptRawSocket;
 };
-DeclareSharedPtr(ConnectionListner);
+DeclareSharedPtr(ConnectionListener);
 
-class ConnectionListnerImpl: public ConnectionListner
+class ConnectionListenerImpl: public ConnectionListener
 {
 public:
-    ConnectionListnerImpl(sock_t fd);
-    ConnectionListnerImpl(tString path);
-    ConnectionListnerImpl(port_t port, bool ipv6);
+    ConnectionListenerImpl(sock_t fd);
+    ConnectionListenerImpl(tString path);
+    ConnectionListenerImpl(port_t port, bool ipv6);
 
     virtual
-    ~ConnectionListnerImpl();
+    ~ConnectionListenerImpl();
 
     virtual bool
     StartListening() override;
@@ -186,7 +193,7 @@ public:
     GetType() override          { return Type(); }
 
     static tString
-    Type()                      { return TO_STR(ConnectionListnerImpl); }
+    Type()                      { return TO_STR(ConnectionListenerImpl); }
 
     virtual void
     SetBlocking(bool block = true) override;
@@ -214,7 +221,7 @@ private:
     bool                        tryAgain;
 };
 
-DefineMakeSharedPtr(ConnectionListnerImpl);
+DefineMakeSharedPtr(ConnectionListenerImpl);
 
 //=====
 

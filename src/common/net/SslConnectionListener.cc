@@ -26,6 +26,53 @@
 
 namespace net {
 
+static X509 *
+create_self_signed_cert(EVP_PKEY* pkey, tString domain)
+{
+    X509 *x509 = X509_new();
+    ASN1_INTEGER_set(X509_get_serialNumber(x509), 1);
+
+    X509_gmtime_adj(X509_get_notBefore(x509), 0);
+    X509_gmtime_adj(X509_get_notAfter(x509), 31536000L); // 1 year
+
+    X509_set_pubkey(x509, pkey);
+
+    // Set subject and issuer name
+    X509_NAME *name = X509_get_subject_name(x509);
+    X509_NAME_add_entry_by_txt(name, "CN", MBSTRING_ASC,
+                               (unsigned char *)domain.c_str(), -1, -1, 0);
+    // issuer = subject for self-signed
+    X509_set_issuer_name(x509, name);
+
+    // Sign it with our own private key
+    X509_sign(x509, pkey, EVP_sha256());
+
+    return x509;
+}
+
+static EVP_PKEY *
+generate_key()
+{
+    EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_RSA, NULL);
+    EVP_PKEY *pkey = NULL;
+
+    if (!ctx) {
+        fprintf(stderr, "EVP_PKEY_CTX_new_id failed\n");
+        return NULL;
+    }
+
+    if (EVP_PKEY_keygen_init(ctx) <= 0 ||
+        EVP_PKEY_CTX_set_rsa_keygen_bits(ctx, 2048) <= 0 ||
+        EVP_PKEY_keygen(ctx, &pkey) <= 0) {
+        fprintf(stderr, "RSA key generation failed\n");
+        EVP_PKEY_CTX_free(ctx);
+        return NULL;
+    }
+
+    EVP_PKEY_CTX_free(ctx);
+    return pkey;
+}
+
 #define NEW_SSL_NETWORKCONNECTION_PTR(...) NewSslNetworkConnectionPtr(new SslNetworkConnection(__VA_ARGS__))
 
 struct PendingSsl : virtual public pinggy::SharedObject {
@@ -40,57 +87,74 @@ DefineMakeSharedPtr(PendingSsl);
 static int
 serverNameCallback(SSL *ssl, int *al, void *arg)
 {
-    SslConnectionListner *sslCon = (SslConnectionListner *)arg;
+    SslConnectionListener *sslCon = (SslConnectionListener *)arg;
     return sslCon->ServerNameCallback(ssl, al);
 }
 
-SslConnectionListner::SslConnectionListner():
+SslConnectionListener::SslConnectionListener():
         connectionListener(nullptr),
-        initiated(false)
+        initiated(false), selfSignedPkey(NULL)
 {
 }
 
-SslConnectionListner::SslConnectionListner(tString path):
-        connectionListener(NewConnectionListnerImplPtr(path)),
-        initiated(false)
+SslConnectionListener::SslConnectionListener(tString path):
+        connectionListener(NewConnectionListenerImplPtr(path)),
+        initiated(false), selfSignedPkey(NULL)
 {
 }
 
 
-SslConnectionListner::SslConnectionListner(port_t port, bool ipv6) :
-        connectionListener(NewConnectionListnerImplPtr(port, ipv6)),
-        initiated(false)
+SslConnectionListener::SslConnectionListener(port_t port, bool ipv6) :
+        connectionListener(NewConnectionListenerImplPtr(port, ipv6)),
+        initiated(false), selfSignedPkey(NULL)
 {
 }
 
-SslConnectionListner::SslConnectionListner(ConnectionListnerPtr connListener):
+SslConnectionListener::SslConnectionListener(ConnectionListenerPtr connListener):
         connectionListener(connListener),
-        initiated(false)
+        initiated(false), selfSignedPkey(NULL)
 {
 }
 
-SslConnectionListner::~SslConnectionListner()
+SslConnectionListener::~SslConnectionListener()
 {
     if(defaultCtx) {
         SSL_CTX_free(defaultCtx);         /* I no longer require ssl context */
         defaultCtx = NULL;
     }
+    if (selfSignedPkey) {
+        EVP_PKEY_free(selfSignedPkey);
+        selfSignedPkey = NULL;
+    }
 }
 
 void
-SslConnectionListner::InitiateSSL(tString keyPath, tString chainPath)
+SslConnectionListener::InitiateSSL(tString keyPath, tString chainPath)
 {
+    if (initiated) {
+        ABORT_WITH_MSG("You cannot initiate it twice");
+    }
     // initServerCTX();
     loadDefaultCertificate(keyPath, chainPath); /* load certs */
     initiated = true;
 }
 
+void SslConnectionListener::InitiateSSLSelfSigned(tString domain)
+{
+    if (initiated) {
+        ABORT_WITH_MSG("You cannot initiate it twice");
+    }
+    loadSelfSignedCertificate(domain);
+    initiated = true;
+}
+
 bool
-SslConnectionListner::StartListening()
+SslConnectionListener::StartListening()
 {
 //    InitiateSSL();
-    if (!initiated)
-        abort();
+    if (!initiated) {
+        ABORT_WITH_MSG("Initiate ssl listener before start listening");
+    }
     if(connectionListener)
         return connectionListener->StartListening();
     else
@@ -98,13 +162,13 @@ SslConnectionListner::StartListening()
 }
 
 NetworkConnectionPtr
-SslConnectionListner::Accept()
+SslConnectionListener::Accept()
 {
     return AcceptSsl();
 }
 
 SslNetworkConnectionPtr
-SslConnectionListner::AcceptSsl()
+SslConnectionListener::AcceptSsl()
 {
     if (connectionListener) {
         auto netConn = connectionListener->Accept();
@@ -116,7 +180,7 @@ SslConnectionListner::AcceptSsl()
 }
 
 SslNetworkConnectionPtr
-SslConnectionListner::AcceptSsl(
+SslConnectionListener::AcceptSsl(
         NetworkConnectionPtr netConn)
 {
     if (defaultCtx) {
@@ -148,7 +212,7 @@ SslConnectionListner::AcceptSsl(
 }
 
 void
-SslConnectionListner::acceptSslInsideThread(
+SslConnectionListener::acceptSslInsideThread(
     sock_t sock, SSL *ssl, pinggy::VoidPtr ptr)
 {
     if ( SSL_accept(ssl) < 0) {    /* do SSL-protocol accept */
@@ -164,7 +228,7 @@ SslConnectionListner::acceptSslInsideThread(
 }
 
 void
-SslConnectionListner::AcceptSslWithThread(NetworkConnectionPtr netConn, pinggy::VoidPtr ptr)
+SslConnectionListener::AcceptSslWithThread(NetworkConnectionPtr netConn, pinggy::VoidPtr ptr)
 {
     if(threadPoolPtr == nullptr) {
         LOGF("You need to register thread handler before you have.");
@@ -197,7 +261,7 @@ SslConnectionListner::AcceptSslWithThread(NetworkConnectionPtr netConn, pinggy::
 }
 
 len_t
-SslConnectionListner::handleFDWPtr(PollableFDPtr pollableFD, pinggy::VoidPtr ptr)
+SslConnectionListener::handleFDWPtr(PollableFDPtr pollableFD, pinggy::VoidPtr ptr)
 {
     auto netConn = pollableFD->DynamicPointerCast<NetworkConnection>();
     auto sslPtr = ptr->DynamicPointerCast<PendingSsl>();
@@ -246,19 +310,19 @@ SslConnectionListner::handleFDWPtr(PollableFDPtr pollableFD, pinggy::VoidPtr ptr
 }
 
 len_t
-SslConnectionListner::HandleFDReadWPtr(PollableFDPtr pollableFD, pinggy::VoidPtr ptr)
+SslConnectionListener::HandleFDReadWPtr(PollableFDPtr pollableFD, pinggy::VoidPtr ptr)
 {
     return handleFDWPtr(pollableFD, ptr);
 }
 
 len_t
-SslConnectionListner::HandleFDWriteWPtr(PollableFDPtr pollableFD, pinggy::VoidPtr ptr)
+SslConnectionListener::HandleFDWriteWPtr(PollableFDPtr pollableFD, pinggy::VoidPtr ptr)
 {
     return handleFDWPtr(pollableFD, ptr);
 }
 
 len_t
-SslConnectionListner::HandleFDErrorWPtr(PollableFDPtr pollableFD, pinggy::VoidPtr ptr, int16_t)
+SslConnectionListener::HandleFDErrorWPtr(PollableFDPtr pollableFD, pinggy::VoidPtr ptr, int16_t)
 {
     pollableFD->DeregisterFDEvenHandler();
     pollableFD->CloseConn();
@@ -266,11 +330,13 @@ SslConnectionListner::HandleFDErrorWPtr(PollableFDPtr pollableFD, pinggy::VoidPt
 }
 
 void
-SslConnectionListner::AcceptSslAsync(NetworkConnectionPtr netConn, pinggy::VoidPtr ptr)
+SslConnectionListener::AcceptSslAsync(NetworkConnectionPtr netConn, pinggy::VoidPtr ptr)
 {
     if (!defaultCtx) {
-        LOGF("SSL context it required");
-        abort();
+        ABORT_WITH_MSG("SSL context it required");
+    }
+    if (!handler) {
+        ABORT_WITH_MSG("Register accept handler first");
     }
 
     netConn->SetRecvTimeoutms(10000);
@@ -298,7 +364,7 @@ SslConnectionListner::AcceptSslAsync(NetworkConnectionPtr netConn, pinggy::VoidP
     LOGT("Registered for Async SSL", netConn->GetFd());
 }
 
-SSL_CTX *SslConnectionListner::initServerCTX()
+SSL_CTX *SslConnectionListener::initServerCTX()
 {
     const SSL_METHOD *method;
     // OpenSSL_add_all_algorithms();  //Deprecated /* load & register all cryptos, etc. */
@@ -316,7 +382,7 @@ SSL_CTX *SslConnectionListner::initServerCTX()
     return ctx;
 }
 
-SSL_CTX *SslConnectionListner::loadCertificate(tString keyPath, tString chainPath, SSL_CTX *ctx)
+SSL_CTX *SslConnectionListener::loadCertificate(tString keyPath, tString chainPath, SSL_CTX *ctx)
 {
     if (ctx == NULL)
         ctx = initServerCTX();
@@ -357,7 +423,7 @@ SSL_CTX *SslConnectionListner::loadCertificate(tString keyPath, tString chainPat
 }
 
 void
-SslConnectionListner::loadDefaultCertificate(tString keyPath, tString chainPath) {
+SslConnectionListener::loadDefaultCertificate(tString keyPath, tString chainPath) {
     defaultCtx = loadCertificate(keyPath, chainPath);
     auto ret = SSL_CTX_set_tlsext_servername_callback(defaultCtx, serverNameCallback);
     if (ret) {
@@ -366,8 +432,27 @@ SslConnectionListner::loadDefaultCertificate(tString keyPath, tString chainPath)
     registerContext(defaultCtx);
 }
 
+void SslConnectionListener::loadSelfSignedCertificate(tString domain)
+{
+    defaultCtx = initServerCTX();
+
+    EVP_PKEY *pkey = generate_key();
+    selfSignedPkey = pkey;
+    X509 *cert = create_self_signed_cert(pkey, domain);
+
+    // Use cert + key in memory
+    SSL_CTX_use_certificate(defaultCtx, cert);
+    SSL_CTX_use_PrivateKey(defaultCtx, pkey);
+
+    // Verify key matches cert
+    if (!SSL_CTX_check_private_key(defaultCtx)) {
+        fprintf(stderr, "Private key does not match the certificate public key\n");
+        return;
+    }
+}
+
 std::vector<tString>
-SslConnectionListner::getSeverNames(SSL_CTX *ctx)
+SslConnectionListener::getSeverNames(SSL_CTX *ctx)
 {
     std::vector<tString> serverNames;
     SSL* ssl = SSL_new(ctx);
@@ -434,15 +519,18 @@ SslConnectionListner::getSeverNames(SSL_CTX *ctx)
 }
 
 void
-SslConnectionListner::AddCertificate(tString keyPath, tString chainPath)
+SslConnectionListener::AddCertificate(tString keyPath, tString chainPath)
 {
+    if (selfSignedPkey) {
+        ABORT_WITH_MSG("Additional certificates not allowed while using selfSigned certificate");
+    }
     auto ctx = loadCertificate(keyPath, chainPath);
     if (ctx)
         registerContext(ctx);
 }
 
 void
-SslConnectionListner::registerContext(SSL_CTX *ctx)
+SslConnectionListener::registerContext(SSL_CTX *ctx)
 {
     for(auto serverName : getSeverNames(ctx)) {
         if (serverName.at(0) == '*') {
@@ -468,7 +556,7 @@ SslConnectionListner::registerContext(SSL_CTX *ctx)
 }
 
 bool
-SslConnectionListner::ReloadCertificates()
+SslConnectionListener::ReloadCertificates()
 {
     reloadMutex.lock();
     for(auto detail :  certificatePaths) {
@@ -486,7 +574,7 @@ SslConnectionListner::ReloadCertificates()
 }
 
 int
-SslConnectionListner::ServerNameCallback(SSL *ssl, int *)
+SslConnectionListener::ServerNameCallback(SSL *ssl, int *)
 {
     if(!ssl)
         return SSL_TLSEXT_ERR_OK;
@@ -541,7 +629,7 @@ SslConnectionListner::ServerNameCallback(SSL *ssl, int *)
 }
 
 int
-SslConnectionListner::CloseNClear(tString location)
+SslConnectionListener::CloseNClear(tString location)
 {
 //    DeregisterFDEvenHandler();
     if(connectionListener) {
@@ -559,13 +647,13 @@ SslConnectionListner::CloseNClear(tString location)
 }
 
 bool
-SslConnectionListner::IsListening()
+SslConnectionListener::IsListening()
 {
     return defaultCtx != NULL;
 }
 
 sock_t
-SslConnectionListner::GetFd()
+SslConnectionListener::GetFd()
 {
     if(!connectionListener)
         return InValidSocket;
@@ -573,7 +661,7 @@ SslConnectionListner::GetFd()
 }
 
 port_t
-SslConnectionListner::GetListeningPort()
+SslConnectionListener::GetListeningPort()
 {
     if(connectionListener)
         return connectionListener->GetListeningPort();
@@ -581,7 +669,7 @@ SslConnectionListner::GetListeningPort()
 }
 
 tString
-SslConnectionListner::GetListeningPath()
+SslConnectionListener::GetListeningPath()
 {
     if(connectionListener)
         return connectionListener->GetListeningPath();
@@ -589,7 +677,7 @@ SslConnectionListner::GetListeningPath()
 }
 
 void
-SslConnectionListner::RegisterAcceptSslHandler(
+SslConnectionListener::RegisterAcceptSslHandler(
         common::PollControllerPtr pollController, SslAcceptEventHandlerPtr handler,
         bool thread)
 {
@@ -609,7 +697,7 @@ SslConnectionListner::RegisterAcceptSslHandler(
 }
 
 void
-SslConnectionListner::DeregisterAcceptSslHandler(
+SslConnectionListener::DeregisterAcceptSslHandler(
         common::PollControllerPtr pollController)
 {
     if (threadPoolPtr) {
@@ -619,7 +707,7 @@ SslConnectionListner::DeregisterAcceptSslHandler(
 }
 
 void
-SslConnectionListner::EventOccured()
+SslConnectionListener::EventOccured()
 {
     NetworkConnectionPtr conn = nullptr;
     sock_t sock = InValidSocket;

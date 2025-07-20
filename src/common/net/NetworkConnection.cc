@@ -561,28 +561,31 @@ NetworkConnection::GetAddressMetadata()
     auto localAddr  = GetLocalAddress();
     auto remoteAddr = GetPeerAddress();
     AddressMetadata metadata;
-        metadata.LocalIp    = localAddr->GetAddr();
-        metadata.RemoteIp   = remoteAddr->GetAddr();
-        metadata.LocalPort  = htons(localAddr->GetPort());
-        metadata.RemotePort = htons(remoteAddr->GetPort());
-        metadata.Flags      = Flags();
+    bzero(&metadata, sizeof(metadata));
+    metadata.LocalIp    = localAddr->GetAddr();
+    metadata.RemoteIp   = remoteAddr->GetAddr();
+    metadata.LocalPort  = htons(localAddr->GetPort());
+    metadata.RemotePort = htons(remoteAddr->GetPort());
+    metadata.Flags      = Flags();
 
     return metadata;
 }
 
 const ConnectionMetadata
-NetworkConnection::GetConnectionMetadata()
+NetworkConnection::GetConnectionMetadata(tString indentifier, tString serverName)
 {
-    auto serverName = GetServerName();
+    if (serverName.empty())
+        serverName = GetServerName();
     if (serverName.length() > METADATA_URL_SIZE_RELAY) {
         serverName = serverName.substr(0, METADATA_URL_SIZE_RELAY);
     }
     ConnectionMetadata metadata;
-        metadata.AddrMetadata  = GetAddressMetadata();
-        metadata.ConnType      = 0;
-        metadata.ServerNameLen = htons((tUint16)serverName.length());
+    bzero(&metadata, sizeof(metadata));
+    metadata.AddrMetadata  = GetAddressMetadata();
+    metadata.ConnType      = 0;
+    metadata.ServerNameLen = htons((tUint16)serverName.length());
 
-    strncpy(metadata.Identifier, (char *)"PINGGY", 8);
+    memcpy(metadata.Identifier, indentifier.c_str(), MIN(8,indentifier.length()+1));
     memcpy(metadata.ServerName, serverName.c_str(), METADATA_URL_SIZE_RELAY);
     return metadata;
 }

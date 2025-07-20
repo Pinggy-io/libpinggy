@@ -15,8 +15,8 @@
  */
 
 
-#ifndef CPP_SERVER_SSL_SSLCONNECTIONLISTNER_HH_
-#define CPP_SERVER_SSL_SSLCONNECTIONLISTNER_HH_
+#ifndef CPP_SERVER_SSL_SSLConnectionListener_HH_
+#define CPP_SERVER_SSL_SSLConnectionListener_HH_
 
 #include <openssl/ssl.h>
 #include <map>
@@ -37,22 +37,25 @@ public:
 };
 DeclareSharedPtr(SslAcceptEventHandler);
 
-class SslConnectionListner: public virtual ConnectionListner, public common::ThreadPoolEventHandler
+class SslConnectionListener: public virtual ConnectionListener, public common::ThreadPoolEventHandler
 {
 public:
-    SslConnectionListner();
+    SslConnectionListener();
 
-    SslConnectionListner(tString path);
+    SslConnectionListener(tString path);
 
-    SslConnectionListner(port_t port, bool ipv6);
+    SslConnectionListener(port_t port, bool ipv6);
 
-    SslConnectionListner(ConnectionListnerPtr connListener);
+    SslConnectionListener(ConnectionListenerPtr connListener);
 
     virtual
-    ~SslConnectionListner();
+    ~SslConnectionListener();
 
     virtual void
     InitiateSSL(tString keyPath, tString chainPath);
+
+    virtual void
+    InitiateSSLSelfSigned(tString domain);
 
     virtual void
     AddCertificate(tString keyPath, tString chainPath);
@@ -118,7 +121,7 @@ public:
     GetType() override { return Type(); }
 
     static tString
-    Type() { return TO_STR(SslConnectionListner); }
+    Type() { return TO_STR(SslConnectionListener); }
 
     virtual void
     SetBlocking(bool block = true) override { if(connectionListener) connectionListener->SetBlocking(block); }
@@ -141,6 +144,15 @@ public:
 
     virtual PollableFDPtr GetOrig() override { return connectionListener->GetOrig(); }
 
+
+    virtual void
+    SetAcceptRawSocket() override
+                                { if(connectionListener) connectionListener->SetAcceptRawSocket(); }
+
+    virtual bool
+    GetAcceptRawSocket() override
+                                { return connectionListener ? connectionListener->GetAcceptRawSocket(): false; }
+
 protected:
     virtual int
     CloseNClear(tString) override;
@@ -162,6 +174,9 @@ private:
     loadDefaultCertificate(tString keyPath, tString chainPath);
 
     void
+    loadSelfSignedCertificate(tString domain);
+
+    void
     registerContext(SSL_CTX *ctx);
 
     std::vector<tString>
@@ -178,7 +193,7 @@ private:
                                 sslCtxs;
     std::map<tString, SSL_CTX *>
                                 wildCardSslCtxs;
-    ConnectionListnerPtr        connectionListener;
+    ConnectionListenerPtr       connectionListener;
     std::map<SSL_CTX *, CertificateFileDetailPtr>
                                 certificatePaths;
 
@@ -194,10 +209,11 @@ private:
     std::mutex                  reloadMutex;
 
     bool                        initiated;
+    EVP_PKEY                   *selfSignedPkey;
 };
 
-DefineMakeSharedPtr(SslConnectionListner);
+DefineMakeSharedPtr(SslConnectionListener);
 
 } /* namespace net */
 
-#endif /* CPP_SERVER_SSL_SSLCONNECTIONLISTNER_HH_ */
+#endif /* CPP_SERVER_SSL_SSLConnectionListener_HH_ */

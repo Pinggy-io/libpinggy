@@ -304,7 +304,7 @@ Sdk::StartWebDebugging(port_t port)
         throw WebDebuggerException("Web debugger is running already for this tunnel");
     }
 
-    webDebugListener = net::NewConnectionListnerImplPtr(port, false);
+    webDebugListener = net::NewConnectionListenerImplPtr(port, false);
     if (!webDebugListener) {
         throw WebDebuggerException("Webdebug listener could not listen. ignoring");
     }
@@ -693,7 +693,7 @@ Sdk::NewVisitor(net::NetworkConnectionPtr netConn) //Webdebugges
 }
 
 void
-Sdk::ConnectionListenerClosed(net::ConnectionListnerPtr listener)
+Sdk::ConnectionListenerClosed(net::ConnectionListenerPtr listener)
 {
     if (webDebugListener && listener == webDebugListener) {
         stopWebDebugger();

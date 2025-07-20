@@ -263,7 +263,7 @@ public:
     NewVisitor(net::NetworkConnectionPtr netCon) override;
 
     virtual void
-    ConnectionListenerClosed(net::ConnectionListnerPtr listener) override;
+    ConnectionListenerClosed(net::ConnectionListenerPtr listener) override;
 
 
 //net::FDEventHandler
@@ -338,7 +338,7 @@ private:
     tString                     lastError;
     SDKConfigPtr                sdkConfig;
     SdkEventHandlerPtr          eventHandler;
-    net::ConnectionListnerPtr   webDebugListener;
+    net::ConnectionListenerPtr  webDebugListener;
     PortConfigPtr               portConfig;
 
     std::thread::id             runningThreadId;
