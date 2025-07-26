@@ -58,14 +58,20 @@ public:
     virtual void
     SetBaseCertificate(tString pem) final;
 
-    virtual void
-    Connect() final;
+    SslNetworkConnectionPtr
+    SetMinTlsVersion(int ver)       { minTlsVersion = ver; return thisPtr; }
+
+    SslNetworkConnectionPtr
+    SetMaxTlsVersion(int ver)       { maxTlsVersion = ver; return thisPtr; }
 
     virtual void
-    ConnectAsync(common::TaskPtr onSuccess, common::TaskPtr onFailed) final;
+    Connect(SSL_CTX *ctx = NULL) final;
 
     virtual void
-    ConnectAsync(SslConnectHandlerPtr connectHandler, pinggy::VoidPtr asyncConnectPtr) final;
+    ConnectAsync(common::TaskPtr onSuccess, common::TaskPtr onFailed, SSL_CTX *ctx = NULL, pinggy::VoidPtr data = nullptr) final;
+
+    virtual void
+    ConnectAsync(SslConnectHandlerPtr connectHandler, pinggy::VoidPtr asyncConnectPtr, SSL_CTX *ctx = NULL) final;
 
     virtual ssize_t
     Read(void *data, size_t len, int flags = 0) override;
@@ -191,6 +197,9 @@ CustomeException(SslWrite);
 CustomeException(Certificate);
 #undef CustomeException
 
+    static SSL_CTX *
+    CreateSslContext(int minVersion = TLS1_3_VERSION, int maxVersion = TLS1_3_VERSION, tString pem = "");
+
 protected:
     virtual int
     CloseNClear(tString) override;
@@ -202,11 +211,17 @@ private:
     SslNetworkConnection(SSL *ssl, sock_t fd);
     SslNetworkConnection(SSL *ssl, NetworkConnectionPtr netCon);
 
-    void
-    loadBaseCertificate(SSL_CTX *ctx);
+    static void
+    loadBaseCertificate(SSL_CTX *ctx, tString certificate);
 
     len_t
     handleFD();
+
+    SSL_CTX *
+    createCtxIfNotPresent(SSL_CTX *ctx);
+
+    void
+    freeCtxIfCreated(SSL_CTX *&ctx); //this is exception. don't use reference.
 
     friend class                SslConnectionListener;
 
@@ -224,6 +239,8 @@ private:
     bool                        asyncConnectCompleted;
     SslConnectHandlerPtr        asyncConnectHandler;
     pinggy::VoidPtr             asyncConnectPtr;
+    int                         minTlsVersion;
+    int                         maxTlsVersion;
 };
 
 DefineMakeSharedPtr(SslNetworkConnection);

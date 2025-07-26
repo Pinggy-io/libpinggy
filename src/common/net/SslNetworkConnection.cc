@@ -45,27 +45,53 @@ private:
 DefineMakeSharedPtr(SslConnectFutureTaskHandler);
 
 SslNetworkConnection::SslNetworkConnection(SSL *ssl, sock_t fd):
-        ssl(ssl), netConn(NewNetworkConnectionImplPtr(fd)), lastReturn(0), wroteFromCached(0),
-            connected(true), serverSide(true), privateCtx(false), asyncConnectCompleted(true)
+        ssl(ssl),
+        netConn(NewNetworkConnectionImplPtr(fd)),
+        lastReturn(0),
+        wroteFromCached(0),
+        connected(true),
+        serverSide(true),
+        privateCtx(false),
+        asyncConnectCompleted(true),
+        minTlsVersion(TLS1_3_VERSION),
+        maxTlsVersion(TLS1_3_VERSION)
 {
 }
 
-SslNetworkConnection::SslNetworkConnection(SSL *ssl,
-        NetworkConnectionPtr netCon): ssl(ssl), netConn(netCon), lastReturn(0), wroteFromCached(0),
-            connected(true), serverSide(true), privateCtx(false), asyncConnectCompleted(true)
+SslNetworkConnection::SslNetworkConnection(SSL *ssl, NetworkConnectionPtr netCon):
+        ssl(ssl),
+        netConn(netCon),
+        lastReturn(0),
+        wroteFromCached(0),
+        connected(true),
+        serverSide(true),
+        privateCtx(false),
+        asyncConnectCompleted(true),
+        minTlsVersion(TLS1_3_VERSION),
+        maxTlsVersion(TLS1_3_VERSION)
 {
     if (netConn == nullptr || !netConn->IsValid())
         throw NotValidException(netConn, "netConn is not valid");
+    if (!netConn->IsConnected())
+        throw NotConnectedException(netConn, "netConn is not connected");
     if (netConn->IsSsl())
         throw NotValidException(netConn, "netConn already ssl");
     if (!netConn->IsPollable())
         throw NotPollableException(netConn, "netConn already not pollable");
 }
 
-SslNetworkConnection::SslNetworkConnection(NetworkConnectionPtr netConn,
-        tString serverName): ssl(NULL), netConn(netConn), lastReturn(0), wroteFromCached(0),
-            connected(false), serverSide(false), sniServerName(serverName), privateCtx(false),
-            asyncConnectCompleted(true)
+SslNetworkConnection::SslNetworkConnection(NetworkConnectionPtr netConn, tString serverName):
+        ssl(NULL),
+        netConn(netConn),
+        lastReturn(0),
+        wroteFromCached(0),
+        connected(false),
+        serverSide(false),
+        sniServerName(serverName),
+        privateCtx(false),
+        asyncConnectCompleted(true),
+        minTlsVersion(TLS1_3_VERSION),
+        maxTlsVersion(TLS1_3_VERSION)
 {
 }
 
@@ -135,38 +161,36 @@ SslNetworkConnection::SetBaseCertificate(tString pem)
     rootCertificate = pem;
 }
 
+#define CloseAndFreeFailedConnect(ssl, ctx, netConn)    \
+    do{                                                 \
+        SSL_free(ssl);                                  \
+        freeCtxIfCreated(ctx);                          \
+        netConn->CloseConn();                           \
+        ssl = NULL;                                     \
+    }while(0)
+
 void
-SslNetworkConnection::Connect()
+SslNetworkConnection::Connect(SSL_CTX *ctx)
 {
     if (serverSide)
         throw ServerSideConnectionException("Attempting connect call from server side connection");
     if (connected)
         throw CannotConnectException("Attempting connect call from already established connection");
 
-    auto method = TLS_client_method();  /* Create new client-method instance */
-    auto ctx = SSL_CTX_new(method);   /* Create new context */
-    if ( ctx == NULL )
-    {
-        LOGSSLF("SSL_CTX_new");
-        throw CannotConnectException("Cannot create new context");
-    }
-    privateCtx = true;
-    SSL_CTX_set_min_proto_version(ctx, TLS1_3_VERSION);
-    SSL_CTX_set_max_proto_version(ctx, TLS1_3_VERSION);
-
-    loadBaseCertificate(ctx);
+    ctx = createCtxIfNotPresent(ctx);
 
     ssl = SSL_new(ctx);
     if (ssl == NULL) {
+        freeCtxIfCreated(ctx);
+        netConn->CloseConn();
         throw CannotConnectException("Cannot create new ssl object");
     }
 
     if (netConn->IsRelayed() || netConn->IsDummy()) {
         auto bio = netConnBioNewBio(netConn);
         if (!bio) {
-            LOGSSLE("Error while creating bio")
-            SSL_free(ssl);
-            netConn->CloseConn();
+            LOGSSLE("Error while creating bio");
+            CloseAndFreeFailedConnect(ssl, ctx, netConn);
             return;
         }
         SSL_set_bio(ssl, bio, bio);
@@ -176,6 +200,7 @@ SslNetworkConnection::Connect()
 
     if (!SSL_set_tlsext_host_name(ssl, sniServerName.c_str())) {
         LOGSSLE("Cannot set sni");
+        CloseAndFreeFailedConnect(ssl, ctx, netConn);
         throw CannotSetSNIException("Cannot set sni");
     }
 
@@ -183,20 +208,21 @@ SslNetworkConnection::Connect()
     auto ret = SSL_connect(ssl);
     if (ret <= 0) {
         LOGSSLE("Error while initiation ssl");
+        CloseAndFreeFailedConnect(ssl, ctx, netConn);
         throw CannotConnectException("Cannot perform ssl connect");
     }
     connected = true;
 }
 
 void
-SslNetworkConnection::ConnectAsync(common::TaskPtr onSuccess, common::TaskPtr onFailed)
+SslNetworkConnection::ConnectAsync(common::TaskPtr onSuccess, common::TaskPtr onFailed, SSL_CTX *ctx, pinggy::VoidPtr data)
 {
     auto handler = NewSslConnectFutureTaskHandlerPtr(onSuccess, onFailed);
-    ConnectAsync(handler, nullptr);
+    ConnectAsync(handler, data, ctx);
 }
 
 void
-SslNetworkConnection::ConnectAsync(SslConnectHandlerPtr handler, pinggy::VoidPtr asyncConnectPtr)
+SslNetworkConnection::ConnectAsync(SslConnectHandlerPtr handler, pinggy::VoidPtr asyncConnectPtr, SSL_CTX *ctx)
 {
     if (serverSide)
         throw ServerSideConnectionException("Attempting connect call from server side connection");
@@ -205,21 +231,11 @@ SslNetworkConnection::ConnectAsync(SslConnectHandlerPtr handler, pinggy::VoidPtr
 
     asyncConnectCompleted = false;
 
-    auto method = TLS_client_method();  /* Create new client-method instance */
-    auto ctx = SSL_CTX_new(method);   /* Create new context */
-    if ( ctx == NULL )
-    {
-        LOGSSLF("SSL_CTX_new");
-        throw CannotConnectException("Cannot create new context");
-    }
-    privateCtx = true;
-    SSL_CTX_set_min_proto_version(ctx, TLS1_3_VERSION);
-    SSL_CTX_set_max_proto_version(ctx, TLS1_3_VERSION);
-
-    loadBaseCertificate(ctx);
+    ctx = createCtxIfNotPresent(ctx);
 
     ssl = SSL_new(ctx);
     if (ssl == NULL) {
+        freeCtxIfCreated(ctx);
         throw CannotConnectException("Cannot create new ssl object");
     }
 
@@ -228,9 +244,8 @@ SslNetworkConnection::ConnectAsync(SslConnectHandlerPtr handler, pinggy::VoidPtr
     if (netConn->IsRelayed() || netConn->IsDummy() || 1) {
         auto bio = netConnBioNewBio(netConn);
         if (!bio) {
-            LOGSSLE("Error while creating bio")
-            SSL_free(ssl);
-            netConn->CloseConn();
+            LOGSSLE("Error while creating bio");
+            CloseAndFreeFailedConnect(ssl, ctx, netConn);
             return;
         }
         SSL_set_bio(ssl, bio, bio);
@@ -250,6 +265,8 @@ SslNetworkConnection::ConnectAsync(SslConnectHandlerPtr handler, pinggy::VoidPtr
     EnableWritePoll();
     LOGE("Async connection started for fd: ", netConn->GetFd());
 }
+
+#undef CloseAndFreeFailedConnect
 
 ssize_t
 SslNetworkConnection::Read(void *data, size_t len, int flags)
@@ -411,7 +428,7 @@ SslNetworkConnection::SslError(int len)
     return SSL_get_error(ssl, len);
 }
 
-int
+int 
 SslNetworkConnection::CloseNClear(tString location)
 {
     if(ssl) {
@@ -507,15 +524,15 @@ SslNetworkConnection::writeFromCached()
 }
 
 void
-SslNetworkConnection::loadBaseCertificate(SSL_CTX *ctx)
+SslNetworkConnection::loadBaseCertificate(SSL_CTX *ctx, tString certificate)
 {
-    if (rootCertificate.empty())
+    if (certificate.empty())
         return;
 
     BIO *bio;
     X509 *cert;
 
-    bio = BIO_new_mem_buf((void*)rootCertificate.c_str(), (int)rootCertificate.length());
+    bio = BIO_new_mem_buf((void*)certificate.c_str(), (int)certificate.length());
     if (!bio) {
         perror("Unable to create BIO for certificate");
         throw CertificateException("Cannot load base certificate");
@@ -588,6 +605,43 @@ SslNetworkConnection::handleFD()
             return ret;
         }
     }
+}
+
+SSL_CTX *
+SslNetworkConnection::createCtxIfNotPresent(SSL_CTX *ctx)
+{
+    if (!ctx) {
+        privateCtx = true;
+        ctx = SslNetworkConnection::CreateSslContext(minTlsVersion, maxTlsVersion, rootCertificate);
+    }
+    return ctx;
+}
+
+void
+SslNetworkConnection::freeCtxIfCreated(SSL_CTX *&ctx)
+{
+    if (privateCtx && ctx) {
+        SSL_CTX_free(ctx);
+        ctx = NULL;
+        privateCtx = false;
+    }
+}
+
+SSL_CTX *
+SslNetworkConnection::CreateSslContext(int minVersion, int maxVersion, tString certificate)
+{
+    auto method = TLS_client_method();  /* Create new client-method instance */
+    SSL_CTX *ctx = SSL_CTX_new(method);   /* Create new context */
+    if ( ctx == NULL )
+    {
+        LOGSSLF("SSL_CTX_new");
+        throw CannotConnectException("Cannot create new context");
+    }
+    SSL_CTX_set_min_proto_version(ctx, minVersion);
+    SSL_CTX_set_max_proto_version(ctx, maxVersion);
+
+    loadBaseCertificate(ctx, certificate);
+    return ctx;
 }
 
 } /* namespace net */

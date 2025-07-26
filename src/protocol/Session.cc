@@ -295,7 +295,8 @@ Session::HandleIncomingDeserialize(DeserializerPtr deserializer)
                 sendErrorMsg(0, "Unknown channel id " + std::to_string(msg->ChannelId) + " " + std::to_string(__LINE__), true);
                 break;
             }
-            channels.at(msg->ChannelId)->handleNewChannelResponse(msg);
+            auto channel = channels.at(msg->ChannelId);
+            channel->handleNewChannelResponse(msg);
         }
         break;
 
@@ -308,7 +309,8 @@ Session::HandleIncomingDeserialize(DeserializerPtr deserializer)
                 sendErrorMsg(0, "Unknown channel id " + std::to_string(msg->ChannelId) + " " + std::to_string(__LINE__), true);
                 break;
             }
-            channels.at(msg->ChannelId)->handleChannelData(msg);
+            auto channel = channels.at(msg->ChannelId);
+            channel->handleChannelData(msg);
         }
         break;
 
@@ -321,7 +323,8 @@ Session::HandleIncomingDeserialize(DeserializerPtr deserializer)
                 sendErrorMsg(0, "Unknown channel id " + std::to_string(msg->ChannelId) + " " + std::to_string(__LINE__), true);
                 break;
             }
-            channels.at(msg->ChannelId)->handleChannelWindowAdjust(msg);
+            auto channel = channels.at(msg->ChannelId);
+            channel->handleChannelWindowAdjust(msg);
         }
         break;
 
@@ -334,7 +337,8 @@ Session::HandleIncomingDeserialize(DeserializerPtr deserializer)
                 sendErrorMsg(0, "Unknown channel id " + std::to_string(msg->ChannelId) + " " + std::to_string(__LINE__), true);
                 break;
             }
-            channels.at(msg->ChannelId)->handleChannelClose(msg);
+            auto channel = channels.at(msg->ChannelId);
+            channel->handleChannelClose(msg);
         }
         break;
 
@@ -345,7 +349,8 @@ Session::HandleIncomingDeserialize(DeserializerPtr deserializer)
                 sendErrorMsg(0, "Unknown channel id " + std::to_string(msg->ChannelId) + " " + std::to_string(__LINE__), true);
                 break;
             }
-            channels.at(msg->ChannelId)->handleChannelError(msg);
+            auto channel = channels.at(msg->ChannelId);
+            channel->handleChannelError(msg);
         }
         break;
 
