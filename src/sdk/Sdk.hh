@@ -42,8 +42,8 @@ enum SdkState {
     SdkState_SessionInitiated,
     SdkState_Authenticating,
     SdkState_Authenticated,
-    sdkState_PrimaryReverseForwardingInitiated,
-    sdkState_PrimaryReverseForwardingSucceeded,
+    SdkState_PrimaryReverseForwardingInitiated,
+    SdkState_PrimaryReverseForwardingSucceeded,
 };
 
 struct SDKConfig: virtual public pinggy::SharedObject

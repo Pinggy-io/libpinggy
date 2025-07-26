@@ -269,6 +269,8 @@ TransportManager::HandleFDRead(PollableFDPtr)
     if (tobeLen <= 0) {
         ABORT_WITH_MSG("cannot read zero byte or less");
     }
+    if (tobeLen > MB)
+        ABORT_WITH_MSG("connot read more that 1MB at a time");
 
     auto [len, newlyRecvedData] = recversNetConn->Read(tobeLen);
     if (len<=0) {
