@@ -359,6 +359,13 @@ struct ClientSdkEventHandler: virtual public sdk::SdkEventHandler
     OnReconnectionCompleted() override
     {
         std::cout << "Reconnected" << std::endl;
+        auto s = sdk.lock();
+        if (s) {
+            auto urls = s->GetUrls();
+            for (auto url : urls) {
+                std::cout << "   " << url << std::endl;
+            }
+        }
     }
 
     virtual void
