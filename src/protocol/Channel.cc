@@ -197,7 +197,7 @@ Channel::Close()
             eventHandler = nullptr;
         return Reject("No action");
     }
-    //TODO:
+
     IGNORE_IF_NOT_IN_STATE_RETURN(false, ChannelState_Connected, ChannelState_Close_Responding, ChannelState_Connecting);
 
     auto msg = NewChannelCloseMsgPtr();
@@ -255,7 +255,7 @@ Channel::Send(RawDataPtr rawData)
 std::tuple<RawData::tLen, RawDataPtr>
 Channel::Recv(RawData::tLen len)
 {
-    if (NOT_IN_STATE_COND(ChannelState_Connected, ChannelState_Close_Responding)) { //Equivalent CloseResponding
+    if (NOT_IN_STATE_COND(ChannelState_Connected, ChannelState_Close_Responding)) {
         return {-2, nullptr};
     }
 
@@ -266,10 +266,6 @@ Channel::Recv(RawData::tLen len)
     }
 
     auto top = recvQueue.front();
-    // if (top->Len == 0) { // it mean close received
-    //     recvQueue.pop();
-    //     return {0, nullptr};
-    // }
 
     RawDataPtr raw;
     if (top->Len > len) {
@@ -412,7 +408,7 @@ Channel::handleChannelWindowAdjust(ChannelWindowAdjustMsgPtr msg)
     if (ev)
         ev->ChannelReadyToSend(thisPtr, remoteWindow);
     else
-        LOGE(channelId, ": Event handler required but not found", state);
+        LOGE(channelId, ": Event handler required but not found. state:", state);
 }
 
 void

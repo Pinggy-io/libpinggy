@@ -358,6 +358,13 @@ Session::HandleIncomingDeserialize(DeserializerPtr deserializer)
         }
         break;
 
+        case MsgType_Warning:
+        {
+            auto msg = tMsg->DynamicPointerCast<WarningMsg>();
+            eventHandler->HandleSessionWarning(msg->ErrorNo, msg->What);
+        }
+        break;
+
         case MsgType_KeepAlive:
         {
             auto msg = tMsg->DynamicPointerCast<KeepAliveMsg>();
