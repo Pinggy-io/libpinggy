@@ -288,7 +288,7 @@ Session::HandleIncomingDeserialize(DeserializerPtr deserializer)
                 ABORT_WITH_MSG("Not expected state");
             auto msg = tMsg->DynamicPointerCast<SetupChannelResponseMsg>();
             if (channels.find(msg->ChannelId) == channels.end()) {
-                sendWarningMsg(0, "Unknown channel id " + std::to_string(msg->ChannelId) + " " + std::to_string(__LINE__));
+                // sendWarningMsg(0, "Unknown channel id " + std::to_string(msg->ChannelId) + " " + std::to_string(__LINE__));
                 break;
             }
             auto channel = channels.at(msg->ChannelId);
@@ -302,7 +302,7 @@ Session::HandleIncomingDeserialize(DeserializerPtr deserializer)
                 ABORT_WITH_MSG("Not expected state");
             auto msg = tMsg->DynamicPointerCast<ChannelDataMsg>();
             if (channels.find(msg->ChannelId) == channels.end()) {
-                sendWarningMsg(0, "Unknown channel id " + std::to_string(msg->ChannelId) + " " + std::to_string(__LINE__));
+                // sendWarningMsg(0, "Unknown channel id " + std::to_string(msg->ChannelId) + " " + std::to_string(__LINE__));
                 break;
             }
             auto channel = channels.at(msg->ChannelId);
@@ -316,7 +316,7 @@ Session::HandleIncomingDeserialize(DeserializerPtr deserializer)
                 ABORT_WITH_MSG("Not expected state");
             auto msg = tMsg->DynamicPointerCast<ChannelWindowAdjustMsg>();
             if (channels.find(msg->ChannelId) == channels.end()) {
-                sendWarningMsg(0, "Unknown channel id " + std::to_string(msg->ChannelId) + " " + std::to_string(__LINE__));
+                // sendWarningMsg(0, "Unknown channel id " + std::to_string(msg->ChannelId) + " " + std::to_string(__LINE__));
                 break;
             }
             auto channel = channels.at(msg->ChannelId);
@@ -330,7 +330,7 @@ Session::HandleIncomingDeserialize(DeserializerPtr deserializer)
                 ABORT_WITH_MSG("Not expected state");
             auto msg = tMsg->DynamicPointerCast<ChannelCloseMsg>();
             if (channels.find(msg->ChannelId) == channels.end()) {
-                sendWarningMsg(0, "Unknown channel id " + std::to_string(msg->ChannelId) + " " + std::to_string(__LINE__));
+                // sendWarningMsg(0, "Unknown channel id " + std::to_string(msg->ChannelId) + " " + std::to_string(__LINE__));
                 break;
             }
             auto channel = channels.at(msg->ChannelId);
