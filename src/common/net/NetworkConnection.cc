@@ -73,6 +73,7 @@ NetworkConnectionImpl::NetworkConnectionImpl(tString host, tString port, bool bl
             connecting(false), cachedAddressTried(false), fetchAddressFromSystem(false),
             hostToConnect(host), portToConnect(port)
 {
+    bzero(&currentAddress, sizeof(currentAddress));
     netState.Connected = false;
     if (blockingConnect) {
         auto sock = app_tcp_client_connect_host(host.c_str(), port.c_str());
@@ -94,6 +95,7 @@ NetworkConnectionImpl::NetworkConnectionImpl(tString path) :
             fd(INVALID_SOCKET), flags(0), lastReturn(0), blocking(false), tryAgain(false),
             connecting(false), cachedAddressTried(false), fetchAddressFromSystem(false)
 {
+    bzero(&currentAddress, sizeof(currentAddress));
     auto sock = app_uds_client_connect(path.c_str());
     if (!IsValidSocket(sock)) {
         throw std::runtime_error("Could not connect: " + tString(app_get_strerror(app_get_errno())));
@@ -114,6 +116,7 @@ NetworkConnectionImpl::NetworkConnectionImpl(sock_t fd) :
             fd(fd), flags(0), lastReturn(0), blocking(false), tryAgain(false),
             connecting(false), cachedAddressTried(false), fetchAddressFromSystem(false)
 {
+    bzero(&currentAddress, sizeof(currentAddress));
     soType = get_socket_type(fd);
     soFamily = get_socket_family(fd);
     netState.Tcp = (soFamily == AF_INET || soFamily == AF_INET6) && soType == SOCK_STREAM;
