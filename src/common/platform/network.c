@@ -646,10 +646,7 @@ struct sock_addrinfo *app_getaddrinfo_tcp(const char *host, const char *port)
     }
 
     struct sock_addrinfo *addresses = malloc(sizeof(struct sock_addrinfo) * (count + 1));
-
-    for (int i = 0; i < count+1; i++) {
-        addresses[i].valid = 0;
-    }
+    bzero(addresses, sizeof(struct sock_addrinfo) * (count + 1));
 
     for (rp = res, count = 0; rp; rp = rp->ai_next, count ++) {
         addresses[count].flags     = rp->ai_flags;
