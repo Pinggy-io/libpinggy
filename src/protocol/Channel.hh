@@ -74,9 +74,6 @@ public:
     Close();
 
     void
-    Cleanup(); //Very destructive
-
-    void
     RegisterEventHandler(ChannelEventHandlerPtr ev)
                                 { eventHandler = ev; }
 
@@ -93,7 +90,7 @@ public:
     HaveBufferToWrite();
 
     bool
-    IsConnected()               { return connected; }
+    IsConnected()               { return state == ChannelState_Connected; }
 
     tChannelType
     GetType()                   { return chanType; }
@@ -112,6 +109,9 @@ public:
 
 private:
     Channel(SessionPtr); //constructor
+
+    void
+    cleanup(); //Very destructive
 
     void
     sendOrQueue(ProtoMsgPtr msg);
@@ -134,7 +134,25 @@ private:
     void
     handleChannelError(ChannelErrorMsgPtr);
 
+    void
+    setChannelInfo(tUint16 destPort, tString destHost,
+                        tUint16 srcPort, tString srcHost, tChannelType chanType);
+
+    void
+    initiateIncomingChannel(SetupChannelMsgPtr msg);
+
     friend class                Session;
+
+    enum ChannelState {
+        ChannelState_Init = 0,
+        ChannelState_Connecting,
+        ChannelState_Connect_Responding,
+        ChannelState_Connected,
+        ChannelState_Closing,
+        ChannelState_Close_Responding,
+        ChannelState_Closed,
+        ChannelState_Rejected
+    };
 
     SessionWPtr                 session;
     tChannelId                  channelId;
@@ -151,17 +169,10 @@ private:
     tUint32                     localMaxPacket;
 
     tUint32                     localConsumed;
+    ChannelState                state;
+    bool                        allowWrite;
+    bool                        allowRecv;
 
-    bool                        closeSent;
-    bool                        closeRcvd;
-    bool                        closed;
-
-    bool                        connectionSent;
-    bool                        connectionRcvd;
-    bool                        connected;
-    bool                        rejected;
-
-    // std::queue<ProtoMsgPtr> sendQueue;
     std::queue<RawDataPtr>      recvQueue;
 
     ChannelEventHandlerPtr      eventHandler;

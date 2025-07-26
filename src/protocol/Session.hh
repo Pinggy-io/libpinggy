@@ -139,6 +139,9 @@ public:
     virtual tString
     GetMessage()                { return endReason; }
 
+    virtual void
+    SendError(tString msg)      { sendErrorMsg(0, msg, true); }
+
 // TransportManagerEventHandler
     virtual void
     HandleConnectionReset(net::NetworkConnectionPtr netConn) override;
@@ -167,6 +170,9 @@ private:
 
     void
     sendErrorMsg(tUint32 errorNo, tString what, bool recoverable=false);
+
+    void
+    sendWarningMsg(tUint32 errorNo, tString what);
 
     void
     deregisterChannel(ChannelPtr channel);

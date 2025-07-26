@@ -20,6 +20,72 @@
 namespace protocol
 {
 
+/*
+# Channel State Transitions
+
+    INIT --[Connect()]--> CONNECTING
+    INIT --[initiateIncomingChannel()]--> CONNECT_RESPONDING
+
+    CONNECTING --[handleNewChannelResponse(Accept)]--> CONNECTED
+    CONNECTING --[handleNewChannelResponse(Reject)]--> REJECTED
+    CONNECTING --[Close()]--> CLOSING
+
+    CONNECT_RESPONDING --[Accept()]--> CONNECTED
+    CONNECT_RESPONDING --[Reject()]--> REJECTED
+    CONNECT_RESPONDING --[Close()]--> REJECTED
+
+    CONNECTED --[Close()]--> CLOSING
+    CONNECTED --[Recv() == 0]--> CLOSE_RESPONDING
+
+    CLOSE_RESPONDING --[Close()]--> CLOSED
+    CLOSING --[handleChannelClose()]--> CLOSED
+
+
+Channel State Diagram
+                    +--------+
+                    | INIT   |
+                    +--------+
+                     /      \
+          Connect() /        \ initiateIncomingChannel()
+                   v          v
+           +--------------+   +----------------------+
+           |  CONNECTING  |   |  CONNECT_RESPONDING  |
+           +--------------+   +----------------------+
+             |     |    |           |        |
+             |     |    |           |        |--[Close()]---> +-----------+
+             |     |    |           |        |                | REJECTED  |
+             |     |    |           |        `--[Reject()]--> +-----------+
+             |     |    |       [Accept()]
+             |     |    |           |
+             |     |    |           v
+             |     |    |       +-------------+
+             |     |    |       |  CONNECTED  |
+             |     |    |       +-------------+
+             |     |    |           |                   +------------------+
+             |     |    |           |--[Recv() == 0]--> | CLOSE_RESPONDING |
+             |     |    |           |                   +------------------+
+             |     |    |           |
+             |     |    |           |               +----------+
+             |     |    |           `--[Close()]--> | CLOSEING |
+             |     |    |                           +----------+
+             |     |    |
+             |     |    |                                         +-----------+
+             |     |    `-->[handleNewChannelResponse(Reject)]--> | REJECTED  |
+             |     |                                              +-----------+
+             |     |
+             |     |                                         +-------------+
+             |     `-->[handleNewChannelResponse(Accept)]--> |  CONNECTED  |
+             |                                               +-------------+
+         [Close()]
+             |
+             v
+        +-----------+                              +--------+
+        | CLOSING   | -->[handleChannelClose()]--> | CLOSED |
+        +-----------+                              +--------+
+
+*/
+
+
 //Following same as golang ssh
 #define MAX_PACKET (1<<15)
 #define CHANNEL_WINDOW_SIZE (64 * MAX_PACKET)
@@ -34,13 +100,9 @@ Channel::Channel(SessionPtr session) : session(session),
                                         remoteMaxPacket(0),
                                         localMaxPacket(MAX_PACKET),
                                         localConsumed(0),
-                                        closeSent(false),
-                                        closeRcvd(false),
-                                        closed(false),
-                                        connectionSent(false),
-                                        connectionRcvd(false),
-                                        connected(false),
-                                        rejected(false)
+                                        state(ChannelState_Init),
+                                        allowWrite(false),
+                                        allowRecv(false)
 {
 }
 
@@ -51,7 +113,7 @@ Channel::~Channel()
 bool
 Channel::Connect()
 {
-    if  (connectionSent || connectionRcvd)
+    if  (state != ChannelState_Init)
         return false;
 
     channelId               = session.lock()->getChannelNewId();
@@ -67,17 +129,16 @@ Channel::Connect()
 
     session.lock()->registerChannel(thisPtr);
     session.lock()->sendMsg(msg, true); //It is okay here as we are not going to send any other
-    connectionSent = true;
+    state = ChannelState_Connecting;
     return true;
 }
 
 bool
 Channel::Accept()
 {
-    if (!connectionRcvd || connectionSent)
+    if (state != ChannelState_Connect_Responding)
         return false;
-    if (rejected || connected)
-        return false;
+
     session.lock()->registerChannel(thisPtr);
 
     auto msg                = NewSetupChannelResponseMsgPtr();
@@ -87,22 +148,22 @@ Channel::Accept()
     msg->MaxDataSize        = localMaxPacket;
 
     session.lock()->sendMsg(msg, true); //It is okay here as we are not going to send any other
-    connected = true;
+    state = ChannelState_Connected;
+    allowWrite = true;
+    allowRecv = true;
     return true;
 }
 
 bool
 Channel::Reject(tString reason)
 {
-    if (!connectionRcvd || connectionSent)
-        return false;
-    if (rejected || connected)
+    if (state != ChannelState_Connect_Responding)
         return false;
     auto msg = NewSetupChannelResponseMsgPtr();
     msg->ChannelId = channelId;
     msg->Accept = false;
     msg->Error = reason;
-    rejected = true;
+    state = ChannelState_Rejected; //this would clear the channel as well
 
     session.lock()->sendMsg(msg, true); //It is okay here as we are not going to send any other
     return true;
@@ -111,53 +172,51 @@ Channel::Reject(tString reason)
 bool
 Channel::Close()
 {
-    if (rejected)
-        return true;
-    if (closeSent)
-        return false;
-
-    if (connectionRcvd && !rejected && !connected) {
-        Reject("No action");
-        return true;
+    // Reject is a special case. final case
+    if (state == ChannelState_Connect_Responding) {
+        if (eventHandler)
+            eventHandler = nullptr;
+        return Reject("No action");
     }
+
+    if (    state != ChannelState_Connected
+         && state != ChannelState_Close_Responding
+         && state != ChannelState_Connecting)
+        return false;
 
     auto msg = NewChannelCloseMsgPtr();
     msg->ChannelId = channelId;
     sendOrQueue(msg);
-    closeSent = true;
-    if (closeRcvd)
-        closed = true;
-    if (closed)
-        session.lock()->deregisterChannel(thisPtr);
-    return true;
-}
 
-void
-Channel::Cleanup()
-{
-    closed = true;
-    closeSent = true;
-    closeRcvd = true;
-    if (eventHandler)
-        eventHandler->ChannelCleanup(thisPtr);
-    eventHandler = nullptr; //this is really important as it might held it back
+    allowWrite = false;
+    if (state == ChannelState_Close_Responding) {
+        state = ChannelState_Closed;
+        session.lock()->deregisterChannel(thisPtr);
+    } else {
+        state = ChannelState_Closing;
+    }
+
+    if (eventHandler) {
+        eventHandler = nullptr;
+    }
+
+    return true;
 }
 
 RawData::tLen
 Channel::Send(RawDataPtr rawData)
 {
-    if (closeSent || closeRcvd)
-        return 0;
-    if (!connected)
+    if (!allowWrite)
         return -1;
+
+    Assert(rawData->Len > 0);
+
     if (remoteWindow < (tUint32)rawData->Len) {
         return -1;
     }
 
-    Assert(rawData->Len > 0);
-
     auto workingRawData = rawData->Slice(0);
-    while(remoteMaxPacket  < (tUint32)workingRawData->Len) {
+    while(remoteMaxPacket < (tUint32)workingRawData->Len) {
         auto msg        = NewChannelDataMsgPtr();
         msg->ChannelId  = channelId;
         msg->Data       = workingRawData->Slice(0, remoteMaxPacket);
@@ -165,6 +224,7 @@ Channel::Send(RawDataPtr rawData)
         workingRawData->Consume(remoteMaxPacket);
         sendOrQueue(msg);
     }
+
     auto msg        = NewChannelDataMsgPtr();
     msg->ChannelId  = channelId;
     msg->Data       = workingRawData->Slice(0);
@@ -179,14 +239,21 @@ Channel::Send(RawDataPtr rawData)
 std::tuple<RawData::tLen, RawDataPtr>
 Channel::Recv(RawData::tLen len)
 {
+    if (state != ChannelState_Connected) {
+        return {-2, nullptr};
+    }
+
     if (recvQueue.empty()) {
-        if (closeRcvd || closeSent) {
-            return {0, nullptr};
-        }
         return {-1, nullptr};
     }
 
     auto top = recvQueue.front();
+    if (top->Len == 0) { // it mean close received
+        recvQueue.pop();
+        state = ChannelState_Close_Responding;
+        return {0, nullptr};
+    }
+
     RawDataPtr raw;
     if (top->Len > len) {
         raw = top->Slice(0, len);
@@ -195,7 +262,9 @@ Channel::Recv(RawData::tLen len)
         raw = top;
         recvQueue.pop();
     }
+
     adjustWindow(raw->Len);
+
     return {raw->Len, raw};
 }
 
@@ -212,12 +281,27 @@ Channel::HaveBufferToWrite()
 }
 
 void
+Channel::cleanup()
+{
+    auto ev = eventHandler;
+    if (ev)
+        ev->ChannelCleanup(thisPtr);
+    eventHandler = nullptr; //this is really important as it might held it back
+}
+
+void
 Channel::sendOrQueue(ProtoMsgPtr msg)
 {
+    if (state != ChannelState_Connected)
+        return;
+    auto ev = eventHandler;
+
     auto success = session.lock()->sendMsg(msg, true);
-    // Assert(success);
-    if (!success)
-        eventHandler->ChannelError(thisPtr, 0, "Cannot send msg");
+
+    if (!success) {
+        if (ev)
+            ev->ChannelError(thisPtr, 0, "Cannot send msg");
+    }
 }
 
 void
@@ -243,29 +327,26 @@ Channel::adjustWindow(tUint32 len)
 void
 Channel::handleNewChannelResponse(SetupChannelResponseMsgPtr msg)
 {
-    if (!connectionSent) {
+    auto ev = eventHandler;
+    if (state != ChannelState_Connecting)
         return;
-    }
-
-    //TODO, what if user closes the channel before this response?
-
-    connectionSent = false;
 
     if (msg->Accept) {
         remoteMaxPacket = msg->MaxDataSize;
         remoteWindow = msg->InitialWindowSize;
-        connected = true;
-        if (eventHandler) {
-            eventHandler->ChannelAccepted(thisPtr);
-            eventHandler->ChannelReadyToSend(thisPtr, remoteWindow);
+        state = ChannelState_Connected;
+        allowRecv = true;
+        allowWrite = true;
+        if (ev) {
+            ev->ChannelAccepted(thisPtr);
+            ev->ChannelReadyToSend(thisPtr, remoteWindow);
         } else {
             LOGE(channelId, ": Event handler required but not found");
         }
     } else {
-        session.lock()->deregisterChannel(thisPtr);
-        rejected = true;
-        if (eventHandler) {
-            eventHandler->ChannelRejected(thisPtr, msg->Error);
+        state = ChannelState_Rejected;
+        if (ev) {
+            ev->ChannelRejected(thisPtr, msg->Error);
             eventHandler = nullptr;
         }
         else
@@ -276,8 +357,15 @@ Channel::handleNewChannelResponse(SetupChannelResponseMsgPtr msg)
 void
 Channel::handleChannelData(ChannelDataMsgPtr dataMsg)
 {
-    if (closeRcvd)
+    auto ev = eventHandler;
+
+    if (state != ChannelState_Connected && state != ChannelState_Closing) //we are receiving data even after sending close
         return;
+
+    if (!allowRecv) {
+        LOGD("Recv not allowed here");
+        return; //We have receive close already
+    }
 
     if (localWindow < (tUint32)dataMsg->Data->Len) {
         LOGF("localWindow:", localWindow, "is not enough for current dataMsg of size", dataMsg->Data->Len);
@@ -289,12 +377,9 @@ Channel::handleChannelData(ChannelDataMsgPtr dataMsg)
     recvQueue.push(dataMsg->Data);
     localWindow -= dataMsg->Data->Len;
 
-    if (closeSent) { //Storing data just in case.
-        return;
-    }
 
-    if (eventHandler)
-        eventHandler->ChannelDataReceived(thisPtr);
+    if (ev)
+        ev->ChannelDataReceived(thisPtr);
     else
         LOGE(channelId, ": Event handler required but not found");
 }
@@ -302,16 +387,15 @@ Channel::handleChannelData(ChannelDataMsgPtr dataMsg)
 void
 Channel::handleChannelWindowAdjust(ChannelWindowAdjustMsgPtr msg)
 {
-    if (closeRcvd)
+    auto ev = eventHandler;
+
+    if (state != ChannelState_Connected && state != ChannelState_Closing) //we are receiving data even after sending close
         return;
 
     remoteWindow += msg->AdditionalBytes;
 
-    if (closeSent) //Event handler may not exists.
-        return;
-
-    if (eventHandler)
-        eventHandler->ChannelReadyToSend(thisPtr, remoteWindow);
+    if (ev)
+        ev->ChannelReadyToSend(thisPtr, remoteWindow);
     else
         LOGE(channelId, ": Event handler required but not found");
 }
@@ -319,40 +403,66 @@ Channel::handleChannelWindowAdjust(ChannelWindowAdjustMsgPtr msg)
 void
 Channel::handleChannelClose(ChannelCloseMsgPtr closeMsg)
 {
-    closeRcvd = true;
-    auto alreadyClosed = false;
-    if (closeSent) {
-        closed = true;
-        alreadyClosed = true;
-    } else {
-        auto msg = NewChannelCloseMsgPtr();
-        msg->ChannelId = channelId;
-        closeSent = true;
-        sendOrQueue(msg);
+    auto ev = eventHandler;
+
+    if (state != ChannelState_Connected && state != ChannelState_Closing) //we are expecting close when it is connected or closed from this side
+        return;
+
+    if (!allowRecv) {
+        LOGD("Recv not allowed here");
+        return; //We have receive close already
     }
 
-    if (!alreadyClosed) {
-        if (eventHandler)
-            eventHandler->ChannelDataReceived(thisPtr); //just notify a read event
+    if (state == ChannelState_Connected) {
+        recvQueue.push(NewRawDataPtr());
+        allowRecv = false;
+        if (ev)
+            ev->ChannelDataReceived(thisPtr); //just notify a read event
         else
             LOGE(channelId, ": Event handler required but not found");
-    }
-
-    if (closed)
+    } else {
+        state = ChannelState_Closed;
         session.lock()->deregisterChannel(thisPtr);
+    }
 }
 
 void
 Channel::handleChannelError(ChannelErrorMsgPtr errMsg)
 {
-    if (closeRcvd || closeSent)
-        return;
-    if (eventHandler) {
-        eventHandler->ChannelError(thisPtr, errMsg->ErrorNo, errMsg->Error);
+    auto ev = eventHandler;
+    if (ev) {
+        ev->ChannelError(thisPtr, errMsg->ErrorNo, errMsg->Error);
         eventHandler = nullptr;
     } else {
         LOGE(channelId, ": Event handler required but not found");
     }
+}
+
+void
+Channel::setChannelInfo(tUint16 destPort, tString destHost, tUint16 srcPort, tString srcHost, tChannelType chanType)
+{
+    this->destHost         = destHost;
+    this->srcHost          = srcHost;
+    this->destPort         = destPort;
+    this->srcPort          = srcPort;
+    this->chanType         = chanType;
+}
+
+/*
+ * It is supposed to be called only once.
+ */
+void
+Channel::initiateIncomingChannel(SetupChannelMsgPtr msg)
+{
+    remoteMaxPacket    = msg->MaxDataSize;
+    remoteWindow       = msg->InitialWindowSize;
+    channelId          = msg->ChannelId;
+    destHost           = msg->ConnectToHost;
+    destPort           = msg->ConnectToPort;
+    srcHost            = msg->SrcHost;
+    srcPort            = msg->SrcPort;
+    chanType           = (tChannelType)msg->ChannelType;
+    state              = ChannelState_Connect_Responding;
 }
 
 } // namespace protocol

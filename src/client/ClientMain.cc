@@ -377,7 +377,8 @@ int
 main(int argc, char *argv[]) {
     WindowsSocketInitialize();
     InitLogWithCout();
-    SetGlobalLogEnable(false);
+    // SetGlobalLogEnable(false);
+    ignore_sigpipe();
     auto config = parseArguments(argc, argv);
     auto sdkEventHandler = NewClientSdkEventHandlerPtr(config);
     auto sdk = sdk::NewSdkPtr(config->sdkConfig, sdkEventHandler);
