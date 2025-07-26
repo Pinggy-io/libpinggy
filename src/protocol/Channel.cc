@@ -35,7 +35,7 @@ namespace protocol
     CONNECT_RESPONDING --[Close()]--> REJECTED
 
     CONNECTED --[Close()]--> CLOSING
-    CONNECTED --[Recv() == 0]--> CLOSE_RESPONDING
+    CONNECTED --[handleChannelClose()]--> CLOSE_RESPONDING
 
     CLOSE_RESPONDING --[Close()]--> CLOSED
     CLOSING --[handleChannelClose()]--> CLOSED
@@ -61,9 +61,9 @@ Channel State Diagram
              |     |    |       +-------------+
              |     |    |       |  CONNECTED  |
              |     |    |       +-------------+
-             |     |    |           |                   +------------------+
-             |     |    |           |--[Recv() == 0]--> | CLOSE_RESPONDING |
-             |     |    |           |                   +------------------+
+             |     |    |           |                            +------------------+
+             |     |    |           |--[handleChannelClose()]--> | CLOSE_RESPONDING |
+             |     |    |           |                            +------------------+
              |     |    |           |
              |     |    |           |               +----------+
              |     |    |           `--[Close()]--> | CLOSEING |
@@ -96,18 +96,18 @@ Channel State Diagram
 #define IGNORE_LAST_FUNC(x) \
         (state != x)
 
-#define IF_NOT_IN_STATE_COND(...) \
-    if (APP_MACRO_FOR_EACH_LASTFUNC(IGNORE_ALL_FUNC, IGNORE_LAST_FUNC, APP_MACRO_DUMMY, APP_MACRO_DUMMY, __VA_ARGS__))
+#define NOT_IN_STATE_COND(...) \
+    APP_MACRO_FOR_EACH_LASTFUNC(IGNORE_ALL_FUNC, IGNORE_LAST_FUNC, APP_MACRO_DUMMY, APP_MACRO_DUMMY, __VA_ARGS__)
 
 #define IGNORE_IF_NOT_IN_STATE_NO_RETURN(...)                           \
-        IF_NOT_IN_STATE_COND(__VA_ARGS__)                               \
+        if (NOT_IN_STATE_COND(__VA_ARGS__))                             \
         {                                                               \
             LOGD(__func__, channelId, "Ignoring as current: ", state);  \
             return;                                                     \
         }
 
 #define IGNORE_IF_NOT_IN_STATE_RETURN(ret, ...)                         \
-        IF_NOT_IN_STATE_COND(__VA_ARGS__)                               \
+        if (NOT_IN_STATE_COND(__VA_ARGS__))                             \
         {                                                               \
             LOGD(__func__, channelId, "Ignoring as current: ", state);  \
             return ret;                                                 \
@@ -124,8 +124,7 @@ Channel::Channel(SessionPtr session) : session(session),
                                         localMaxPacket(MAX_PACKET),
                                         localConsumed(0),
                                         state(ChannelState_Init),
-                                        allowWrite(false),
-                                        allowRecv(false)
+                                        allowWrite(false)
 {
 }
 
@@ -171,7 +170,6 @@ Channel::Accept()
     session.lock()->sendMsg(msg, true); //It is okay here as we are not going to send any other
     state = ChannelState_Connected;
     allowWrite = true;
-    allowRecv = true;
     return true;
 }
 
@@ -199,7 +197,7 @@ Channel::Close()
             eventHandler = nullptr;
         return Reject("No action");
     }
-
+    //TODO:
     IGNORE_IF_NOT_IN_STATE_RETURN(false, ChannelState_Connected, ChannelState_Close_Responding, ChannelState_Connecting);
 
     auto msg = NewChannelCloseMsgPtr();
@@ -257,20 +255,21 @@ Channel::Send(RawDataPtr rawData)
 std::tuple<RawData::tLen, RawDataPtr>
 Channel::Recv(RawData::tLen len)
 {
-    if (state != ChannelState_Connected) {
+    if (NOT_IN_STATE_COND(ChannelState_Connected, ChannelState_Close_Responding)) { //Equivalent CloseResponding
         return {-2, nullptr};
     }
 
     if (recvQueue.empty()) {
+        if (state == ChannelState_Close_Responding)
+            return {0, nullptr};
         return {-1, nullptr};
     }
 
     auto top = recvQueue.front();
-    if (top->Len == 0) { // it mean close received
-        recvQueue.pop();
-        state = ChannelState_Close_Responding;
-        return {0, nullptr};
-    }
+    // if (top->Len == 0) { // it mean close received
+    //     recvQueue.pop();
+    //     return {0, nullptr};
+    // }
 
     RawDataPtr raw;
     if (top->Len > len) {
@@ -310,7 +309,7 @@ Channel::cleanup()
 void
 Channel::sendOrQueue(ProtoMsgPtr msg)
 {
-    IF_NOT_IN_STATE_COND(ChannelState_Connected, ChannelState_Close_Responding) {
+    if(NOT_IN_STATE_COND(ChannelState_Connected, ChannelState_Close_Responding)) {
         LOGD(__func__, channelId, "Ignoring as current: ", state, ProtoMsg::MsgTypeStr[msg->msgType]);
         return;
     }
@@ -357,7 +356,6 @@ Channel::handleNewChannelResponse(SetupChannelResponseMsgPtr msg)
         remoteMaxPacket = msg->MaxDataSize;
         remoteWindow = msg->InitialWindowSize;
         state = ChannelState_Connected;
-        allowRecv = true;
         allowWrite = true;
         if (ev) {
             ev->ChannelAccepted(thisPtr);
@@ -384,11 +382,6 @@ Channel::handleChannelData(ChannelDataMsgPtr dataMsg)
     //we are receiving data even after sending close
     IGNORE_IF_NOT_IN_STATE_NO_RETURN(ChannelState_Connected, ChannelState_Closing);
 
-    if (!allowRecv) {
-        LOGD("Recv not allowed here");
-        return; //We have receive close already
-    }
-
     if (localWindow < (tUint32)dataMsg->Data->Len) {
         LOGF("localWindow:", localWindow, "is not enough for current dataMsg of size", dataMsg->Data->Len);
         //TODO I am not sure what to do here.
@@ -412,14 +405,14 @@ Channel::handleChannelWindowAdjust(ChannelWindowAdjustMsgPtr msg)
     auto ev = eventHandler;
 
     //we are receiving data even after sending close
-    IGNORE_IF_NOT_IN_STATE_NO_RETURN(ChannelState_Connected, ChannelState_Closing);
+    IGNORE_IF_NOT_IN_STATE_NO_RETURN(ChannelState_Connected, ChannelState_Close_Responding, ChannelState_Closing);
 
     remoteWindow += msg->AdditionalBytes;
 
     if (ev)
         ev->ChannelReadyToSend(thisPtr, remoteWindow);
     else
-        LOGE(channelId, ": Event handler required but not found");
+        LOGE(channelId, ": Event handler required but not found", state);
 }
 
 void
@@ -430,14 +423,8 @@ Channel::handleChannelClose(ChannelCloseMsgPtr closeMsg)
     //we are expecting close when it is connected or closed
     IGNORE_IF_NOT_IN_STATE_NO_RETURN(ChannelState_Connected, ChannelState_Closing);
 
-    if (!allowRecv) {
-        LOGD("Recv not allowed here");
-        return; //We have receive close already
-    }
-
     if (state == ChannelState_Connected) {
-        recvQueue.push(NewRawDataPtr());
-        allowRecv = false;
+        state = ChannelState_Close_Responding;
         if (ev)
             ev->ChannelDataReceived(thisPtr); //just notify a read event
         else

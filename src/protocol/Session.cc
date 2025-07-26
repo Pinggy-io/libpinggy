@@ -333,6 +333,7 @@ Session::HandleIncomingDeserialize(DeserializerPtr deserializer)
                 // sendWarningMsg(0, "Unknown channel id " + std::to_string(msg->ChannelId) + " " + std::to_string(__LINE__));
                 break;
             }
+            LOGD("Channel close request: ", msg->ChannelId);
             auto channel = channels.at(msg->ChannelId);
             channel->handleChannelClose(msg);
         }

@@ -171,7 +171,6 @@ private:
     tUint32                     localConsumed;
     ChannelState                state;
     bool                        allowWrite;
-    bool                        allowRecv;
 
     std::queue<RawDataPtr>      recvQueue;
 
