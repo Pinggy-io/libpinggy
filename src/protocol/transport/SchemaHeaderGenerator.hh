@@ -144,6 +144,7 @@ public:                                                                         
                 ClassSmallSuffix##Type(ClassSmallSuffix##Type) {}               \
     virtual ~ RootClass##ClassSuffix () {}                                      \
     const t##ClassSuffix##Type ClassSmallSuffix##Type;                          \
+    static tString ClassSuffix##Type##Str[];                                    \
 };                                                                              \
 DefineMakeSharedPtr(RootClass##ClassSuffix)                                     \
                                                                                 \

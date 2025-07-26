@@ -90,6 +90,29 @@ Channel State Diagram
 #define MAX_PACKET (1<<15)
 #define CHANNEL_WINDOW_SIZE (64 * MAX_PACKET)
 
+#define IGNORE_ALL_FUNC(x) \
+        (state != x) &&
+
+#define IGNORE_LAST_FUNC(x) \
+        (state != x)
+
+#define IF_NOT_IN_STATE_COND(...) \
+    if (APP_MACRO_FOR_EACH_LASTFUNC(IGNORE_ALL_FUNC, IGNORE_LAST_FUNC, APP_MACRO_DUMMY, APP_MACRO_DUMMY, __VA_ARGS__))
+
+#define IGNORE_IF_NOT_IN_STATE_NO_RETURN(...)                           \
+        IF_NOT_IN_STATE_COND(__VA_ARGS__)                               \
+        {                                                               \
+            LOGD(__func__, channelId, "Ignoring as current: ", state);  \
+            return;                                                     \
+        }
+
+#define IGNORE_IF_NOT_IN_STATE_RETURN(ret, ...)                         \
+        IF_NOT_IN_STATE_COND(__VA_ARGS__)                               \
+        {                                                               \
+            LOGD(__func__, channelId, "Ignoring as current: ", state);  \
+            return ret;                                                 \
+        }
+
 
 Channel::Channel(SessionPtr session) : session(session),
                                         destPort(0),
@@ -113,8 +136,7 @@ Channel::~Channel()
 bool
 Channel::Connect()
 {
-    if  (state != ChannelState_Init)
-        return false;
+    IGNORE_IF_NOT_IN_STATE_RETURN(false, ChannelState_Init);
 
     channelId               = session.lock()->getChannelNewId();
     auto msg                = NewSetupChannelMsgPtr();
@@ -136,8 +158,7 @@ Channel::Connect()
 bool
 Channel::Accept()
 {
-    if (state != ChannelState_Connect_Responding)
-        return false;
+    IGNORE_IF_NOT_IN_STATE_RETURN(false, ChannelState_Connect_Responding);
 
     session.lock()->registerChannel(thisPtr);
 
@@ -157,8 +178,8 @@ Channel::Accept()
 bool
 Channel::Reject(tString reason)
 {
-    if (state != ChannelState_Connect_Responding)
-        return false;
+    IGNORE_IF_NOT_IN_STATE_RETURN(false, ChannelState_Connect_Responding);
+
     auto msg = NewSetupChannelResponseMsgPtr();
     msg->ChannelId = channelId;
     msg->Accept = false;
@@ -179,10 +200,7 @@ Channel::Close()
         return Reject("No action");
     }
 
-    if (    state != ChannelState_Connected
-         && state != ChannelState_Close_Responding
-         && state != ChannelState_Connecting)
-        return false;
+    IGNORE_IF_NOT_IN_STATE_RETURN(false, ChannelState_Connected, ChannelState_Close_Responding, ChannelState_Connecting);
 
     auto msg = NewChannelCloseMsgPtr();
     msg->ChannelId = channelId;
@@ -292,8 +310,11 @@ Channel::cleanup()
 void
 Channel::sendOrQueue(ProtoMsgPtr msg)
 {
-    if (state != ChannelState_Connected)
+    IF_NOT_IN_STATE_COND(ChannelState_Connected, ChannelState_Close_Responding) {
+        LOGD(__func__, channelId, "Ignoring as current: ", state, ProtoMsg::MsgTypeStr[msg->msgType]);
         return;
+    }
+
     auto ev = eventHandler;
 
     auto success = session.lock()->sendMsg(msg, true);
@@ -320,6 +341,7 @@ Channel::adjustWindow(tUint32 len)
         auto msg = NewChannelWindowAdjustMsgPtr();
         msg->ChannelId = channelId;
         msg->AdditionalBytes = sendAdj;
+        LOGD(channelId, "Sending window adjustment");
         sendOrQueue(msg);
     }
 }
@@ -328,8 +350,8 @@ void
 Channel::handleNewChannelResponse(SetupChannelResponseMsgPtr msg)
 {
     auto ev = eventHandler;
-    if (state != ChannelState_Connecting)
-        return;
+
+    IGNORE_IF_NOT_IN_STATE_NO_RETURN(ChannelState_Connecting);
 
     if (msg->Accept) {
         remoteMaxPacket = msg->MaxDataSize;
@@ -359,8 +381,8 @@ Channel::handleChannelData(ChannelDataMsgPtr dataMsg)
 {
     auto ev = eventHandler;
 
-    if (state != ChannelState_Connected && state != ChannelState_Closing) //we are receiving data even after sending close
-        return;
+    //we are receiving data even after sending close
+    IGNORE_IF_NOT_IN_STATE_NO_RETURN(ChannelState_Connected, ChannelState_Closing);
 
     if (!allowRecv) {
         LOGD("Recv not allowed here");
@@ -389,8 +411,8 @@ Channel::handleChannelWindowAdjust(ChannelWindowAdjustMsgPtr msg)
 {
     auto ev = eventHandler;
 
-    if (state != ChannelState_Connected && state != ChannelState_Closing) //we are receiving data even after sending close
-        return;
+    //we are receiving data even after sending close
+    IGNORE_IF_NOT_IN_STATE_NO_RETURN(ChannelState_Connected, ChannelState_Closing);
 
     remoteWindow += msg->AdditionalBytes;
 
@@ -405,8 +427,8 @@ Channel::handleChannelClose(ChannelCloseMsgPtr closeMsg)
 {
     auto ev = eventHandler;
 
-    if (state != ChannelState_Connected && state != ChannelState_Closing) //we are expecting close when it is connected or closed from this side
-        return;
+    //we are expecting close when it is connected or closed
+    IGNORE_IF_NOT_IN_STATE_NO_RETURN(ChannelState_Connected, ChannelState_Closing);
 
     if (!allowRecv) {
         LOGD("Recv not allowed here");
