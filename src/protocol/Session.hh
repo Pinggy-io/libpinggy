@@ -81,6 +81,10 @@ public:
                                 { ABORT_WITH_MSG("Not implemented"); }
 
     virtual void
+    HandleSessionWarning(tUint32 errorNo, tString what)
+                                { LOGE("Warning: ", what); }
+
+    virtual void
     HandleSessionKeepAliveResponseReceived(tUint64 forTick)
                                 { LOGT("KeepAliveResponse received for tick"); }
 
