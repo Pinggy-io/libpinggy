@@ -66,7 +66,7 @@ Session::Cleanup()
 {
     for (auto pair : channels) {
         auto channel = pair.second;
-        channel->Cleanup();
+        channel->cleanup();
     }
     channels.clear();
     netConn->DeregisterFDEvenHandler();
@@ -178,11 +178,7 @@ Session::CreateChannel(tUint16 destPort, tString destHost,
 
     auto cPtr                 = new Channel(thisPtr);
     auto channel              = NewChannelPtr(cPtr);
-    channel->destHost         = destHost;
-    channel->srcHost          = srcHost;
-    channel->destPort         = destPort;
-    channel->srcPort          = srcPort;
-    channel->chanType         = chanType;
+    channel->setChannelInfo(destPort, destHost, srcPort, srcHost, chanType);
 
     return channel;
 }
@@ -191,7 +187,7 @@ void
 Session::HandleConnectionReset(net::NetworkConnectionPtr netConn)
 {
     for (auto ch : channels)
-        ch.second->Cleanup();
+        ch.second->cleanup();
 
     channels.clear(); //There will be no callback from transport any more
     if (eventHandler)
@@ -292,10 +288,11 @@ Session::HandleIncomingDeserialize(DeserializerPtr deserializer)
                 ABORT_WITH_MSG("Not expected state");
             auto msg = tMsg->DynamicPointerCast<SetupChannelResponseMsg>();
             if (channels.find(msg->ChannelId) == channels.end()) {
-                sendErrorMsg(0, "Unknown channel id " + std::to_string(msg->ChannelId) + " " + std::to_string(__LINE__), true);
+                // sendWarningMsg(0, "Unknown channel id " + std::to_string(msg->ChannelId) + " " + std::to_string(__LINE__));
                 break;
             }
-            channels.at(msg->ChannelId)->handleNewChannelResponse(msg);
+            auto channel = channels.at(msg->ChannelId);
+            channel->handleNewChannelResponse(msg);
         }
         break;
 
@@ -305,10 +302,11 @@ Session::HandleIncomingDeserialize(DeserializerPtr deserializer)
                 ABORT_WITH_MSG("Not expected state");
             auto msg = tMsg->DynamicPointerCast<ChannelDataMsg>();
             if (channels.find(msg->ChannelId) == channels.end()) {
-                sendErrorMsg(0, "Unknown channel id " + std::to_string(msg->ChannelId) + " " + std::to_string(__LINE__), true);
+                // sendWarningMsg(0, "Unknown channel id " + std::to_string(msg->ChannelId) + " " + std::to_string(__LINE__));
                 break;
             }
-            channels.at(msg->ChannelId)->handleChannelData(msg);
+            auto channel = channels.at(msg->ChannelId);
+            channel->handleChannelData(msg);
         }
         break;
 
@@ -318,10 +316,11 @@ Session::HandleIncomingDeserialize(DeserializerPtr deserializer)
                 ABORT_WITH_MSG("Not expected state");
             auto msg = tMsg->DynamicPointerCast<ChannelWindowAdjustMsg>();
             if (channels.find(msg->ChannelId) == channels.end()) {
-                sendErrorMsg(0, "Unknown channel id " + std::to_string(msg->ChannelId) + " " + std::to_string(__LINE__), true);
+                // sendWarningMsg(0, "Unknown channel id " + std::to_string(msg->ChannelId) + " " + std::to_string(__LINE__));
                 break;
             }
-            channels.at(msg->ChannelId)->handleChannelWindowAdjust(msg);
+            auto channel = channels.at(msg->ChannelId);
+            channel->handleChannelWindowAdjust(msg);
         }
         break;
 
@@ -331,10 +330,12 @@ Session::HandleIncomingDeserialize(DeserializerPtr deserializer)
                 ABORT_WITH_MSG("Not expected state");
             auto msg = tMsg->DynamicPointerCast<ChannelCloseMsg>();
             if (channels.find(msg->ChannelId) == channels.end()) {
-                sendErrorMsg(0, "Unknown channel id " + std::to_string(msg->ChannelId) + " " + std::to_string(__LINE__), true);
+                // sendWarningMsg(0, "Unknown channel id " + std::to_string(msg->ChannelId) + " " + std::to_string(__LINE__));
                 break;
             }
-            channels.at(msg->ChannelId)->handleChannelClose(msg);
+            LOGD("Channel close request: ", msg->ChannelId);
+            auto channel = channels.at(msg->ChannelId);
+            channel->handleChannelClose(msg);
         }
         break;
 
@@ -342,10 +343,11 @@ Session::HandleIncomingDeserialize(DeserializerPtr deserializer)
         {
             auto msg = tMsg->DynamicPointerCast<ChannelErrorMsg>();
             if (channels.find(msg->ChannelId) == channels.end()) {
-                sendErrorMsg(0, "Unknown channel id " + std::to_string(msg->ChannelId) + " " + std::to_string(__LINE__), true);
+                sendWarningMsg(0, "Unknown channel id " + std::to_string(msg->ChannelId) + " " + std::to_string(__LINE__));
                 break;
             }
-            channels.at(msg->ChannelId)->handleChannelError(msg);
+            auto channel = channels.at(msg->ChannelId);
+            channel->handleChannelError(msg);
         }
         break;
 
@@ -353,6 +355,13 @@ Session::HandleIncomingDeserialize(DeserializerPtr deserializer)
         {
             auto msg = tMsg->DynamicPointerCast<ErrorMsg>();
             eventHandler->HandleSessionError(msg->ErrorNo, msg->What, msg->Recoverable != 0);
+        }
+        break;
+
+        case MsgType_Warning:
+        {
+            auto msg = tMsg->DynamicPointerCast<WarningMsg>();
+            eventHandler->HandleSessionWarning(msg->ErrorNo, msg->What);
         }
         break;
 
@@ -486,6 +495,15 @@ Session::sendErrorMsg(tUint32 errorNo, tString what, bool recoverable)
 }
 
 void
+Session::sendWarningMsg(tUint32 errorNo, tString what)
+{
+    auto errMsg = NewWarningMsgPtr();
+    errMsg->ErrorNo = errorNo;
+    errMsg->What = what;
+    sendMsg(errMsg);
+}
+
+void
 Session::deregisterChannel(ChannelPtr channel)
 {
     if (channels.find(channel->channelId) == channels.end()) {
@@ -528,7 +546,7 @@ Session::handleNewChannel(SetupChannelMsgPtr msg)
     if (chanType <= ChannelType_Invalid || chanType >= MaxSupportedChannelType) {
         rejectMsg += "Unknown channel type" + std::to_string(msg->ChannelType) + ". " + " " + std::to_string(__LINE__);
     }
-    if ( !rejectMsg.empty() ) {
+    if (!rejectMsg.empty()) {
         auto chMsg          = NewSetupChannelResponseMsgPtr();
         chMsg->Accept       = false;
         chMsg->ChannelId    = msg->ChannelId;
@@ -538,15 +556,7 @@ Session::handleNewChannel(SetupChannelMsgPtr msg)
     }
 
     auto channel                = NewChannelPtr(new Channel(thisPtr));
-    channel->remoteMaxPacket    = msg->MaxDataSize;
-    channel->remoteWindow       = msg->InitialWindowSize;
-    channel->channelId          = msg->ChannelId;
-    channel->destHost           = msg->ConnectToHost;
-    channel->destPort           = msg->ConnectToPort;
-    channel->srcHost            = msg->SrcHost;
-    channel->srcPort            = msg->SrcPort;
-    channel->chanType           = (tChannelType)msg->ChannelType;
-    channel->connectionRcvd     = true;
+    channel->initiateIncomingChannel(msg);
 
     eventHandler->HandleSessionNewChannelRequest(channel);
 }

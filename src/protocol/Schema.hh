@@ -159,6 +159,12 @@ enum tChannelType {
         (tMsgId,                MsgId,              0),                         \
         (tString,               Reason,             "",                     1)  \
     )                                                                           \
+    f(Warning,                                                                  \
+        arg,                                                                    \
+        (tMsgId,                MsgId,              0),                         \
+        (tError,                ErrorNo,            0,                      1), \
+        (tString,               What,               "",                     1)  \
+    )                                                                           \
 
 
 

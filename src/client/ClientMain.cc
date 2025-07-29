@@ -359,6 +359,13 @@ struct ClientSdkEventHandler: virtual public sdk::SdkEventHandler
     OnReconnectionCompleted() override
     {
         std::cout << "Reconnected" << std::endl;
+        auto s = sdk.lock();
+        if (s) {
+            auto urls = s->GetUrls();
+            for (auto url : urls) {
+                std::cout << "   " << url << std::endl;
+            }
+        }
     }
 
     virtual void
@@ -377,7 +384,8 @@ int
 main(int argc, char *argv[]) {
     WindowsSocketInitialize();
     InitLogWithCout();
-    SetGlobalLogEnable(false);
+    // SetGlobalLogEnable(false);
+    ignore_sigpipe();
     auto config = parseArguments(argc, argv);
     auto sdkEventHandler = NewClientSdkEventHandlerPtr(config);
     auto sdk = sdk::NewSdkPtr(config->sdkConfig, sdkEventHandler);

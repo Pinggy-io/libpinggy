@@ -19,7 +19,8 @@ namespace net
 {
 
 
-sock_addrinfo AddressCache::GetAddrInfo(tString host, tString port, bool tcp)
+sock_addrinfo
+AddressCache::GetAddrInfo(tString host, tString port, bool tcp)
 {
     sock_addrinfo ret = sock_addrinfo{0};
     auto key = std::tuple(host, port, tcp);
@@ -28,7 +29,8 @@ sock_addrinfo AddressCache::GetAddrInfo(tString host, tString port, bool tcp)
     return addrInfoMap[key];
 }
 
-void AddressCache::SetAddrInfo(tString host, tString port, bool tcp, sock_addrinfo addr)
+void
+AddressCache::SetAddrInfo(tString host, tString port, bool tcp, sock_addrinfo addr)
 {
     auto key = std::tuple(host, port, tcp);
     addr.cached = 1;

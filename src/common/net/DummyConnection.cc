@@ -108,7 +108,7 @@ DummyConnection::~DummyConnection()
 {
     writer->closed = true;
     reader->closed = true;
-    LOGT("Ending DummyConnection:", this)
+    LOGT("Ending DummyConnection:", this);
 }
 
 int

@@ -139,7 +139,9 @@
         "spanstream": "cpp",
         "stacktrace": "cpp",
         "syncstream": "cpp",
-        "typeindex": "cpp"
+        "typeindex": "cpp",
+        "__verbose_abort": "cpp",
+        "execution": "cpp"
     },
     "C_Cpp.default.browse.limitSymbolsToIncludedHeaders": false,
     "C_Cpp.default.forcedInclude": [

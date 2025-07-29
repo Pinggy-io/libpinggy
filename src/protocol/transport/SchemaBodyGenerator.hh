@@ -292,6 +292,9 @@ Definition(_SCHEMA_BODY_DefineDeflate, (RootClass,                              
     }                                                                           \
 }                                                                               \
 
+#define _SCHEMA_BODY_DefineMsgTypeStr(y, x, ...)                                \
+    APP_CONVERT_TO_STRING(x##Type_##y),
+
 //==============================================================================
 
 #define SCHEMA_BODY__DEFINE_BODIES(RootClass, ClassSuffix,                      \
@@ -305,7 +308,9 @@ Definition(_SCHEMA_BODY_DefineDeflate, (RootClass,                              
         _SCHEMA_BODY_DefineInflateFunction(RootClass, ClassSuffix,              \
             ClassSmallSuffix, Definition)                                       \
         _SCHEMA_BODY_DefineDeflateFunction(RootClass, ClassSuffix,              \
-            ClassSmallSuffix, Definition)
+            ClassSmallSuffix, Definition)                                       \
+        tString RootClass##ClassSuffix::ClassSuffix##Type##Str[] = {"Invalid",  \
+            Definition(_SCHEMA_BODY_DefineMsgTypeStr, ClassSuffix) "All"};
 
 //==============================================================================
 

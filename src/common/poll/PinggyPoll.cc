@@ -92,7 +92,7 @@ PollController::ExecuteCurrentTasks()
         task->Fire();
         if (task->isRepeat) {
             task->deadline += task->timeout;
-            LOGT("Repeat pushing")
+            LOGT("Repeat pushing");
             taskQueue.push(task);
         }
     }

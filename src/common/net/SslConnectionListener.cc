@@ -189,7 +189,7 @@ SslConnectionListener::AcceptSsl(
         if (netConn->IsRelayed()) {
             auto bio = netConnBioNewBio(netConn);
             if (!bio) {
-                LOGSSLE("Error while creating bio")
+                LOGSSLE("Error while creating bio");
                 SSL_free(ssl);
                 netConn->CloseConn();
                 return nullptr;
@@ -246,7 +246,7 @@ SslConnectionListener::AcceptSslWithThread(NetworkConnectionPtr netConn, pinggy:
     if (netConn->IsRelayed()) {
         auto bio = netConnBioNewBio(netConn);
         if (!bio) {
-            LOGSSLE("Error while creating bio")
+            LOGSSLE("Error while creating bio");
             SSL_free(ssl);
             netConn->CloseConn();
             return;
@@ -347,7 +347,7 @@ SslConnectionListener::AcceptSslAsync(NetworkConnectionPtr netConn, pinggy::Void
     if (netConn->IsRelayed() || netConn->IsDummy()) {
         auto bio = netConnBioNewBio(netConn);
         if (!bio) {
-            LOGSSLE("Error while creating bio")
+            LOGSSLE("Error while creating bio");
             SSL_free(ssl);
             netConn->CloseConn();
             return;
@@ -604,7 +604,7 @@ SslConnectionListener::ServerNameCallback(SSL *ssl, int *)
             break;
         }
         dns = dns.substr(pos+1);
-        LOGT("Trying ", dns)
+        LOGT("Trying ", dns);
         if (wildCardSslCtxs.find(dns) != wildCardSslCtxs.end()) {;
             auto ctx = wildCardSslCtxs[dns];
             if(ctx) {

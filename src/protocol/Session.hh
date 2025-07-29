@@ -81,6 +81,10 @@ public:
                                 { ABORT_WITH_MSG("Not implemented"); }
 
     virtual void
+    HandleSessionWarning(tUint32 errorNo, tString what)
+                                { LOGE("Warning: ", what); }
+
+    virtual void
     HandleSessionKeepAliveResponseReceived(tUint64 forTick)
                                 { LOGT("KeepAliveResponse received for tick"); }
 
@@ -139,6 +143,9 @@ public:
     virtual tString
     GetMessage()                { return endReason; }
 
+    virtual void
+    SendError(tString msg)      { sendErrorMsg(0, msg, true); }
+
 // TransportManagerEventHandler
     virtual void
     HandleConnectionReset(net::NetworkConnectionPtr netConn) override;
@@ -167,6 +174,9 @@ private:
 
     void
     sendErrorMsg(tUint32 errorNo, tString what, bool recoverable=false);
+
+    void
+    sendWarningMsg(tUint32 errorNo, tString what);
 
     void
     deregisterChannel(ChannelPtr channel);

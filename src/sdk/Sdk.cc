@@ -251,7 +251,7 @@ Sdk::ResumeTunnel()
 std::vector<tString>
 Sdk::GetUrls()
 {
-    if (state < sdkState_PrimaryReverseForwardingSucceeded) {
+    if (state < SdkState_PrimaryReverseForwardingSucceeded) {
         LOGE("Tunnel is not running");
         return {};
     }
@@ -279,7 +279,7 @@ ThreadLockPtr Sdk::LockIfDifferentThread()
 {
     auto curThreadId = std::this_thread::get_id();
     if (curThreadId == runningThreadId) { //it will never be same unless they are really same. We do not change running thread without lock
-        LOGD("Same thread. not locking.")
+        LOGD("Same thread. not locking.");
         return nullptr;
     }
     semaphore.Wait();
@@ -336,7 +336,7 @@ Sdk::RequestPrimaryRemoteForwarding(bool block)
     }
 
     // primaryReverseForwardingInitiated = true;
-    state = sdkState_PrimaryReverseForwardingInitiated;
+    state = SdkState_PrimaryReverseForwardingInitiated;
 
     tString host = "";
     port_t hostPort = 0;
@@ -359,7 +359,7 @@ Sdk::RequestPrimaryRemoteForwarding(bool block)
     if (cleanupNow)
         cleanup();
 
-    return state == sdkState_PrimaryReverseForwardingSucceeded ;
+    return state == SdkState_PrimaryReverseForwardingSucceeded ;
 }
 
 void
@@ -382,7 +382,7 @@ Sdk::RequestAdditionalRemoteForwarding(UrlPtr bindAddress, UrlPtr forwardTo)
     }
 
     auto lock = LockIfDifferentThread();
-    if (state < sdkState_PrimaryReverseForwardingSucceeded) {
+    if (state < SdkState_PrimaryReverseForwardingSucceeded) {
         throw RemoteForwardingException("primary reverse forwarding for this tunnel");
     }
 
@@ -402,9 +402,9 @@ Sdk::HandleSessionInitiated()
 
     if (state != SdkState_SessionInitiating)
         return;
-    // connected = true;
+
     state = SdkState_SessionInitiated;
-    if (eventHandler)
+    if (eventHandler && !reconnectNow)
         eventHandler->OnConnected();
     authenticate();
 }
@@ -413,10 +413,9 @@ void
 Sdk::HandleSessionAuthenticatedAsClient(std::vector<tString> messages)
 {
     authenticationMsg = messages;
-    // authenticated = true;
     state = SdkState_Authenticated;
     LOGD("OnAuthenticated");
-    if (eventHandler)
+    if (eventHandler && !reconnectNow)
         eventHandler->OnAuthenticated();
 
     pollController->StopPolling();
@@ -437,7 +436,7 @@ Sdk::HandleSessionAuthenticationFailed(tString error, std::vector<tString> authe
         _notificateMonitorConn = nullptr;
     }
 
-    if (eventHandler)
+    if (eventHandler && !reconnectNow)
         eventHandler->OnAuthenticationFailed(authenticationMsg);
 
     if (baseConnection->IsValid()) {
@@ -456,7 +455,7 @@ Sdk::HandleSessionRemoteForwardingSucceeded(protocol::tReqId reqId, std::vector<
     if (primaryForwardingReqId == reqId) {
         DEFER({pollController->StopPolling();});
 
-        if (state >= sdkState_PrimaryReverseForwardingSucceeded) {
+        if (state >= SdkState_PrimaryReverseForwardingSucceeded) {
             ABORT_WITH_MSG("Received multiple primary forwarding");
             return;
         }
@@ -464,17 +463,14 @@ Sdk::HandleSessionRemoteForwardingSucceeded(protocol::tReqId reqId, std::vector<
         if (urls.size() > 0) //it would come with the primary forwarding only
             this->urls = urls;
 
-        state = sdkState_PrimaryReverseForwardingSucceeded;
+        state = SdkState_PrimaryReverseForwardingSucceeded;
 
         tunnelInitiated();
-        // primaryForwardingCompleted = true;
 
-        if (eventHandler)
+        if (eventHandler && !reconnectNow)
             eventHandler->OnPrimaryForwardingSucceeded(urls);
 
         LOGD("Primary forwarding done");
-
-        // primaryReverseForwardingCompleted = true;
 
         return;
     }
@@ -497,7 +493,7 @@ Sdk::HandleSessionRemoteForwardingSucceeded(protocol::tReqId reqId, std::vector<
 
     remoteForwardings[remoteBinding] = localForwarding;
 
-    if (eventHandler)
+    if (eventHandler && !reconnectNow)
         eventHandler->OnRemoteForwardingSuccess(bindAddress, forwardTo);
 }
 
@@ -510,12 +506,10 @@ Sdk::HandleSessionRemoteForwardingFailed(protocol::tReqId reqId, tString error)
 
     if (primaryForwardingReqId == reqId) {
         DEFER({pollController->StopPolling();});
-        if (state >= sdkState_PrimaryReverseForwardingSucceeded) {
+        if (state >= SdkState_PrimaryReverseForwardingSucceeded) {
             ABORT_WITH_MSG("Received multiple primary forwarding");
             return;
         }
-
-        // primaryForwardingCompleted = true;
 
         state = sdkState_PrimaryReverseForwardingFailed;
 
@@ -525,7 +519,7 @@ Sdk::HandleSessionRemoteForwardingFailed(protocol::tReqId reqId, tString error)
             _notificateMonitorConn = nullptr;
         }
 
-        if (eventHandler)
+        if (eventHandler && !reconnectNow)
             eventHandler->OnPrimaryForwardingFailed(error);
 
         if (baseConnection->IsValid()) {
@@ -545,7 +539,7 @@ Sdk::HandleSessionRemoteForwardingFailed(protocol::tReqId reqId, tString error)
 
     auto [bindAddress, forwardTo] = pendingRemoteForwardingMap[reqId];
     pendingRemoteForwardingMap.erase(reqId);
-    if (eventHandler)
+    if (eventHandler && !reconnectNow)
         eventHandler->OnRemoteForwardingFailed(bindAddress, forwardTo, error);
 }
 
@@ -734,7 +728,7 @@ Sdk::HandleFDReadWTag(PollableFDPtr pfd, tString tag)
                                 UsageOnceLongPollTcp,
                                 UsageTcp)
         } catch(...) {
-            LOGE("Some error while parsing port config")
+            LOGE("Some error while parsing port config");
         }
     } else if (tag == NOTIFICATION_FD) {
         if (len <= 0) {
