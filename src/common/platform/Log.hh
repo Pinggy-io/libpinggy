@@ -64,20 +64,20 @@ extern bool                     __PINGGY_GLOBAL_ENABLED__;
 #define __LTIME \
     (std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count())
 
-#define __LOG(x__, __y) { \
+#define __LOG(x__, __y) do{ \
     if (__PINGGY_GLOBAL_ENABLED__) { \
         auto ttime = __LTIME; \
         (x__.is_open()?x__:std::cout) << ttime << ":: " __FILE__ ":" \
             APP_CONVERT_TO_STRING(__LINE__) << " " << __PINGGY_LOG_PREFIX__ << "(" << __PINGGY_LOG_PID__ << ")::" __y std::endl; \
     } \
-}
+}while(0)
 
-#define __LOG_FL(FL__, x__, __y) { \
+#define __LOG_FL(FL__, x__, __y) do{ \
     if (__PINGGY_GLOBAL_ENABLED__) { \
         auto ttime = __LTIME; \
         (x__.is_open()?x__:std::cout) << ttime << ":: " << FL__ << " " << __PINGGY_LOG_PREFIX__ << "(" << __PINGGY_LOG_PID__ << ")::" __y std::endl; \
     } \
-}
+} while(0)
 
 
 #define LOG_C(FL, mode, ...) __LOG_FL(FL, __PINGGY_LOGGER_SINK__,  mode __EXPAND_LOGS__(__VA_ARGS__))
@@ -193,14 +193,14 @@ extern bool                     __PINGGY_GLOBAL_ENABLED__;
     ABORT(); \
 }
 
-#define __LOGSSL(typ, ...) {\
+#define __LOGSSL(typ, ...) do{\
     std::stringstream ss; \
     ss << __EXPAND_LOG_VARS__(__VA_ARGS__) ""; \
     std::string myString = ss.str(); \
     struct __PINGGY_LOG_SSL_STRUCT__ u = {(char *)__FILE__ ":" APP_CONVERT_TO_STRING(__LINE__), typ, myString}; \
     ERR_print_errors_cb(LogOpenSslErrorsCB, (void *) &u); \
     ERR_clear_error(); \
-}
+}while(0)
 
 #ifdef __cplusplus
 extern "C" {

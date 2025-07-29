@@ -50,7 +50,7 @@ ConnectionListenerImpl::ConnectionListenerImpl(port_t port, bool ipv6):
 
 ConnectionListenerImpl::~ConnectionListenerImpl()
 {
-    LOGT("Removing" << fd)
+    LOGT("Removing" << fd);
     CloseNCleanSocket(fd);
 }
 
@@ -113,7 +113,7 @@ ConnectionListenerImpl::Accept()
         }
     }
     if (!IsValidSocket(newsock)) {
-        LOGE("Invalid socket")
+        LOGE("Invalid socket");
         return nullptr;
     }
     auto netConn = NewNetworkConnectionImplPtr(newsock);

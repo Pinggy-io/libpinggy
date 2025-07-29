@@ -354,7 +354,7 @@ SslNetworkConnection::Write(RawDataPtr rwData, int flags)
             ABORT_WITH_MSG("wroteFromCached should not be non-zero");
         auto ret = writeFromCached();
         if (ret <= 0) {
-            LOGT("Wrror while writing from cache")
+            LOGT("Wrror while writing from cache");
             return ret;
         }
         wroteFromCached = ret;
@@ -391,7 +391,7 @@ SslNetworkConnection::Write(const void *data, size_t len, int flags)
             ABORT_WITH_MSG("wroteFromCached should not be non-zero");
         auto ret = writeFromCached();
         if (ret <= 0) {
-            LOGT("Wrror while writing from cache")
+            LOGT("Wrror while writing from cache");
             return ret;
         }
         wroteFromCached = ret;
@@ -428,7 +428,7 @@ SslNetworkConnection::SslError(int len)
     return SSL_get_error(ssl, len);
 }
 
-int 
+int
 SslNetworkConnection::CloseNClear(tString location)
 {
     if(ssl) {

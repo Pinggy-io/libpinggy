@@ -75,7 +75,7 @@ netConnBioDestroy(BIO *bio)
         BIO_set_data(bio, NULL); // Clear the context
     }
 
-    LOGD("FREEING up bio")
+    LOGD("FREEING up bio");
     return 1; // Success
 }
 

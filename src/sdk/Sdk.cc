@@ -279,7 +279,7 @@ ThreadLockPtr Sdk::LockIfDifferentThread()
 {
     auto curThreadId = std::this_thread::get_id();
     if (curThreadId == runningThreadId) { //it will never be same unless they are really same. We do not change running thread without lock
-        LOGD("Same thread. not locking.")
+        LOGD("Same thread. not locking.");
         return nullptr;
     }
     semaphore.Wait();
@@ -728,7 +728,7 @@ Sdk::HandleFDReadWTag(PollableFDPtr pfd, tString tag)
                                 UsageOnceLongPollTcp,
                                 UsageTcp)
         } catch(...) {
-            LOGE("Some error while parsing port config")
+            LOGE("Some error while parsing port config");
         }
     } else if (tag == NOTIFICATION_FD) {
         if (len <= 0) {
