@@ -371,6 +371,9 @@ public:
     virtual
     ~NetworkConnectionImpl();
 
+    virtual tString
+    GetConnectToAddr()          { return hostToConnect + ":" + portToConnect; }
+
     virtual ssize_t
     Read(void *buf, size_t nbyte, int flags = 0) override;
 
