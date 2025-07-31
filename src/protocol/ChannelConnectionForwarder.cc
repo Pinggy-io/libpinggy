@@ -76,7 +76,7 @@ ChannelConnectionForwarder::EnableCopyFromNetConn() //playreq
     }
     allowCopyFromNetConn = true; //what if there are data in dataForChannel
     if (!dataForChannel || !dataForChannel->Len) {
-        HandleFDRead(netConn);
+        netConn->RaiseDummyReadPoll();
     }
 }
 
