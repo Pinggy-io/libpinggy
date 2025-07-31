@@ -29,60 +29,97 @@ DeclareClassWithSharedPtr(ChannelConnectionForwarder);
 abstract class DataTransferCounter: virtual public pinggy::SharedObject
 {
 public:
-    virtual ~DataTransferCounter(){}
+    virtual
+    ~DataTransferCounter()      {}
 
-    virtual void CounterByteCopiedToChannel(ChannelConnectionForwarderPtr, RawData::tLen) = 0;
-    virtual void CounterByteCopiedToConnection(ChannelConnectionForwarderPtr, RawData::tLen) = 0;
-    virtual void CounterChannelConnected(ChannelConnectionForwarderPtr) = 0;
-    virtual void CounterChannelClosed(ChannelConnectionForwarderPtr) = 0;
-    virtual void CounterChannelRejected(ChannelConnectionForwarderPtr, tString reason) = 0;
+    virtual void
+    CounterByteCopiedToChannel(ChannelConnectionForwarderPtr, RawData::tLen) = 0;
+
+    virtual void
+    CounterByteCopiedToConnection(ChannelConnectionForwarderPtr, RawData::tLen) = 0;
+
+    virtual void
+    CounterChannelConnected(ChannelConnectionForwarderPtr) = 0;
+
+    virtual void
+    CounterChannelClosed(ChannelConnectionForwarderPtr) = 0;
+
+    virtual void
+    CounterChannelRejected(ChannelConnectionForwarderPtr, tString reason) = 0;
 };
 DeclareSharedPtr(DataTransferCounter);
 
 class ChannelConnectionForwarder:
-                            virtual public FDEventHandler,
-                            virtual public ChannelEventHandler
+            virtual public FDEventHandler,
+            virtual public ChannelEventHandler
 {
 public:
     ChannelConnectionForwarder(ChannelPtr channel, net::NetworkConnectionPtr netConn, DataTransferCounterPtr counter);
-    virtual ~ChannelConnectionForwarder() {}
 
-    void Start();
+    virtual
+    ~ChannelConnectionForwarder()
+                                { }
 
-    void EnableCopyFromChannel();
-    void DisableCopyFromChannel();
-    void EnableCopyFromNetConn();
-    void DisableCopyFromNetConn();
+    void
+    Start();
+
+    void
+    EnableCopyFromChannel();
+
+    void
+    DisableCopyFromChannel();
+
+    void
+    EnableCopyFromNetConn();
+
+    void
+    DisableCopyFromNetConn();
 
 //==FDEventHandler
-    virtual len_t HandleFDRead(PollableFDPtr) override;
-    virtual len_t HandleFDWrite(PollableFDPtr) override;
-    virtual len_t HandleFDError(PollableFDPtr, int16_t) override;
+    virtual len_t
+    HandleFDRead(PollableFDPtr) override;
+
+    virtual len_t
+    HandleFDWrite(PollableFDPtr) override;
+
+    virtual len_t
+    HandleFDError(PollableFDPtr, int16_t) override;
 
 //==ChannelEventHandler
-    virtual void ChannelDataReceived(ChannelPtr) override;
-    virtual void ChannelReadyToSend(ChannelPtr, tUint32) override;
-    virtual void ChannelError(ChannelPtr, tError errorCode, tString errorText) override;
-    virtual void ChannelRejected(ChannelPtr, tString reason) override;
-    virtual void ChannelAccepted(ChannelPtr) override;
-    virtual void ChannelConnected(ChannelPtr) override;
-    virtual void ChannelCleanup(ChannelPtr) override;
+    virtual void
+    ChannelDataReceived(ChannelPtr) override;
+
+    virtual void
+    ChannelReadyToSend(ChannelPtr, tUint32) override;
+
+    virtual void
+    ChannelError(ChannelPtr, tError errorCode, tString errorText) override;
+
+    virtual void
+    ChannelRejected(ChannelPtr, tString reason) override;
+
+    virtual void
+    ChannelAccepted(ChannelPtr) override;
+
+    virtual void
+    ChannelCleanup(ChannelPtr) override;
 
 private:
 
-    void closeByNetConn();
+    void
+    closeByNetConn();
 
-    ChannelPtr channel;
-    net::NetworkConnectionPtr netConn;
-    DataTransferCounterPtr counter;
+    ChannelPtr                  channel;
+    net::NetworkConnectionPtr   netConn;
+    DataTransferCounterPtr      counter;
 
-    bool allowCopyFromChannel;
-    bool allowCopyFromNetConn;
-    bool fdRecvEnabled;
-    bool fdSendEnabled;
+    bool                        allowCopyFromChannel;
+    bool                        allowCopyFromNetConn;
+    bool                        fdRecvEnabled;
+    bool                        fdSendEnabled;
 
-    RawDataPtr dataForChannel;
-    RawDataPtr dataForNetConn;
+    RawDataPtr                  dataForChannel;
+    RawDataPtr                  dataForNetConn;
 };
 DefineMakeSharedPtr(ChannelConnectionForwarder);
 

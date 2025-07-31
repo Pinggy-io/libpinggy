@@ -27,7 +27,8 @@ ChannelConnectionForwarder::ChannelConnectionForwarder(ChannelPtr channel, net::
 {
 }
 
-void ChannelConnectionForwarder::Start()
+void
+ChannelConnectionForwarder::Start()
 {
     netConn->RegisterFDEvenHandler(thisPtr);
     channel->RegisterEventHandler(thisPtr);
@@ -42,17 +43,19 @@ void ChannelConnectionForwarder::Start()
     }
 }
 
-void ChannelConnectionForwarder::EnableCopyFromChannel() //playres
+void
+ChannelConnectionForwarder::EnableCopyFromChannel() //playres
 {
     if (allowCopyFromChannel) return;
-    if (!fdSendEnabled && channel->HaveDataToRead()) {
+    if (!fdSendEnabled) {
         netConn->EnableWritePoll();
         fdSendEnabled = true;
     }
     allowCopyFromChannel = true;
 }
 
-void ChannelConnectionForwarder::DisableCopyFromChannel() //pauseres
+void
+ChannelConnectionForwarder::DisableCopyFromChannel() //pauseres
 {
     if (!allowCopyFromChannel) return;
     if (fdSendEnabled) {
@@ -62,21 +65,26 @@ void ChannelConnectionForwarder::DisableCopyFromChannel() //pauseres
     allowCopyFromChannel = false;
 }
 
-void ChannelConnectionForwarder::EnableCopyFromNetConn() //playreq
+void
+ChannelConnectionForwarder::EnableCopyFromNetConn() //playreq
 {
     LOGTV("Enabling copy from netConn", netConn, allowCopyFromNetConn);
-    if(!netConn || allowCopyFromNetConn) return;
+    if(allowCopyFromNetConn) return;
     if (!fdRecvEnabled) {
         netConn->EnableReadPoll();
         fdRecvEnabled = true;
     }
-    allowCopyFromNetConn = true;
+    allowCopyFromNetConn = true; //what if there are data in dataForChannel
+    if (!dataForChannel || !dataForChannel->Len) {
+        HandleFDRead(netConn);
+    }
 }
 
-void ChannelConnectionForwarder::DisableCopyFromNetConn() //pauseres
+void
+ChannelConnectionForwarder::DisableCopyFromNetConn() //pauseres
 {
     LOGTV("Disabling copy from netConn", netConn->GetFd());
-    if(!netConn || !allowCopyFromNetConn) return;
+    if(!allowCopyFromNetConn) return;
     if (fdRecvEnabled) {
         netConn->DisableReadPoll();
         fdRecvEnabled = false;
@@ -85,7 +93,8 @@ void ChannelConnectionForwarder::DisableCopyFromNetConn() //pauseres
 }
 
 //==FDEventHandler
-len_t ChannelConnectionForwarder::HandleFDRead(PollableFDPtr)
+len_t
+ChannelConnectionForwarder::HandleFDRead(PollableFDPtr)
 {
     LOGT("Called `" + std::string(__func__) + "`");
     if (!dataForChannel || !dataForChannel->Len) {
@@ -112,7 +121,7 @@ len_t ChannelConnectionForwarder::HandleFDRead(PollableFDPtr)
         return -1;
     }
     auto sent = channel->Send(dataForChannel);
-    if (sent == 0) {
+    if (sent == 0) { //TODO impossible statements
         LOGT("Called `" + std::string(__func__) + "` close by netconn");
         closeByNetConn();
         return sent;
@@ -133,7 +142,8 @@ len_t ChannelConnectionForwarder::HandleFDRead(PollableFDPtr)
     return sent;
 }
 
-len_t ChannelConnectionForwarder::HandleFDWrite(PollableFDPtr)
+len_t
+ChannelConnectionForwarder::HandleFDWrite(PollableFDPtr)
 {
     LOGT("Called `" + std::string(__func__) + "`");
     if (!dataForNetConn || !dataForNetConn->Len) {
@@ -156,7 +166,6 @@ len_t ChannelConnectionForwarder::HandleFDWrite(PollableFDPtr)
     auto len = netConn->Write(dataForNetConn);
     if (len <= 0) {
         if (netConn->TryAgain()) {
-            // netConn->DisableWritePoll();//TODO this is wrong.
             LOGT("Called `" + std::string(__func__) + "` false alert try again");
             return len;
         }
@@ -176,7 +185,8 @@ len_t ChannelConnectionForwarder::HandleFDWrite(PollableFDPtr)
     return len;
 }
 
-len_t ChannelConnectionForwarder::HandleFDError(PollableFDPtr, int16_t)
+len_t
+ChannelConnectionForwarder::HandleFDError(PollableFDPtr, int16_t)
 {
     // Assert(false);
     closeByNetConn(); //causes segmentation fault
@@ -196,7 +206,8 @@ void ChannelConnectionForwarder::ChannelDataReceived(ChannelPtr)
     fdSendEnabled = true;
 }
 
-void ChannelConnectionForwarder::ChannelReadyToSend(ChannelPtr, tUint32 availableBuffer)
+void
+ChannelConnectionForwarder::ChannelReadyToSend(ChannelPtr, tUint32 availableBuffer)
 {
     if (fdRecvEnabled)
         return;
@@ -205,7 +216,7 @@ void ChannelConnectionForwarder::ChannelReadyToSend(ChannelPtr, tUint32 availabl
         return;
     }
 
-    if (!dataForChannel && !dataForChannel->Len && dataForChannel->Len > (RawData::tLen)availableBuffer) {
+    if (!dataForChannel || !dataForChannel->Len || dataForChannel->Len > (RawData::tLen)availableBuffer) {
         LOGT("Called `" + std::string(__func__) + "` Not enoungh buffer");
         return; //it is meaningless to enable
     }
@@ -219,12 +230,14 @@ void ChannelConnectionForwarder::ChannelReadyToSend(ChannelPtr, tUint32 availabl
     fdRecvEnabled = true;
 }
 
-void ChannelConnectionForwarder::ChannelError(ChannelPtr, tError errorCode, tString errorText)
+void
+ChannelConnectionForwarder::ChannelError(ChannelPtr, tError errorCode, tString errorText)
 {
     LOGE("Error occured with channel", errorText);
 }
 
-void ChannelConnectionForwarder::ChannelRejected(ChannelPtr, tString reason)
+void
+ChannelConnectionForwarder::ChannelRejected(ChannelPtr, tString reason)
 {
     LOGE("Channel rejected by remote. Silently closing");
     netConn->DeregisterFDEvenHandler();
@@ -236,7 +249,8 @@ void ChannelConnectionForwarder::ChannelRejected(ChannelPtr, tString reason)
     }
 }
 
-void ChannelConnectionForwarder::ChannelAccepted(ChannelPtr)
+void
+ChannelConnectionForwarder::ChannelAccepted(ChannelPtr)
 {
     if (!channel->IsConnected()) {
         ABORT_WITH_MSG("Only connected channel can be accepted.")
@@ -252,23 +266,8 @@ void ChannelConnectionForwarder::ChannelAccepted(ChannelPtr)
     }
 }
 
-void ChannelConnectionForwarder::ChannelConnected(ChannelPtr)
-{
-    if (channel->IsConnected()) {
-        ABORT_WITH_MSG("Only unconnected channel can be connected.")
-        return;
-    }
-
-    netConn->EnableReadPoll();
-    allowCopyFromNetConn = true;
-    allowCopyFromChannel = true;
-    fdRecvEnabled = true;
-    if (counter) {
-        counter->CounterChannelConnected(thisPtr);
-    }
-}
-
-void ChannelConnectionForwarder::ChannelCleanup(ChannelPtr)
+void
+ChannelConnectionForwarder::ChannelCleanup(ChannelPtr)
 {
     if (counter) {
         counter->CounterChannelClosed(thisPtr);
@@ -293,12 +292,16 @@ void ChannelConnectionForwarder::closeByNetConn()
         counter = nullptr;
     }
 
-    netConn->DeregisterFDEvenHandler();
-    netConn->CloseConn();
-    netConn = nullptr;
-    channel->Close();
-    LOGT("Closing channel: ", channel);
-    channel = nullptr; //this would cut the reference loop
+    if (netConn) {
+        netConn->DeregisterFDEvenHandler();
+        netConn->CloseConn();
+        netConn = nullptr;
+    }
+
+    if (channel) {
+        channel->Close();
+        channel = nullptr;
+    }
 }
 
 } // namespace protocol

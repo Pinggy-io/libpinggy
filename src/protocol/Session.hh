@@ -146,6 +146,12 @@ public:
     virtual void
     SendError(tString msg)      { sendErrorMsg(0, msg, true); }
 
+    virtual void
+    ResetIncomingActivities()   { incomingActivities = false; }
+
+    virtual bool
+    IsThereIncomingActivities() { return incomingActivities; }
+
 // TransportManagerEventHandler
     virtual void
     HandleConnectionReset(net::NetworkConnectionPtr netConn) override;
@@ -207,6 +213,7 @@ private:
     bool                        endSent;
     tString                     endReason;
     tUint64                     keepAliveSentTick;
+    bool                        incomingActivities;
 };
 DefineMakeSharedPtr(Session);
 

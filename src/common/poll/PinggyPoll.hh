@@ -226,16 +226,23 @@ public:
     PollableTaskPtr
     SetInterval(tDuration timeout, tDuration align, std::shared_ptr<T> _t, void (T::*func)(Args ...), Args ...args);
 
-
     virtual tTime
     GetPollTime() final         { return pollTime; }
+
+    virtual void
+    SetWaitForFutureTask(bool waitForTask) final
+                                { this->waitForTask = waitForTask; }
 
 protected:
     virtual tDuration
     GetNextTaskTimeout() final; //zero if no deadline
 
     virtual bool
-    HaveFutureTasks() final;
+    HaveFutureTasks() final { return taskQueue.size() > 0; }
+
+    virtual bool
+    WaitForFutureTask() final
+                            { return waitForTask; }
 
     virtual void
     ExecuteCurrentTasks() final;
@@ -249,6 +256,7 @@ private:
                                 taskQueue;
 
     tTime                       pollTime;
+    bool                        waitForTask; //Whether poll should wait for task or not when all the fds are gone
 
 };
 DeclareSharedPtr(PollController);
