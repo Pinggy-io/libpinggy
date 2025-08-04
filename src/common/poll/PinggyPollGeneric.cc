@@ -271,7 +271,7 @@ void PollControllerGeneric::StartPolling()
     polling = true;
     stopPolling = false;
 
-    while(fds.size() || nonPollables.size() || HaveFutureTasks()) {
+    while(fds.size() || nonPollables.size() || (HaveFutureTasks() && WaitForFutureTask())) {
         PollOnce();
         if (stopPolling)
             break;

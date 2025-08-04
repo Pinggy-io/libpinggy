@@ -77,7 +77,7 @@ void PollControllerLinux::StartPolling()
     polling = true;
     stopPolling = false;
 
-    while(fds.size() || nonPollables.size() || HaveFutureTasks()) {
+    while(fds.size() || nonPollables.size() || (HaveFutureTasks() && WaitForFutureTask())) {
         auto ret = PollOnce();
         if (ret < 0) {
             if (app_get_errno() == EINTR) {

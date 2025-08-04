@@ -26,7 +26,8 @@ Session::Session(net::NetworkConnectionPtr netConn, bool asServer):
         state(SessionState_Init),
         lastReqId(1023),
         endSent(false),
-        keepAliveSentTick(0)
+        keepAliveSentTick(0),
+        incomingActivities(false)
 {
     lastChannelId = 4;
     if (asServer)
@@ -206,6 +207,7 @@ Session::HandleIncomingDeserialize(DeserializerPtr deserializer)
 {
     ProtoMsgPtr tMsg;// = Deserialize(deserializer);
     deserializer->Deserialize("msg", tMsg);
+    incomingActivities = true;
     switch(tMsg->msgType) {
         case MsgType_ServerHello:
         {

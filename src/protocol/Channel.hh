@@ -47,9 +47,6 @@ public:
     ChannelAccepted(ChannelPtr) = 0;
 
     virtual void
-    ChannelConnected(ChannelPtr) = 0;
-
-    virtual void
     ChannelCleanup(ChannelPtr) = 0;
 };
 DeclareSharedPtr(ChannelEventHandler);

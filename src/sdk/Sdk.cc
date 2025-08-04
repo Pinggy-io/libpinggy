@@ -948,7 +948,7 @@ Sdk::sendKeepAlive()
 void
 Sdk::keepAliveTimeout(tUint64 tick)
 {
-    if (tick > (lastKeepAliveTickReceived+2)) {
+    if (tick > (lastKeepAliveTickReceived+2) && !session->IsThereIncomingActivities()) {
         LOGI("Connection probably gone");
         if (keepAliveTask) {
             keepAliveTask->DisArm();
@@ -963,6 +963,7 @@ Sdk::keepAliveTimeout(tUint64 tick)
             HandleSessionConnectionReset();
         }
     }
+    session->ResetIncomingActivities();
 }
 
 void Sdk::stopWebDebugger()

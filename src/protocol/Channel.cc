@@ -48,40 +48,40 @@ Channel State Diagram
                      /      \
           Connect() /        \ initiateIncomingChannel()
                    v          v
-           +--------------+   +----------------------+
-           |  CONNECTING  |   |  CONNECT_RESPONDING  |
-           +--------------+   +----------------------+
-             |     |    |           |        |
-             |     |    |           |        |--[Close()]---> +-----------+
-             |     |    |           |        |                | REJECTED  |
-             |     |    |           |        `--[Reject()]--> +-----------+
-             |     |    |       [Accept()]
-             |     |    |           |
-             |     |    |           v
-             |     |    |       +-------------+
-             |     |    |       |  CONNECTED  |
-             |     |    |       +-------------+
-             |     |    |           |                            +------------------+
-             |     |    |           |--[handleChannelClose()]--> | CLOSE_RESPONDING |
-             |     |    |           |                            +------------------+
-             |     |    |           |
-             |     |    |           |               +----------+
-             |     |    |           `--[Close()]--> | CLOSEING |
-             |     |    |                           +----------+
-             |     |    |
-             |     |    |                                         +-----------+
-             |     |    `-->[handleNewChannelResponse(Reject)]--> | REJECTED  |
-             |     |                                              +-----------+
-             |     |
-             |     |                                         +-------------+
-             |     `-->[handleNewChannelResponse(Accept)]--> |  CONNECTED  |
-             |                                               +-------------+
-         [Close()]
-             |
-             v
-        +-----------+                              +--------+
-        | CLOSING   | -->[handleChannelClose()]--> | CLOSED |
-        +-----------+                              +--------+
+        +--------------+   +----------------------+
+        |  CONNECTING  |   |  CONNECT_RESPONDING  |
+        +--------------+   +----------------------+
+          |    |    |             |         |
+          |    |    |             |         |--[Close()]---> +-----------+
+          |    |    |             |         |                | REJECTED  |
+          |    |    |             |         `--[Reject()]--> +-----------+
+          |    |    |         [Accept()]
+          |    |    |             |
+          |    |    |             v
+          |    |    |        +-----------+
+          |    |    |        | CONNECTED |
+          |    |    |        +-----------+
+          |    |    |             |                            +------------------+
+          |    |    |             |--[handleChannelClose()]--> | CLOSE_RESPONDING |
+          |    |    |             |                            +------------------+
+          |    |    |             |
+          |    |    |             |               +----------+
+          |    |    |             `--[Close()]--> | CLOSEING |
+          |    |    |                             +----------+
+          |    |    |
+          |    |    |                                        +----------+
+          |    |    `--[handleNewChannelResponse(Reject)]--> | REJECTED |
+          |    |                                             +----------+
+          |    |
+          |    |                                             +-----------+
+          |    `-------[handleNewChannelResponse(Accept)]--> | CONNECTED |
+          |                                                  +-----------+
+      [Close()]
+          |
+          v
+     +---------+                             +--------+
+     | CLOSING | --[handleChannelClose()]--> | CLOSED |
+     +---------+                             +--------+
 
 */
 
@@ -284,7 +284,7 @@ Channel::Recv(RawData::tLen len)
 bool
 Channel::HaveDataToRead()
 {
-    return recvQueue.size() > 0;
+    return recvQueue.size() > 0 || state == ChannelState_Close_Responding;
 }
 
 tUint32
@@ -336,7 +336,6 @@ Channel::adjustWindow(tUint32 len)
         auto msg = NewChannelWindowAdjustMsgPtr();
         msg->ChannelId = channelId;
         msg->AdditionalBytes = sendAdj;
-        LOGD(channelId, "Sending window adjustment");
         sendOrQueue(msg);
     }
 }
@@ -401,7 +400,7 @@ Channel::handleChannelWindowAdjust(ChannelWindowAdjustMsgPtr msg)
     auto ev = eventHandler;
 
     //we are receiving data even after sending close
-    IGNORE_IF_NOT_IN_STATE_NO_RETURN(ChannelState_Connected, ChannelState_Close_Responding, ChannelState_Closing);
+    IGNORE_IF_NOT_IN_STATE_NO_RETURN(ChannelState_Connected, ChannelState_Close_Responding);
 
     remoteWindow += msg->AdditionalBytes;
 

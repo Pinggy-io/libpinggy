@@ -121,10 +121,6 @@ public:
                                 { }
 
     virtual void
-    ChannelConnected(protocol::ChannelPtr) override
-                                { }
-
-    virtual void
     ChannelCleanup(protocol::ChannelPtr) override;
 
 private:

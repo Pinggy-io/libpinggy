@@ -18,7 +18,7 @@
 
 namespace common {
 
-PollController::PollController() : pollTime(GetCurrentTimeInNS())
+PollController::PollController() : pollTime(GetCurrentTimeInNS()), waitForTask(true)
 {
 }
 
@@ -66,12 +66,6 @@ tDuration PollController::GetNextTaskTimeout()
     Assert(task->deadline > pollTime);
 
     return task->deadline - pollTime;
-}
-
-bool
-PollController::HaveFutureTasks()
-{
-    return taskQueue.size() > 0;
 }
 
 void
