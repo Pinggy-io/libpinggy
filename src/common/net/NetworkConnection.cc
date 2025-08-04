@@ -580,7 +580,7 @@ NetworkConnection::GetConnectionMetadata(tString indentifier, tString serverName
     if (serverName.empty())
         serverName = GetServerName();
     if (serverName.length() > METADATA_URL_SIZE_RELAY) {
-        serverName = serverName.substr(0, METADATA_URL_SIZE_RELAY);
+        serverName = serverName.substr(0, METADATA_URL_SIZE_RELAY-1);
     }
     ConnectionMetadata metadata;
     bzero(&metadata, sizeof(metadata));
@@ -589,7 +589,7 @@ NetworkConnection::GetConnectionMetadata(tString indentifier, tString serverName
     metadata.ServerNameLen = htons((tUint16)serverName.length());
 
     memcpy(metadata.Identifier, indentifier.c_str(), MIN(8,indentifier.length()+1));
-    memcpy(metadata.ServerName, serverName.c_str(), METADATA_URL_SIZE_RELAY);
+    memcpy(metadata.ServerName, serverName.c_str(), serverName.length());
     return metadata;
 }
 
