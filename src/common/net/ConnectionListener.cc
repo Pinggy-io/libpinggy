@@ -118,6 +118,7 @@ ConnectionListenerImpl::Accept()
     }
     auto netConn = NewNetworkConnectionImplPtr(newsock);
     netConn->SetFlags(flagsForChild);
+    netConn->SetConnType(ConnTypeForChild());
     netConn->SetBlocking(true);
     netConn->SetPollController(GetPController());
     return netConn;

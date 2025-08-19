@@ -68,7 +68,7 @@ DeclareClassWithSharedPtr(ConnectionListenerHandler);
 class ConnectionListener: public virtual NetworkSocket, public virtual FDEventHandler {
 public:
     ConnectionListener(): maxSeqAccepts(1), acceptRawSocket(false)
-                                { }
+                                { connTypeForChild.Raw = 0; }
 
     virtual
     ~ConnectionListener()       { }
@@ -131,11 +131,18 @@ public:
     virtual bool
     GetAcceptRawSocket()        { return acceptRawSocket; }
 
+    virtual tConnType
+    ConnTypeForChild() final    { return connTypeForChild; }
+
+    virtual void
+    SetConnTypeForChild(tConnType connType) final
+                                { this->connTypeForChild = connType; }
 private:
     ConnectionListenerHandlerPtr
                                 eventHandler;
     len_t                       maxSeqAccepts;
     bool                        acceptRawSocket;
+    tConnType                   connTypeForChild;
 };
 DeclareSharedPtr(ConnectionListener);
 
