@@ -176,8 +176,11 @@ SslConnectionListener::AcceptSsl()
 {
     if (connectionListener) {
         auto netConn = connectionListener->Accept();
-        if(netConn)
+        if(netConn) {
+            auto connType = ConnTypeForChild();
+            netConn->SetConnType(connType);
             return AcceptSsl(netConn);
+        }
         // SSL *ssl;
     }
     return nullptr;

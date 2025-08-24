@@ -139,15 +139,11 @@ public:
                                 { }
 
     virtual void
-    KeepAliveResponse(tUint64 forTick)
-                                { }
-
-    virtual void
     OnHandleError(tUint32 errorNo, tString what, tBool recoverable)
                                 { }
 
     virtual void
-    OnAutoReconnection(tString error, std::vector<tString> messages)
+    OnWillReconnect(tString error, std::vector<tString> messages)
                                 { }
 
     virtual void
@@ -159,6 +155,9 @@ public:
     virtual void
     OnReconnectionFailed(tUint16)
                                 { }
+
+    virtual void
+    OnUsageUpdate(tString)      { }
 
     //return false to let the sdk handle connection
     virtual bool
@@ -176,7 +175,8 @@ class Sdk:
         virtual public protocol::SessionEventHandler,
         virtual public net::ConnectionListenerHandler,
         virtual public FDEventHandler,
-        virtual public net::NonBlockingConnectEventHandler
+        virtual public net::NonBlockingConnectEventHandler,
+        virtual public protocol::ChannelEventHandler //this is for internal connection using portConfig
 {
 public:
     Sdk(SDKConfigPtr config, SdkEventHandlerPtr _eventHandler = nullptr);
@@ -202,9 +202,6 @@ public:
     std::vector<tString>
     GetUrls();
 
-    // tUint64
-    // SendKeepAlive();
-
     tString
     GetEndMessage();
 
@@ -225,6 +222,21 @@ public:
 
     bool
     IsTunnelActive()            { return (state >= SdkState_Authenticating && (!stopped)); }
+
+    void
+    StartUsagesUpdate()         { usagesRunning = true; }
+
+    void
+    StopUsagesUpdate()          { usagesRunning = false; }
+
+    tString
+    GetCurrentUsages()          { return lastUsagesUpdate; }
+
+    tString
+    GetNextUsagesUpdate()       { return lastUsagesUpdate; }
+
+    tString
+    GetGreetingMsg()            { return greetingMsg; }
 
 //protocol::SessionEventHandler
     virtual void
@@ -284,6 +296,25 @@ public:
     virtual len_t
     HandleConnectionFailed(net::NetworkConnectionImplPtr) override;
 
+//protocol::ChannelEventHandler
+    virtual void
+    ChannelDataReceived(protocol::ChannelPtr) override;
+
+    virtual void
+    ChannelReadyToSend(protocol::ChannelPtr, tUint32) override;
+
+    virtual void
+    ChannelError(protocol::ChannelPtr, protocol::tError errorCode, tString errorText) override;
+
+    virtual void
+    ChannelRejected(protocol::ChannelPtr, tString reason) override;
+
+    virtual void
+    ChannelAccepted(protocol::ChannelPtr) override
+                                { }
+
+    virtual void
+    ChannelCleanup(protocol::ChannelPtr) override;
 
 private:
     void
@@ -323,6 +354,15 @@ private:
     initPollController();
 
     void
+    initiateContinousUsages();
+
+    bool
+    resumeWithoutLock(tString funcName);
+
+    void
+    setupLocalChannelNGetData(port_t port, tString tag);
+
+    void
     setState(SdkState s)        { state = s; }
 
     net::NetworkConnectionPtr   baseConnection;
@@ -347,7 +387,7 @@ private:
     //To access something, first lock the outer lock, send the notification then try the inner lock
     std::mutex                  lockAccess;
     std::mutex                  reconnectLock; //we cannot use lock access as it will be used somewhere else
-    Semaphore                   semaphore;
+    SemaphorePtr                semaphore;
     net::NetworkConnectionPtr   notificationConn;
     net::NetworkConnectionPtr   _notificateMonitorConn;
 
@@ -365,6 +405,11 @@ private:
 
     common::PollableTaskPtr     keepAliveTask;
     tInt16                      reconnectCounter;
+
+    protocol::ChannelPtr        usageChannel;
+    bool                        usagesRunning;
+    tString                     greetingMsg;
+    tString                     lastUsagesUpdate;
 };
 DefineMakeSharedPtr(Sdk);
 

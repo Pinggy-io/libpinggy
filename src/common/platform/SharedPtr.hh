@@ -109,7 +109,7 @@ typedef SharedObject *VoidPtr;
 
 } // namespace piggy
 
-
+typedef pinggy::VoidPtr tVoidPtr;
 
 #ifndef DefineMakeSharedPtr
 
