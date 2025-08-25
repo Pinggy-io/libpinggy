@@ -1,0 +1,4 @@
+
+
+class PinggyNativeLoaderError(Exception):
+    pass

@@ -900,7 +900,6 @@ bool Sdk::internalConnect(bool block)
     try {
         auto serverAddress = sdkConfig->ServerAddress;
         baseConnection = net::NewNetworkConnectionImplPtr(serverAddress->GetRawHost(), serverAddress->GetPortStr());
-        // LOGI("Connecting to sdkConfig: ", sdkConfig->ServerAddress);
 
         if (sdkConfig->Ssl){
             auto sslConnection = net::NewSslNetworkConnectionPtr(baseConnection, sdkConfig->SniServerName);
