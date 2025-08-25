@@ -233,7 +233,7 @@ Sdk::ResumeTunnel()
         reconnectCounter = 0;
         reconnectNow = false;
         if (eventHandler)
-            eventHandler->OnReconnectionCompleted();
+            eventHandler->OnReconnectionCompleted(this->urls);
     }
 
     if (cleanupNow) {
@@ -265,7 +265,7 @@ Sdk::GetUrls()
     return urls;
 }
 
-tString
+const tString&
 Sdk::GetEndMessage()
 {
     auto var = LockIfDifferentThread();
@@ -474,7 +474,7 @@ Sdk::HandleSessionRemoteForwardingSucceeded(protocol::tReqId reqId, std::vector<
         if (eventHandler && !reconnectNow)
             eventHandler->OnPrimaryForwardingSucceeded(urls);
 
-        LOGD("Primary forwarding done");
+        LOGD("Primary forwarding done", urls);
 
         return;
     }
@@ -709,38 +709,7 @@ Sdk::HandleFDReadWTag(PollableFDPtr pfd, tString tag)
     auto len = _1;
     auto data = _2;
 
-    if (tag == PORT_CONF) {
-        if (len <= 0) {
-            if (netConn->TryAgain()) {
-                return -1;
-            }
-            netConn->DeregisterFDEvenHandler();
-            netConn->CloseConn();
-            return 0;
-        }
-
-        try {
-            json jdata = json::parse(tString(data->GetData(), data->Len));
-            auto portConfigPtr = NewPortConfigPtr();
-            PINGGY_NLOHMANN_JSON_TO_PTR_VAR1(jdata, portConfigPtr,
-                                ConfigTcp,
-                                StatusPort,
-                                UrlTcp,
-                                UsageContinuousTcp,
-                                UsageOnceLongPollTcp,
-                                UsageTcp,
-                                GreetingMsgTCP
-                            )
-            thisPtr->portConfig = portConfigPtr;
-
-            if (!usageChannel) {
-                initiateContinousUsages();
-            }
-            setupLocalChannelNGetData(portConfig->GreetingMsgTCP, GREETING_MSG_TAG);
-        } catch(...) {
-            LOGE("Some error while parsing port config");
-        }
-    } else if (tag == NOTIFICATION_FD) {
+    if (tag == NOTIFICATION_FD) {
         if (len <= 0) {
             if (netConn->TryAgain())
                 return -1;
@@ -812,14 +781,14 @@ Sdk::ChannelDataReceived(protocol::ChannelPtr channel)
         auto [len, data] = usageChannel->Recv(4096);
         if (len > 0) {
             if (eventHandler && usagesRunning) {
-                auto lastUsagesUpdate = tString(data->GetData(), data->Len);
+                auto lastUsagesUpdate = data->ToString();
                 eventHandler->OnUsageUpdate(lastUsagesUpdate);
             }
         }
         return;
     }
     auto tag = channel->GetUserTag();
-    if (tag == GREETING_MSG_TAG) {
+    if (tag == PORT_CONF) {
         auto data = NewRawDataPtr();
         while (channel->HaveDataToRead()) {
             auto [len, newData] = channel->Recv(4096);
@@ -829,8 +798,47 @@ Sdk::ChannelDataReceived(protocol::ChannelPtr channel)
             }
             data->AddData(newData);
         }
-        if (data->Len)
-            greetingMsg = tString(data->GetData(), data->Len);
+        try {
+            json jdata = json::parse(data->ToString());
+            auto portConfigPtr = NewPortConfigPtr();
+            PINGGY_NLOHMANN_JSON_TO_PTR_VAR1(jdata, portConfigPtr,
+                                ConfigTcp,
+                                StatusPort,
+                                UrlTcp,
+                                UsageContinuousTcp,
+                                UsageOnceLongPollTcp,
+                                UsageTcp,
+                                GreetingMsgTCP
+                            )
+            thisPtr->portConfig = portConfigPtr;
+
+            if (!usageChannel) {
+                initiateContinousUsages();
+            }
+            setupLocalChannelNGetData(portConfig->GreetingMsgTCP, GREETING_MSG_TAG);
+        } catch(...) {
+            LOGE("Some error while parsing port config");
+        }
+    } else if (tag == GREETING_MSG_TAG) {
+        auto data = NewRawDataPtr();
+        while (channel->HaveDataToRead()) {
+            auto [len, newData] = channel->Recv(4096);
+            if (len <= 0) {
+                channel->Close();
+                break;
+            }
+            data->AddData(newData);
+        }
+        if (data->Len) {
+            try {
+                json jdata = json::parse(data->ToString());
+                if (jdata.contains("Msgs")) {
+                    greetingMsgs = jdata["Msgs"].dump();
+                }
+            } catch(...) {
+                LOGE("Some error while parsing greeting msg");
+            }
+        }
         return;
     }
     channel->Close();
@@ -838,7 +846,8 @@ Sdk::ChannelDataReceived(protocol::ChannelPtr channel)
 
 void
 Sdk::ChannelReadyToSend(protocol::ChannelPtr, tUint32)
-{}
+{
+}
 
 void
 Sdk::ChannelError(protocol::ChannelPtr channel, protocol::tError errorCode, tString errorText)
@@ -880,19 +889,10 @@ Sdk::authenticate()
 void
 Sdk::tunnelInitiated()
 {
-    net::DummyConnectionPtr conns[2];
-    if (!net::DummyConnection::CreateDummyConnection(conns)) {
-        LOGE("Could not create dummy connection to forward things");
-        return;
-    }
-
-    conns[0]->SetPollController(pollController)->RegisterFDEvenHandler(thisPtr, PORT_CONF);
-    conns[1]->SetPollController(pollController);
     auto channel = session->CreateChannel(4, "localhost", 4300, "localhost");
-
-    auto forwarder = protocol::NewChannelConnectionForwarderPtr(channel, conns[1], nullptr);
-    forwarder->Start();
-    return;
+    channel->RegisterEventHandler(thisPtr);
+    channel->SetUserTag(PORT_CONF);
+    channel->Connect();
 }
 
 bool Sdk::internalConnect(bool block)
@@ -900,6 +900,7 @@ bool Sdk::internalConnect(bool block)
     try {
         auto serverAddress = sdkConfig->ServerAddress;
         baseConnection = net::NewNetworkConnectionImplPtr(serverAddress->GetRawHost(), serverAddress->GetPortStr());
+        // LOGI("Connecting to sdkConfig: ", sdkConfig->ServerAddress);
 
         if (sdkConfig->Ssl){
             auto sslConnection = net::NewSslNetworkConnectionPtr(baseConnection, sdkConfig->SniServerName);

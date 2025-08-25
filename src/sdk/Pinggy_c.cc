@@ -336,10 +336,13 @@ public:
         onReconnectingCB(onReconnectingUserData, sdk, cnt);
     }
     virtual pinggy_void_t
-    OnReconnectionCompleted() override
+    OnReconnectionCompleted(std::vector<tString> urls) override
     {
         if (!onReconnectionCompletedCB) return;
-        onReconnectionCompletedCB(onReconnectionCompletedUserData, sdk);
+
+        GetCStringArray(cUrls, urls);
+        onReconnectionCompletedCB(onReconnectionCompletedUserData, sdk, urls.size(), cUrls);
+        ReleaseCStringArray(cUrls, urls);
     }
     virtual pinggy_void_t
     OnReconnectionFailed(tUint16 cnt) override
@@ -945,6 +948,46 @@ pinggy_tunnel_stop_usage_update(pinggy_ref_t ref)
             LOGE("No exception handler found");
         }
     }
+}
+
+PINGGY_EXPORT pinggy_const_char_p_t
+pinggy_tunnel_get_current_usages(pinggy_ref_t ref)
+{
+    auto sdk =  getSdk(ref);
+    if (sdk == nullptr) {
+        LOGE("null sdk");
+        return "";
+    }
+    try {
+        return sdk->GetCurrentUsages().c_str();
+    } catch (const std::exception &e) {
+        if (exception_callback) {
+            exception_callback("CPP exception:", e.what());
+        } else {
+            LOGE("No exception handler found");
+        }
+    }
+    return "";
+}
+
+PINGGY_EXPORT pinggy_const_char_p_t
+pinggy_tunnel_get_greeting_msgs(pinggy_ref_t ref)
+{
+    auto sdk =  getSdk(ref);
+    if (sdk == nullptr) {
+        LOGE("null sdk");
+        return "";
+    }
+    try {
+        return sdk->GetGreetingMsg().c_str();
+    } catch (const std::exception &e) {
+        if (exception_callback) {
+            exception_callback("CPP exception:", e.what());
+        } else {
+            LOGE("No exception handler found");
+        }
+    }
+    return "";
 }
 
 //===============================

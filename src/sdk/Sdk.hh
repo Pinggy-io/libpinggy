@@ -150,7 +150,7 @@ public:
     OnReconnecting(tUint16)     { }
 
     virtual void
-    OnReconnectionCompleted()   { }
+    OnReconnectionCompleted(std::vector<tString> urls)   { }
 
     virtual void
     OnReconnectionFailed(tUint16)
@@ -202,7 +202,7 @@ public:
     std::vector<tString>
     GetUrls();
 
-    tString
+    const tString&
     GetEndMessage();
 
     SdkEventHandlerPtr
@@ -229,14 +229,14 @@ public:
     void
     StopUsagesUpdate()          { usagesRunning = false; }
 
-    tString
+    const tString&
     GetCurrentUsages()          { return lastUsagesUpdate; }
 
-    tString
+    const tString&
     GetNextUsagesUpdate()       { return lastUsagesUpdate; }
 
-    tString
-    GetGreetingMsg()            { return greetingMsg; }
+    const tString&
+    GetGreetingMsg()            { return greetingMsgs; }
 
 //protocol::SessionEventHandler
     virtual void
@@ -408,7 +408,7 @@ private:
 
     protocol::ChannelPtr        usageChannel;
     bool                        usagesRunning;
-    tString                     greetingMsg;
+    tString                     greetingMsgs;
     tString                     lastUsagesUpdate;
 };
 DefineMakeSharedPtr(Sdk);

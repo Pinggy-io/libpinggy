@@ -202,16 +202,16 @@ typedef pinggy_void_t (*pinggy_on_reconnecting_cb_t)                            
                             (pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_uint16_t retry_cnt);
 
 typedef pinggy_void_t (*pinggy_on_reconnection_completed_cb_t)                  \
-                            (pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref);
+                            (pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_len_t num_urls, pinggy_char_p_p_t urls);
 
 typedef pinggy_void_t (*pinggy_on_reconnection_failed_cb_t)                     \
                             (pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_uint16_t retry_cnt);
 
+typedef pinggy_void_t (*pinggy_on_usage_update_cb_t)                            \
+                            (pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_const_char_p_t usages);
+
 typedef pinggy_void_t (*pinggy_on_tunnel_error_cb_t)                            \
                             (pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_uint32_t error_no, pinggy_const_char_p_t error, pinggy_bool_t recoverable);
-
-typedef pinggy_void_t (*pinggy_on_usage_update_cb_t)                            \
-                            (pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_const_char_p_t update);
 
 typedef pinggy_bool_t (*pinggy_on_new_channel_cb_t)                             \
                             (pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_ref_t channel_ref);
@@ -452,20 +452,20 @@ PINGGY_EXPORT pinggy_const_bool_t
 pinggy_config_get_advanced_parsing(pinggy_ref_t config);
 
 /**
- * @brief Get whether auto reconnect is enabled or not
- * @param config  reference to tunnel config
- * @return return whether auto reconnect is enabled or not
- */
-PINGGY_EXPORT pinggy_const_bool_t
-pinggy_config_get_auto_reconnect(pinggy_ref_t config);
-
-/**
  * @brief Get whether ssl is enabled or not
  * @param config  reference to tunnel config
  * @return return whether ssl is enabled or not
  */
 PINGGY_EXPORT pinggy_const_bool_t
 pinggy_config_get_ssl(pinggy_ref_t config);
+
+/**
+ * @brief Get whether auto reconnect is enabled or not
+ * @param config  reference to tunnel config
+ * @return return whether auto reconnect is enabled or not
+ */
+PINGGY_EXPORT pinggy_const_bool_t
+pinggy_config_get_auto_reconnect(pinggy_ref_t config);
 
 /**
  * @brief Get the current sni server name
@@ -589,15 +589,33 @@ pinggy_tunnel_request_additional_forwarding(pinggy_ref_t, pinggy_const_char_p_t,
 
 /**
  * @brief Start continous usage update.
+ * @param tunnel
  */
 PINGGY_EXPORT pinggy_void_t
 pinggy_tunnel_start_usage_update(pinggy_ref_t tunnel);
 
 /**
  * @brief Stop continous usage update.
+ * @param tunnel
  */
 PINGGY_EXPORT pinggy_void_t
 pinggy_tunnel_stop_usage_update(pinggy_ref_t tunnel);
+
+/**
+ * @brief Get current usages in json.
+ * @param tunnel
+ */
+PINGGY_EXPORT pinggy_const_char_p_t
+pinggy_tunnel_get_current_usages(pinggy_ref_t tunnel);
+
+/**
+ * @brief Get greeting messages in json.
+ * @param tunnel
+ */
+PINGGY_EXPORT pinggy_const_char_p_t
+pinggy_tunnel_get_greeting_msgs(pinggy_ref_t tunnel);
+
+
 
 //=====================================
 //      Callbacks

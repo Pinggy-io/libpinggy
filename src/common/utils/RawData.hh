@@ -35,35 +35,66 @@ DeclareStructWithSharedPtr(RawData);
 
 
 struct RawData : virtual pinggy::SharedObject{
-    typedef int32_t tLen;
+    typedef int32_t             tLen;
 
     RawData(const void *, RawData::tLen len);
+
     RawData(void *, RawData::tLen len, bool copy);
+
     RawData(RawData::tLen capa = 2048);
+
+    virtual
     ~RawData();
 
-    static RawDataPtr WrapRawData(void *data, RawData::tLen len);
-    RawDataPtr Slice(RawData::tLen offset, RawData::tLen len = -1);
+    static RawDataPtr
+    WrapRawData(void *data, RawData::tLen len);
 
-    bool Reset();
-    bool AddData(const void *, RawData::tLen);
-    bool AddData(std::string str);
-    bool AddData(RawDataPtr other);
-    RawDataPtr Concat(RawDataPtr other);
-    char *Consume(RawData::tLen len = -1);
-    char *GetData() { return Data+Offset; }
-    char *GetWritableData() { return Data+Offset+Len; }
-    void ReAlign();
-    RawData::tLen WritableCapa() { return Capa - Offset - Len; }
-    char *Data;
-    RawData::tLen Len;
-    RawData::tLen Offset;
-    const RawData::tLen Capa;
-    RawDataError Error;
+    RawDataPtr
+    Slice(RawData::tLen offset, RawData::tLen len = -1);
+
+    bool
+    Reset();
+
+    bool
+    AddData(const void *, RawData::tLen);
+
+    bool
+    AddData(std::string str);
+
+    bool
+    AddData(RawDataPtr other);
+
+    RawDataPtr
+    Concat(RawDataPtr other);
+
+    char *
+    Consume(RawData::tLen len = -1);
+
+    char *
+    GetData() { return Data+Offset; }
+
+    char *
+    GetWritableData() { return Data+Offset+Len; }
+
+    tString
+    ToString() { return tString(GetData(), Len);}
+
+    void
+    ReAlign();
+
+    RawData::tLen
+    WritableCapa() { return Capa - Offset - Len; }
+
+    char *                      Data;
+    RawData::tLen               Len;
+    RawData::tLen               Offset;
+    const RawData::tLen         Capa;
+    RawDataError                Error;
+
 private:
-    bool owner;
-    bool movedata;
-    RawDataPtr parent;
+    bool                        owner;
+    bool                        movedata;
+    RawDataPtr                  parent;
 };
 
 DefineMakeSharedPtr(RawData);

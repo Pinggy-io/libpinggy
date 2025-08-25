@@ -22,6 +22,7 @@
 #include <filesystem>
 #include <memory>
 #include <vector>
+#include <map>
 #include "RawData.hh"
 #include "StringUtils.hh"
 #include "CertificateFileDetail.hh"
@@ -122,5 +123,38 @@ CreateTemporaryDirectory(tString templat="util-temp-XXXXX");
 
 bool
 DeleteDirTree(FsPath dirPath);
+
+template<typename T>
+std::ostream&
+operator<<(std::ostream& os, const std::vector<T>& vect)
+{
+  os << "[";
+  bool comma = false;
+  for (auto ele : vect) {
+      if (comma)
+        os << ",";
+      comma = true;
+      os << ele;
+  }
+  os << "]";
+  return os;
+}
+
+template<typename K, typename V>
+std::ostream&
+operator<<(std::ostream& os, const std::map<K, V>& map)
+{
+  os << "{";
+  bool comma = false;
+  for (auto ele : map) {
+      if (comma)
+        os << ",";
+      comma = true;
+      os << ele.first << ":" << ele.second;
+  }
+  os << "}";
+  return os;
+
+}
 
 #endif /* SERVER_UTILS_HH_ */
