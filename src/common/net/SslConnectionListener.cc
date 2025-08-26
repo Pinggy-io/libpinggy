@@ -114,6 +114,10 @@ SslConnectionListener::SslConnectionListener(ConnectionListenerPtr connListener)
         connectionListener(connListener),
         initiated(false), selfSignedPkey(NULL)
 {
+    // Although it is not wise to call virtual function from constructor,
+    //it is okay here as SetConnTypeForChild defined in base class
+    //ConnectionListener
+    SetConnTypeForChild(connListener->ConnTypeForChild());
 }
 
 SslConnectionListener::~SslConnectionListener()
@@ -172,8 +176,11 @@ SslConnectionListener::AcceptSsl()
 {
     if (connectionListener) {
         auto netConn = connectionListener->Accept();
-        if(netConn)
+        if(netConn) {
+            auto connType = ConnTypeForChild();
+            netConn->SetConnType(connType);
             return AcceptSsl(netConn);
+        }
         // SSL *ssl;
     }
     return nullptr;
@@ -206,6 +213,11 @@ SslConnectionListener::AcceptSsl(
             return nullptr;
         }
         auto netSsl = NEW_SSL_NETWORKCONNECTION_PTR(ssl, netConn);
+
+        auto connType = netConn->ConnType();
+        connType.ContentType = ConnType_Cnt_Unknown;
+        netSsl->SetConnType(connType);
+
         return netSsl;
     }
     return nullptr;
@@ -279,6 +291,9 @@ SslConnectionListener::handleFDWPtr(PollableFDPtr pollableFD, pinggy::VoidPtr pt
             netConn->DeregisterFDEvenHandler();
             auto newNetConn = NEW_SSL_NETWORKCONNECTION_PTR(sslPtr->ssl, sslPtr->netConn);
             LOGT("Accepted as ssl: fd:", newNetConn->GetFd());
+            auto connType = sslPtr->netConn->ConnType();
+            connType.ContentType = ConnType_Cnt_Unknown;
+            newNetConn->SetConnType(connType);
             handler->HandleAcceptedSslConnection(newNetConn, sslPtr->ptr);
         }
         break;
@@ -753,6 +768,9 @@ SslConnectionListener::EventOccured()
     conn->SetBlocking(false);
 
     auto newNetConn = NEW_SSL_NETWORKCONNECTION_PTR(ssl, conn);
+    auto connType = conn->ConnType();
+    connType.ContentType = ConnType_Cnt_Unknown;
+    newNetConn->SetConnType(connType);
     // newNetConn->SetPollController(netConn->GetPController());
     LOGT("Accepted as ssl: fd:", newNetConn->GetFd());
     handler->HandleAcceptedSslConnection(newNetConn, ptr);

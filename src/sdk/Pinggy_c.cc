@@ -136,28 +136,28 @@ struct ApiChannelEventHandler: public virtual sdk::SdkChannelEventHandler
                                 { }
 
     virtual pinggy_void_t
-    ChannelDataReceived() override
+    ChannelDataReceived(sdk::SdkChannelWraperPtr) override
     {
         if (!channelDataReceivedCB) return;
         channelDataReceivedCB(channelDataReceivedUserData, channelRef);
     }
 
     virtual pinggy_void_t
-    ChannelReadyToSend(tUint32 bufferLen) override
+    ChannelReadyToSend(sdk::SdkChannelWraperPtr, tUint32 bufferLen) override
     {
         if (!channelReadyToSendCB) return;
         channelReadyToSendCB(channelReadyToSendUserData, channelRef, bufferLen);
     }
 
     virtual pinggy_void_t
-    ChannelError(tString errorText) override
+    ChannelError(sdk::SdkChannelWraperPtr, tString errorText) override
     {
         if (!channelErrorCB) return;
         channelErrorCB(channelErrorUserData, channelRef, errorText.c_str(), errorText.length());
     }
 
     virtual pinggy_void_t
-    ChannelCleanup() override
+    ChannelCleanup(sdk::SdkChannelWraperPtr) override
     {
         if (!channelCleanupCB) return;
         channelCleanupCB(channelCleanupUserData, channelRef);
@@ -186,8 +186,8 @@ public:
     pinggy_on_additional_forwarding_failed_cb_t
                                 onAdditionalForwardingFailedCB;
     pinggy_on_disconnected_cb_t onDisconnectedCB;
-    pinggy_on_auto_reconnection_cb_t
-                                onAutoReconnectionCB;
+    pinggy_on_will_reconnect_cb_t
+                                onWillReconnectCB;
     pinggy_on_reconnecting_cb_t onReconnectingCB;
     pinggy_on_reconnection_completed_cb_t
                                 onReconnectionCompletedCB;
@@ -195,6 +195,7 @@ public:
                                 onReconnectionFailedCB;
     pinggy_on_tunnel_error_cb_t onErrorCB;
     pinggy_on_new_channel_cb_t  onNewChannelCB;
+    pinggy_on_usage_update_cb_t onUsageUpdateCB;
 
     pinggy_void_p_t             onConnectedUserData;
     pinggy_void_p_t             onAuthenticatedUserData;
@@ -204,12 +205,13 @@ public:
     pinggy_void_p_t             onAdditionalForwardingSucceededUserData;
     pinggy_void_p_t             onAdditionalForwardingFailedUserData;
     pinggy_void_p_t             onDisconnectedUserData;
-    pinggy_void_p_t             onAutoReconnectionUserData;
+    pinggy_void_p_t             onWillReconnectUserData;
     pinggy_void_p_t             onReconnectingUserData;
     pinggy_void_p_t             onReconnectionCompletedUserData;
     pinggy_void_p_t             onReconnectionFailedUserData;
     pinggy_void_p_t             onErrorUserData;
     pinggy_void_p_t             onNewChannelUserData;
+    pinggy_void_p_t             onUsageUpdateUserData;
 
     pinggy_ref_t                sdk;
 
@@ -222,11 +224,12 @@ public:
                         onAdditionalForwardingSucceededCB(NULL),
                         onAdditionalForwardingFailedCB(NULL),
                         onDisconnectedCB(NULL),
-                        onAutoReconnectionCB(NULL),
+                        onWillReconnectCB(NULL),
                         onReconnectingCB(NULL),
                         onReconnectionCompletedCB(NULL),
                         onReconnectionFailedCB(NULL),
                         onNewChannelCB(NULL),
+                        onUsageUpdateCB(NULL),
 
                         onAuthenticatedUserData(NULL),
                         onAuthenticationFailedUserData(NULL),
@@ -235,12 +238,13 @@ public:
                         onAdditionalForwardingSucceededUserData(NULL),
                         onAdditionalForwardingFailedUserData(NULL),
                         onDisconnectedUserData(NULL),
-                        onAutoReconnectionUserData(NULL),
+                        onWillReconnectUserData(NULL),
                         onReconnectingUserData(NULL),
                         onReconnectionCompletedUserData(NULL),
                         onReconnectionFailedUserData(NULL),
                         onErrorUserData(NULL),
                         onNewChannelUserData(NULL),
+                        onUsageUpdateUserData(NULL),
                         sdk(INVALID_PINGGY_REF) {}
 
     virtual ~ApiEventHandler()  { }
@@ -262,7 +266,6 @@ public:
     {
         if (onConnectedCB) onConnectedCB(onConnectedUserData, sdk);
     }
-
     virtual pinggy_void_t
     OnAuthenticated() override
     {
@@ -318,40 +321,34 @@ public:
         onDisconnectedCB(onDisconnectedUserData, sdk, error.c_str(), messages.size(), cMsg);
         ReleaseCStringArray(cMsg, messages);
     }
-
     virtual pinggy_void_t
-    OnAutoReconnection(tString error, std::vector<tString> messages) override
+    OnWillReconnect(tString error, std::vector<tString> messages) override
     {
-        if (!onAutoReconnectionCB) return;
+        if (!onWillReconnectCB) return;
         GetCStringArray(cMsg, messages);
-        onAutoReconnectionCB(onAutoReconnectionUserData, sdk, error.c_str(), messages.size(), cMsg);
+        onWillReconnectCB(onWillReconnectUserData, sdk, error.c_str(), messages.size(), cMsg);
         ReleaseCStringArray(cMsg, messages);
     }
-
     virtual pinggy_void_t
     OnReconnecting(tUint16 cnt) override
     {
         if (!onReconnectingCB) return;
         onReconnectingCB(onReconnectingUserData, sdk, cnt);
     }
-
     virtual pinggy_void_t
-    OnReconnectionCompleted() override
+    OnReconnectionCompleted(std::vector<tString> urls) override
     {
         if (!onReconnectionCompletedCB) return;
-        onReconnectionCompletedCB(onReconnectionCompletedUserData, sdk);
-    }
 
+        GetCStringArray(cUrls, urls);
+        onReconnectionCompletedCB(onReconnectionCompletedUserData, sdk, urls.size(), cUrls);
+        ReleaseCStringArray(cUrls, urls);
+    }
     virtual pinggy_void_t
     OnReconnectionFailed(tUint16 cnt) override
     {
         if (!onReconnectionFailedCB) return;
         onReconnectionFailedCB(onReconnectionFailedUserData, sdk, cnt);
-    }
-
-    virtual pinggy_void_t
-    KeepAliveResponse(tUint64 forTick) override
-    {
     }
     virtual pinggy_void_t
     OnHandleError(tUint32 errorNo, tString what, tBool recoverable) override
@@ -372,6 +369,12 @@ public:
             pinggy_free_ref(channelRef);
 
         return ret;
+    }
+    virtual pinggy_void_t
+    OnUsageUpdate(tString update) override
+    {
+        if (!onUsageUpdateCB) return;
+        onUsageUpdateCB(onUsageUpdateUserData, sdk, update.c_str());
     }
 
 #undef GetCStringArray
@@ -909,6 +912,84 @@ pinggy_tunnel_request_additional_forwarding(pinggy_ref_t ref, pinggy_const_char_
     }
 }
 
+PINGGY_EXPORT pinggy_void_t
+pinggy_tunnel_start_usage_update(pinggy_ref_t ref)
+{
+    auto sdk =  getSdk(ref);
+    if (sdk == nullptr) {
+        LOGE("null sdk");
+        return;
+    }
+    try {
+        sdk->StartUsagesUpdate();
+    } catch (const std::exception &e) {
+        if (exception_callback) {
+            exception_callback("CPP exception:", e.what());
+        } else {
+            LOGE("No exception handler found");
+        }
+    }
+}
+
+PINGGY_EXPORT pinggy_void_t
+pinggy_tunnel_stop_usage_update(pinggy_ref_t ref)
+{
+    auto sdk =  getSdk(ref);
+    if (sdk == nullptr) {
+        LOGE("null sdk");
+        return;
+    }
+    try {
+        sdk->StopUsagesUpdate();
+    } catch (const std::exception &e) {
+        if (exception_callback) {
+            exception_callback("CPP exception:", e.what());
+        } else {
+            LOGE("No exception handler found");
+        }
+    }
+}
+
+PINGGY_EXPORT pinggy_const_char_p_t
+pinggy_tunnel_get_current_usages(pinggy_ref_t ref)
+{
+    auto sdk =  getSdk(ref);
+    if (sdk == nullptr) {
+        LOGE("null sdk");
+        return "";
+    }
+    try {
+        return sdk->GetCurrentUsages().c_str();
+    } catch (const std::exception &e) {
+        if (exception_callback) {
+            exception_callback("CPP exception:", e.what());
+        } else {
+            LOGE("No exception handler found");
+        }
+    }
+    return "";
+}
+
+PINGGY_EXPORT pinggy_const_char_p_t
+pinggy_tunnel_get_greeting_msgs(pinggy_ref_t ref)
+{
+    auto sdk =  getSdk(ref);
+    if (sdk == nullptr) {
+        LOGE("null sdk");
+        return "";
+    }
+    try {
+        return sdk->GetGreetingMsg().c_str();
+    } catch (const std::exception &e) {
+        if (exception_callback) {
+            exception_callback("CPP exception:", e.what());
+        } else {
+            LOGE("No exception handler found");
+        }
+    }
+    return "";
+}
+
 //===============================
 #define GetEventHandlerFromSdkRef(sdkRef, aev)                  \
     auto sdk =  getSdk(sdkRef);                                 \
@@ -1000,11 +1081,11 @@ pinggy_tunnel_set_on_disconnected_callback(pinggy_ref_t sdkRef, pinggy_on_discon
 }
 
 PINGGY_EXPORT pinggy_bool_t
-pinggy_tunnel_set_on_auto_reconnection_callback(pinggy_ref_t sdkRef, pinggy_on_auto_reconnection_cb_t auto_reconnection, pinggy_void_p_t user_data)
+pinggy_tunnel_set_on_will_reconnect_callback(pinggy_ref_t sdkRef, pinggy_on_will_reconnect_cb_t auto_reconnect, pinggy_void_p_t user_data)
 {
     GetEventHandlerFromSdkRef(sdkRef, aev);
-    aev->onAutoReconnectionCB = auto_reconnection;
-    aev->onAutoReconnectionUserData = user_data;
+    aev->onWillReconnectCB = auto_reconnect;
+    aev->onWillReconnectUserData = user_data;
     return pinggy_true;
 }
 PINGGY_EXPORT pinggy_bool_t
@@ -1031,7 +1112,6 @@ pinggy_tunnel_set_on_reconnection_failed_callback(pinggy_ref_t sdkRef, pinggy_on
     aev->onReconnectionFailedUserData = user_data;
     return pinggy_true;
 }
-
 PINGGY_EXPORT pinggy_bool_t
 pinggy_tunnel_set_on_tunnel_error_callback(pinggy_ref_t sdkRef, pinggy_on_tunnel_error_cb_t error, pinggy_void_p_t user_data)
 {
@@ -1040,13 +1120,20 @@ pinggy_tunnel_set_on_tunnel_error_callback(pinggy_ref_t sdkRef, pinggy_on_tunnel
     aev->onDisconnectedUserData = user_data;
     return pinggy_true;
 }
-
 PINGGY_EXPORT pinggy_bool_t
 pinggy_tunnel_set_on_new_channel_callback(pinggy_ref_t sdkRef, pinggy_on_new_channel_cb_t new_channel, pinggy_void_p_t user_data)
 {
     GetEventHandlerFromSdkRef(sdkRef, aev);
     aev->onNewChannelCB = new_channel;
     aev->onNewChannelUserData = user_data;
+    return pinggy_true;
+}
+PINGGY_EXPORT pinggy_bool_t
+pinggy_tunnel_set_on_usage_update_callback(pinggy_ref_t sdkRef, pinggy_on_usage_update_cb_t update, pinggy_void_p_t user_data)
+{
+    GetEventHandlerFromSdkRef(sdkRef, aev);
+    aev->onUsageUpdateCB = update;
+    aev->onUsageUpdateUserData = user_data;
     return pinggy_true;
 }
 
@@ -1275,13 +1362,13 @@ pinggy_version(pinggy_capa_t capa, pinggy_char_p_t val)
     return str.length();
 }
 
-#define DEFINE_CONFIG_GET_FUNC(funcname, macro) \
-PINGGY_EXPORT pinggy_const_int_t \
-funcname(pinggy_capa_t capa, pinggy_char_p_t val) \
-{ \
-    tString str = macro; \
-    CopyStringToOutput(capa, val, str); \
-    return str.length(); \
+#define DEFINE_CONFIG_GET_FUNC(funcname, macro)         \
+PINGGY_EXPORT pinggy_const_int_t                        \
+funcname(pinggy_capa_t capa, pinggy_char_p_t val)       \
+{                                                       \
+    tString str = macro;                                \
+    CopyStringToOutput(capa, val, str);                 \
+    return str.length();                                \
 }
 
 DEFINE_CONFIG_GET_FUNC(pinggy_git_commit, PINGGY_GIT_COMMIT_ID);

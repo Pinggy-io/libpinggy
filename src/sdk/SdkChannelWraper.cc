@@ -44,6 +44,14 @@ SdkChannelWraper::Reject(tString reason)
 }
 
 bool
+SdkChannelWraper::Connect()
+{
+    responded = true;
+    auto var = sdk->LockIfDifferentThread();
+    return channel->Connect();
+}
+
+bool
 SdkChannelWraper::Close()
 {
     auto var = sdk->LockIfDifferentThread();
@@ -68,27 +76,34 @@ void
 SdkChannelWraper::ChannelDataReceived(protocol::ChannelPtr)
 {
     if (eventHandler)
-        eventHandler->ChannelDataReceived();
+        eventHandler->ChannelDataReceived(thisPtr);
 }
 
 void
 SdkChannelWraper::ChannelReadyToSend(protocol::ChannelPtr, tUint32 available)
 {
     if (eventHandler)
-        eventHandler->ChannelReadyToSend(available);
+        eventHandler->ChannelReadyToSend(thisPtr, available);
 }
 
 void
 SdkChannelWraper::ChannelError(protocol::ChannelPtr, protocol::tError errorCode, tString errorText)
 {
     if (eventHandler)
-        eventHandler->ChannelError(errorText);
+        eventHandler->ChannelError(thisPtr, errorText);
+}
+
+void
+SdkChannelWraper::ChannelRejected(protocol::ChannelPtr, tString reason)
+{
+    if (eventHandler)
+        eventHandler->ChannelError(thisPtr, reason);
 }
 
 void SdkChannelWraper::ChannelCleanup(protocol::ChannelPtr)
 {
     if (eventHandler)
-        eventHandler->ChannelCleanup();
+        eventHandler->ChannelCleanup(thisPtr);
     channel = nullptr;
     sdk = nullptr;
 }

@@ -17,6 +17,8 @@
 #ifndef __SRC_CPP_COMMON_UTILS_SEMAPHORE_HH__
 #define __SRC_CPP_COMMON_UTILS_SEMAPHORE_HH__
 
+#include <platform/SharedPtr.hh>
+
 // Implement Semaphore only if C++ version is less than C++20
 #if __cplusplus < 202002L
 
@@ -30,7 +32,7 @@
 // using Semaphore = std::counting_semaphore<>;
 #endif
 
-class Semaphore {
+class Semaphore: public virtual pinggy::SharedObject {
 public:
 #if __cplusplus < 202002L
     explicit Semaphore(int count = 1) : count(count) {}
@@ -51,6 +53,7 @@ private:
 #endif
 };
 
+DefineMakeSharedPtr(Semaphore);
 
 
 #endif // SRC_CPP_COMMON_UTILS_SEMAPHORE_HH__

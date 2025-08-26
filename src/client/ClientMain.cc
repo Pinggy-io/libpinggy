@@ -254,7 +254,6 @@ parseArguments(int argc, char *argv[])
                 config->sdkConfig->AdvancedParsing = true;
                 break;
             case 'h':
-                // printf("Help option\n");
                 printHelpOptions(prog);
                 exitNow = true;
                 exit(0);
@@ -344,7 +343,7 @@ struct ClientSdkEventHandler: virtual public sdk::SdkEventHandler
                                 { this->error = error; }
 
     virtual void
-    OnAutoReconnection(tString error, std::vector<tString> messages) override
+    OnWillReconnect(tString error, std::vector<tString> messages) override
     {
         std::cout << "Reconnecting" << std::endl;
     }
@@ -356,7 +355,7 @@ struct ClientSdkEventHandler: virtual public sdk::SdkEventHandler
     }
 
     virtual void
-    OnReconnectionCompleted() override
+    OnReconnectionCompleted(std::vector<tString> urls) override
     {
         std::cout << "Reconnected" << std::endl;
         auto s = sdk.lock();
@@ -372,6 +371,12 @@ struct ClientSdkEventHandler: virtual public sdk::SdkEventHandler
     OnReconnectionFailed(tUint16 tries) override
     {
         std::cout << "Reconnection failed after " << tries << " tries" << std::endl;
+    }
+
+    virtual void
+    OnUsageUpdate(tString msg) override {
+        std::cout << "Update msg: " << msg << std::endl;
+        std::cout << "Greeting: " << sdk.lock()->GetGreetingMsg() << std::endl;
     }
 
     tString                     error;
@@ -390,6 +395,8 @@ main(int argc, char *argv[]) {
     auto sdkEventHandler = NewClientSdkEventHandlerPtr(config);
     auto sdk = sdk::NewSdkPtr(config->sdkConfig, sdkEventHandler);
     sdkEventHandler->sdk = sdk;
+
+    sdk->StartUsagesUpdate();
 
     sdk->Start();
 

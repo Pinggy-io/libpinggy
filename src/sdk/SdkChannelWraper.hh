@@ -23,6 +23,7 @@ namespace sdk
 {
 
 DeclareClassWithSharedPtr(Sdk);
+DeclareClassWithSharedPtr(SdkChannelWraper);
 
 abstract class SdkChannelEventHandler: virtual public pinggy::SharedObject
 {
@@ -31,16 +32,16 @@ public:
     ~SdkChannelEventHandler()   {}
 
     virtual void
-    ChannelDataReceived() = 0;
+    ChannelDataReceived(SdkChannelWraperPtr) = 0;
 
     virtual void
-    ChannelReadyToSend(tUint32) = 0;
+    ChannelReadyToSend(SdkChannelWraperPtr, tUint32) = 0;
 
     virtual void
-    ChannelError(tString errorText) = 0;
+    ChannelError(SdkChannelWraperPtr, tString errorText) = 0;
 
     virtual void
-    ChannelCleanup() = 0;
+    ChannelCleanup(SdkChannelWraperPtr) = 0;
 
 private:
     /* data */
@@ -58,6 +59,9 @@ public:
 
     bool
     Reject(tString reason);
+
+    bool
+    Connect();
 
     bool
     Close();
@@ -102,6 +106,22 @@ public:
     bool
     IsResponeded()              { return responded; }
 
+    void
+    SetUserTag(tString tag)     { channel->SetUserTag(tag); }
+
+    tString
+    GetUserTag()                { return channel->GetUserTag(); }
+
+    void
+    SetUserPtr(tVoidPtr ptr)    { channel->SetUserPtr(ptr); }
+
+    tVoidPtr
+    GetUserPtr()                { return channel->GetUserPtr(); }
+
+    template<typename T>
+    std::shared_ptr<T>
+    GetUserPtr()                { return channel->GetUserPtr(); }
+
 //ChannelEventHandler
     virtual void
     ChannelDataReceived(protocol::ChannelPtr) override;
@@ -113,8 +133,7 @@ public:
     ChannelError(protocol::ChannelPtr, protocol::tError errorCode, tString errorText) override;
 
     virtual void
-    ChannelRejected(protocol::ChannelPtr, tString reason) override
-                                { }
+    ChannelRejected(protocol::ChannelPtr, tString reason) override;
 
     virtual void
     ChannelAccepted(protocol::ChannelPtr) override

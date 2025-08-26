@@ -104,6 +104,22 @@ public:
     tString
     GetSrcHost()                { return srcHost; }
 
+    void
+    SetUserTag(tString tag)     { userTag = tag; }
+
+    tString
+    GetUserTag()                { return userTag; }
+
+    void
+    SetUserPtr(tVoidPtr ptr)    { userPtr = ptr; }
+
+    tVoidPtr
+    GetUserPtr()                { return userPtr; }
+
+    template<typename T>
+    std::shared_ptr<T>
+    GetUserPtr()                { return userPtr ? userPtr->DynamicPointerCast<T>(): nullptr; }
+
 private:
     Channel(SessionPtr); //constructor
 
@@ -172,6 +188,9 @@ private:
     std::queue<RawDataPtr>      recvQueue;
 
     ChannelEventHandlerPtr      eventHandler;
+
+    tString                     userTag;
+    tVoidPtr                    userPtr;
 
     friend class                Session;
 };

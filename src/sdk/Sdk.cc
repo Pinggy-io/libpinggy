@@ -68,14 +68,20 @@ namespace sdk
 
 tString PORT_CONF = "PORT_CONF";
 tString NOTIFICATION_FD = "NOTIFICATION_FD";
+tString GREETING_MSG_TAG = "GREETING_MSG_TAG";
 
 #define MAX_RECONNECTION_TRY 20
 
 struct PortConfig: virtual public pinggy::SharedObject
 {
     PortConfig():
-            ConfigTcp(0), StatusPort(0), UrlTcp(0),
-            UsageContinuousTcp(0), UsageOnceLongPollTcp(0), UsageTcp (0)
+            ConfigTcp(0),
+            StatusPort(0),
+            UrlTcp(0),
+            UsageContinuousTcp(0),
+            UsageOnceLongPollTcp(0),
+            UsageTcp(0),
+            GreetingMsgTCP(0)
                                 { }
 
     virtual
@@ -87,6 +93,7 @@ struct PortConfig: virtual public pinggy::SharedObject
     port_t                      UsageContinuousTcp;
     port_t                      UsageOnceLongPollTcp;
     port_t                      UsageTcp;
+    port_t                      GreetingMsgTCP;
 };
 DefineMakeSharedPtr(PortConfig);
 
@@ -116,12 +123,14 @@ Sdk::Sdk(SDKConfigPtr config, SdkEventHandlerPtr _eventHandler):
             primaryForwardingReqId(0),
             sdkConfig(config),
             eventHandler(_eventHandler),
+            semaphore(NewSemaphorePtr(1)),
             stopped(false),
             reconnectNow(false),
             cleanupNow(false),
             lastKeepAliveTickReceived(0),
             state(SdkState_Initial),
-            reconnectCounter(0)
+            reconnectCounter(0),
+            usagesRunning(false)
 {
     if (!config) {
         sdkConfig = config = NewSDKConfigPtr();
@@ -192,13 +201,13 @@ Sdk::ResumeTunnel()
     if (reconnectNow) {
         reconnectLock.lock();
         DEFER({reconnectLock.unlock();});
-        if (state == SdkState_ReconnectWaiting) {
+        if (state == SdkState_ReconnectWaiting) { //Ongoing reconnection
             auto ret = pollController->PollOnce();
             LOGI("Poll returned", ret);
             auto success = (ret < 0 && app_get_errno() != EINTR ? false : true);
             return success;
         }
-        cleanupForReconnection();
+        cleanupForReconnection(); //cleaning up last connection
         state = SdkState_Reconnecting;
         if (reconnectCounter >= MAX_RECONNECTION_TRY) {
             if (eventHandler)
@@ -206,7 +215,7 @@ Sdk::ResumeTunnel()
             return false;
         }
         reconnectCounter += 1;
-        if (!internalConnect(true)) { //entry point
+        if (!internalConnect(true)) { //initiating connection
             LOGD("Not connected or authenticated");
             state = SdkState_ReconnectWaiting;
             pollController->SetTimeout(3*SECOND, thisPtr, &Sdk::setState, SdkState_Reconnecting);
@@ -224,7 +233,7 @@ Sdk::ResumeTunnel()
         reconnectCounter = 0;
         reconnectNow = false;
         if (eventHandler)
-            eventHandler->OnReconnectionCompleted();
+            eventHandler->OnReconnectionCompleted(this->urls);
     }
 
     if (cleanupNow) {
@@ -238,13 +247,7 @@ Sdk::ResumeTunnel()
     if (stopped)
         return false;
 
-    lockAccess.lock();
-    running = true;
-    runningThreadId = std::this_thread::get_id();
-    auto ret = pollController->PollOnce();
-    running = false;
-    lockAccess.unlock();
-    auto success = (ret < 0 && app_get_errno() != EINTR ? false : true);
+    auto success = resumeWithoutLock(__func__);
     return success;
 }
 
@@ -262,7 +265,7 @@ Sdk::GetUrls()
     return urls;
 }
 
-tString
+const tString&
 Sdk::GetEndMessage()
 {
     auto var = LockIfDifferentThread();
@@ -275,6 +278,7 @@ Sdk::GetSdkEventHandler()
     return eventHandler;
 }
 
+// This function wait until running thread blocks
 ThreadLockPtr Sdk::LockIfDifferentThread()
 {
     auto curThreadId = std::this_thread::get_id();
@@ -282,13 +286,13 @@ ThreadLockPtr Sdk::LockIfDifferentThread()
         LOGD("Same thread. not locking.");
         return nullptr;
     }
-    semaphore.Wait();
+    semaphore->Wait();
     sdk::ThreadLockPtr threadLock = nullptr;
     if (notificationConn) {
         notificationConn->Write(NewRawDataPtr(tString("a")));
         threadLock = NewThreadLockPtr(new ThreadLock(lockAccess));
     }
-    semaphore.Notify();
+    semaphore->Notify();
     return threadLock;
 }
 
@@ -470,7 +474,7 @@ Sdk::HandleSessionRemoteForwardingSucceeded(protocol::tReqId reqId, std::vector<
         if (eventHandler && !reconnectNow)
             eventHandler->OnPrimaryForwardingSucceeded(urls);
 
-        LOGD("Primary forwarding done");
+        LOGD("Primary forwarding done", urls);
 
         return;
     }
@@ -628,8 +632,6 @@ Sdk::HandleSessionKeepAliveResponseReceived(tUint64 tick)
 {
     LOGT("Keepalive response recvd: tick: ", tick);
     lastKeepAliveTickReceived = tick;
-    // if (eventHandler)
-    //     eventHandler->KeepAliveResponse(tick);
 }
 
 void
@@ -707,30 +709,7 @@ Sdk::HandleFDReadWTag(PollableFDPtr pfd, tString tag)
     auto len = _1;
     auto data = _2;
 
-    if (tag == PORT_CONF) {
-        if (len <= 0) {
-            if (netConn->TryAgain()) {
-                return -1;
-            }
-            netConn->DeregisterFDEvenHandler();
-            netConn->CloseConn();
-            return 0;
-        }
-
-        try {
-            json jdata = json::parse(tString(data->GetData(), data->Len));
-            portConfig = NewPortConfigPtr();
-            PINGGY_NLOHMANN_JSON_TO_PTR_VAR1(jdata, portConfig,
-                                ConfigTcp,
-                                StatusPort,
-                                UrlTcp,
-                                UsageContinuousTcp,
-                                UsageOnceLongPollTcp,
-                                UsageTcp)
-        } catch(...) {
-            LOGE("Some error while parsing port config");
-        }
-    } else if (tag == NOTIFICATION_FD) {
+    if (tag == NOTIFICATION_FD) {
         if (len <= 0) {
             if (netConn->TryAgain())
                 return -1;
@@ -739,9 +718,9 @@ Sdk::HandleFDReadWTag(PollableFDPtr pfd, tString tag)
             return len;
         }
         lockAccess.unlock();
-        semaphore.Wait();
+        semaphore->Wait();
         lockAccess.lock();
-        semaphore.Notify();
+        semaphore->Notify();
         return len;
     }
     return 0;
@@ -794,6 +773,107 @@ Sdk::HandleConnectionFailed(net::NetworkConnectionImplPtr netConn)
     return 0;
 }
 
+//Channel
+void
+Sdk::ChannelDataReceived(protocol::ChannelPtr channel)
+{
+    if (channel == usageChannel) {
+        auto [len, data] = usageChannel->Recv(4096);
+        if (len > 0) {
+            if (eventHandler && usagesRunning) {
+                auto lastUsagesUpdate = data->ToString();
+                eventHandler->OnUsageUpdate(lastUsagesUpdate);
+            }
+        }
+        return;
+    }
+    auto tag = channel->GetUserTag();
+    if (tag == PORT_CONF) {
+        auto data = NewRawDataPtr();
+        while (channel->HaveDataToRead()) {
+            auto [len, newData] = channel->Recv(4096);
+            if (len <= 0) {
+                channel->Close();
+                break;
+            }
+            data->AddData(newData);
+        }
+        try {
+            json jdata = json::parse(data->ToString());
+            auto portConfigPtr = NewPortConfigPtr();
+            PINGGY_NLOHMANN_JSON_TO_PTR_VAR1(jdata, portConfigPtr,
+                                ConfigTcp,
+                                StatusPort,
+                                UrlTcp,
+                                UsageContinuousTcp,
+                                UsageOnceLongPollTcp,
+                                UsageTcp,
+                                GreetingMsgTCP
+                            )
+            thisPtr->portConfig = portConfigPtr;
+
+            if (!usageChannel) {
+                initiateContinousUsages();
+            }
+            setupLocalChannelNGetData(portConfig->GreetingMsgTCP, GREETING_MSG_TAG);
+        } catch(...) {
+            LOGE("Some error while parsing port config");
+        }
+    } else if (tag == GREETING_MSG_TAG) {
+        auto data = NewRawDataPtr();
+        while (channel->HaveDataToRead()) {
+            auto [len, newData] = channel->Recv(4096);
+            if (len <= 0) {
+                channel->Close();
+                break;
+            }
+            data->AddData(newData);
+        }
+        if (data->Len) {
+            try {
+                json jdata = json::parse(data->ToString());
+                if (jdata.contains("Msgs")) {
+                    greetingMsgs = jdata["Msgs"].dump();
+                }
+            } catch(...) {
+                LOGE("Some error while parsing greeting msg");
+            }
+        }
+        return;
+    }
+    channel->Close();
+}
+
+void
+Sdk::ChannelReadyToSend(protocol::ChannelPtr, tUint32)
+{
+}
+
+void
+Sdk::ChannelError(protocol::ChannelPtr channel, protocol::tError errorCode, tString errorText)
+{
+    ChannelCleanup(channel);
+}
+
+void
+Sdk::ChannelCleanup(protocol::ChannelPtr channel)
+{
+    if (channel == usageChannel) {
+        channel->Close();
+        usageChannel = nullptr;
+        //TODO reinitiate channel
+        pollController->SetTimeout(SECOND, thisPtr, &Sdk::initiateContinousUsages);
+    }
+
+    channel->Close();
+}
+
+void
+Sdk::ChannelRejected(protocol::ChannelPtr channel, tString reason)
+{
+    ChannelCleanup(channel);
+}
+
 void
 Sdk::authenticate()
 {
@@ -809,19 +889,10 @@ Sdk::authenticate()
 void
 Sdk::tunnelInitiated()
 {
-    net::DummyConnectionPtr conns[2];
-    if (!net::DummyConnection::CreateDummyConnection(conns)) {
-        LOGE("Could not create dummy connection to forward things");
-        return;
-    }
-
-    conns[0]->SetPollController(pollController)->RegisterFDEvenHandler(thisPtr, PORT_CONF);
-    conns[1]->SetPollController(pollController);
     auto channel = session->CreateChannel(4, "localhost", 4300, "localhost");
-
-    auto forwarder = protocol::NewChannelConnectionForwarderPtr(channel, conns[1], nullptr);
-    forwarder->Start();
-    return;
+    channel->RegisterEventHandler(thisPtr);
+    channel->SetUserTag(PORT_CONF);
+    channel->Connect();
 }
 
 bool Sdk::internalConnect(bool block)
@@ -957,7 +1028,7 @@ Sdk::keepAliveTimeout(tUint64 tick)
         if (sdkConfig->AutoReconnect) {
             reconnectNow = true;
             if (eventHandler)
-                eventHandler->OnAutoReconnection("Connection Reset", {"Reconnecting"});
+                eventHandler->OnWillReconnect("Connection Reset", {"Reconnecting"});
         } else {
             Stop();
             HandleSessionConnectionReset();
@@ -1005,6 +1076,50 @@ void Sdk::initPollController()
 
     this->pollController = pollController;
 
+}
+
+void
+Sdk::initiateContinousUsages()
+{
+    if (usageChannel) {
+        return; //No point in raising exception
+    }
+
+    if (reconnectNow || stopped)
+        return;
+
+    if (!portConfig)
+        return;
+
+    usageChannel = session->CreateChannel(portConfig->UsageContinuousTcp, "localhost", 0, "localhost");
+    usageChannel->RegisterEventHandler(thisPtr);
+    usageChannel->Connect();
+}
+
+bool
+Sdk::resumeWithoutLock(tString funcName)
+{
+    lockAccess.lock();
+    if (running) {
+        lockAccess.unlock();
+        throw SdkNestCallException("You have called `" + funcName + "` from a callback in same thread");
+    }
+    running = true;
+    runningThreadId = std::this_thread::get_id();
+    auto ret = pollController->PollOnce();
+    running = false;
+    auto success = (ret < 0 && app_get_errno() != EINTR ? false : true);
+    lockAccess.unlock();
+    return success;
+}
+
+void
+Sdk::setupLocalChannelNGetData(port_t port, tString tag)
+{
+    auto channel = session->CreateChannel(port, "localhost", 0, "localhost");
+    channel->SetUserTag(tag);
+    channel->RegisterEventHandler(thisPtr);
+    channel->Connect();
 }
 
 //===============================================

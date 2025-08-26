@@ -53,20 +53,61 @@ private:
     NetworkConnectionPtr        netConn;
 };
 
-enum ConnectionType {
-    ConnectionType_Unknown  = 0,
-    ConnectionType_SSH      = 1<<0,
-    ConnectionType_SSL      = 1<<1,
-    ConnectionType_HTTP     = 1<<2,
-    ConnectionType_PINGGY   = 1<<3,
-    ConnectionType_RELAY    = 1<<4,
+enum ProbedConnType {
+    ProbedConnType_Unknown  = 0,
+    ProbedConnType_SSH      = ((tUint64)1)<<0, //Okay to use for client
+    ProbedConnType_SSL      = ((tUint64)1)<<1, //Okay to use for client
+    ProbedConnType_HTTP     = ((tUint64)1)<<2,
+    ProbedConnType_PINGGY   = ((tUint64)1)<<3, //Okay to use for client
+    ProbedConnType_RELAY    = ((tUint64)1)<<4,
 };
 
+extern "C" {
+
+union tConnType {
+    struct {
+        tUint64                 Enabled:1; // 1
+        tUint64                 padding1:1; // 2
+
+        tUint64                 HandlerType:2; // 4
+#define ConnType_H_Visitor      0
+#define ConnType_H_Client       1
+        tUint64                 padding2:4; // 8
+
+        tUint64                 SourceType:5; // 13
+#define ConnType_Src_Plain      0
+#define ConnType_Src_ConnectProxy \
+                                1
+#define ConnType_Src_Relay      2
+#define ConnType_Src_SSClient   3
+#define ConnType_Src_Local      4
+#define ConnType_Src_Redirect   5
+#define ConnType_Src_Dashboard  6
+#define ConnType_Src_BashUsages 7
+        tUint64                 padding5:3; // 16
+
+        tUint64                 ContentType:5; // 21
+#define ConnType_Cnt_Unknown    0
+#define ConnType_Cnt_Http       1 //It is a http connection
+#define ConnType_Cnt_Tls        2 //It is a tls connection
+#define ConnType_Cnt_Ssh        3 //connection starts with ssh
+#define ConnType_Cnt_Pinggy     4 //connection starts with PINGGY
+#define ConnType_Cnt_Relay      5 //connection starts with RLPINGGY
+        tUint64                 padding6:3; // 24
+
+        tUint64                 ProtocolType:4; //28
+#define ConnType_Prt_Unknown    0
+#define ConnType_Prt_Tcp        1
+#define ConnType_Prt_Udp        2
+#define ConnType_Prt_Uds        3
+    };
+    tUint64                     Raw;
+};
+static_assert(sizeof(tConnType) == 8, "Size of ConnectionType must be 8 bytes");
 
 #define ADDRESS_METADATA_SIZE           128
 #define NETWORK_METADATA_SIZE           512
 #define METADATA_URL_SIZE_RELAY         256
-extern "C" {
 struct AddressMetadata {
     ip_addr                     LocalIp;
     ip_addr                     RemoteIp;
@@ -255,6 +296,8 @@ DefineMakeSharedPtr(SocketAddress);
 
 abstract class NetworkConnection : public virtual NetworkSocket {
 public:
+    NetworkConnection()         { connType.Raw = 0; }
+
     virtual
     ~NetworkConnection()        {}
 
@@ -340,6 +383,15 @@ public:
     virtual bool
     IsDummy() final             { return GetState().Dummy; }
 
+    virtual tConnType
+    ConnType() final            { return connType; }
+
+    virtual void
+    SetConnType(tConnType connType)
+                                { this->connType = connType; }
+
+private:
+    tConnType                   connType;
 };
 
 
@@ -391,11 +443,11 @@ public:
 
     virtual void
     SetRecvTimeoutms(uint16_t timeout) override
-                                {set_recv_timeout_ms(fd, timeout);}
+                                { set_recv_timeout_ms(fd, timeout); }
 
     virtual void
     SetSendTimeoutms(uint16_t timeout) override
-                                {set_send_timeout_ms(fd, timeout);}
+                                { set_send_timeout_ms(fd, timeout); }
 
     virtual int
     SslError(int ret) override;
@@ -430,7 +482,7 @@ public:
     virtual uint32_t
     Flags() const override      { return flags; }
 
-    void
+    virtual void
     SetFlags(uint32_t flags)    { this->flags = flags; }
 
     virtual void
@@ -507,7 +559,6 @@ private:
     pinggy::VoidPtr             connectEventPtr;
     common::PollableTaskPtr     connectTimer;
 
-
     tNetState                   netState;
 };
 
@@ -520,6 +571,6 @@ operator<<(std::ostream& os, const net::SocketAddressPtr& sa);
         //Here call by reference is mandatory
 
 // std::ostream&
-// operator<<(std::ostream& os, const net::tConnectionType& ct);
+// operator<<(std::ostream& os, const net::tConnType& ct);
 
 #endif /* CPP_COMMON_NETWORKCONNECTION_HH_ */
