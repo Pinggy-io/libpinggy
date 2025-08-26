@@ -19,32 +19,6 @@ def pinggy_error_check(a, b, c):
         raise Exception(err)
     return a
 
-
-
-def __compare_versions(v1: str, v2: str) -> int:
-    """
-    Compare two version strings.
-    Returns:
-      -1 if v1 < v2
-       0 if v1 == v2
-       1 if v1 > v2
-    """
-    parts1 = [int(p) for p in v1.split('.')]
-    parts2 = [int(p) for p in v2.split('.')]
-
-    # Pad shorter version with zeros (e.g., 1.2 vs 1.2.0)
-    max_len = max(len(parts1), len(parts2))
-    parts1.extend([0] * (max_len - len(parts1)))
-    parts2.extend([0] * (max_len - len(parts2)))
-
-    for p1, p2 in zip(parts1, parts2):
-        if p1 < p2:
-            return -1
-        elif p1 > p2:
-            return 1
-    return 0
-
-
 #========
 pinggy_bool_t                                   = ctypes.c_bool
 pinggy_ref_t                                    = ctypes.c_uint32
@@ -112,139 +86,116 @@ __fix_backward_compatibility(cdll, "pinggy_tunnel_set_on_new_channel_callback", 
 #==============================
 #   Version Comparison
 #==============================
-def __internal_pinggy_version():
-    try:
-        __pinggy_version          = cdll.pinggy_version
-        __pinggy_version.restype  = pinggy_const_int_t
-        __pinggy_version.argtypes = [pinggy_capa_t, pinggy_char_p_t]
-        buffer_size = 1024
-        buffer = ctypes.create_string_buffer(buffer_size)
-        ln = __pinggy_version(buffer_size, buffer)
-        res = buffer.value.decode('utf-8') if ln != 0 else ""
-        return res
-    except:
-        return version.__lib_pinggy_version
-
-libPinggyVersion = __internal_pinggy_version()
-
 class UnsupportedCallable:
     """
     A callable object that raises an exception when called.
     Useful as a placeholder for unimplemented features.
     """
-    def __init__(self, operation, message=None):
+    def __init__(self, operation, message=None, ret = None):
         if message is None:
             message = f"The operation `{operation}` is not supported in this version"
         self.message = message
+        self.ret = ret
 
     def __call__(self, *args, **kwargs):
+        if self.ret is not None:
+            return self.ret
         raise NotImplementedError(self.message)
 
 
 #==============================
 #   Unsupported functions
 #==============================
-pinggy_tunnel_set_on_will_reconnect_callback                    = UnsupportedCallable("pinggy_tunnel_set_on_will_reconnect_callback")
-pinggy_tunnel_set_on_reconnecting_callback                      = UnsupportedCallable("pinggy_tunnel_set_on_reconnecting_callback")
-pinggy_tunnel_set_on_reconnection_completed_callback            = UnsupportedCallable("pinggy_tunnel_set_on_reconnection_completed_callback")
-pinggy_tunnel_set_on_reconnection_failed_callback               = UnsupportedCallable("pinggy_tunnel_set_on_reconnection_failed_callback")
-pinggy_tunnel_set_on_usage_update_callback                      = UnsupportedCallable("pinggy_tunnel_set_on_usage_update_callback")
-pinggy_config_set_auto_reconnect                                = UnsupportedCallable("pinggy_config_set_auto_reconnect")
-pinggy_config_get_auto_reconnect                                = UnsupportedCallable("pinggy_config_get_auto_reconnect")
+def __getFromCDLLIfSupported(funcName, ret=None):
+    if hasattr(cdll, funcName):
+        return getattr(cdll, funcName)
+    return UnsupportedCallable(funcName, ret=ret)
+
 #==============================
 
-pinggy_set_log_path                                             = cdll.pinggy_set_log_path
-pinggy_set_log_enable                                           = cdll.pinggy_set_log_enable
-pinggy_set_on_exception_callback                                = cdll.pinggy_set_on_exception_callback
-pinggy_free_ref                                                 = cdll.pinggy_free_ref
-pinggy_create_config                                            = cdll.pinggy_create_config
-pinggy_config_set_server_address                                = cdll.pinggy_config_set_server_address
-pinggy_config_set_token                                         = cdll.pinggy_config_set_token
-pinggy_config_set_type                                          = cdll.pinggy_config_set_type
-pinggy_config_set_udp_type                                      = cdll.pinggy_config_set_udp_type
-pinggy_config_set_tcp_forward_to                                = cdll.pinggy_config_set_tcp_forward_to
-pinggy_config_set_udp_forward_to                                = cdll.pinggy_config_set_udp_forward_to
-pinggy_config_set_force                                         = cdll.pinggy_config_set_force
-pinggy_config_set_argument                                      = cdll.pinggy_config_set_argument
-pinggy_config_set_advanced_parsing                              = cdll.pinggy_config_set_advanced_parsing
-pinggy_config_set_ssl                                           = cdll.pinggy_config_set_ssl
-
-if __compare_versions(libPinggyVersion, "0.0.19") > 0 :
-    pinggy_config_set_auto_reconnect                                = cdll.pinggy_config_set_auto_reconnect
-
-pinggy_config_set_sni_server_name                               = cdll.pinggy_config_set_sni_server_name
-pinggy_config_set_insecure                                      = cdll.pinggy_config_set_insecure
-pinggy_config_get_server_address                                = cdll.pinggy_config_get_server_address
-pinggy_config_get_token                                         = cdll.pinggy_config_get_token
-pinggy_config_get_type                                          = cdll.pinggy_config_get_type
-pinggy_config_get_udp_type                                      = cdll.pinggy_config_get_udp_type
-pinggy_config_get_tcp_forward_to                                = cdll.pinggy_config_get_tcp_forward_to
-pinggy_config_get_udp_forward_to                                = cdll.pinggy_config_get_udp_forward_to
-pinggy_config_get_force                                         = cdll.pinggy_config_get_force
-pinggy_config_get_argument                                      = cdll.pinggy_config_get_argument
-pinggy_config_get_advanced_parsing                              = cdll.pinggy_config_get_advanced_parsing
-pinggy_config_get_ssl                                           = cdll.pinggy_config_get_ssl
-
-if __compare_versions(libPinggyVersion, "0.0.19") > 0 :
-    pinggy_config_get_auto_reconnect                                = cdll.pinggy_config_get_auto_reconnect
-
-pinggy_config_get_sni_server_name                               = cdll.pinggy_config_get_sni_server_name
-pinggy_config_get_insecure                                      = cdll.pinggy_config_get_insecure
-pinggy_tunnel_set_on_connected_callback                         = cdll.pinggy_tunnel_set_on_connected_callback
-pinggy_tunnel_set_on_authenticated_callback                     = cdll.pinggy_tunnel_set_on_authenticated_callback
-pinggy_tunnel_set_on_authentication_failed_callback             = cdll.pinggy_tunnel_set_on_authentication_failed_callback
-pinggy_tunnel_set_on_primary_forwarding_succeeded_callback      = cdll.pinggy_tunnel_set_on_primary_forwarding_succeeded_callback
-pinggy_tunnel_set_on_primary_forwarding_failed_callback         = cdll.pinggy_tunnel_set_on_primary_forwarding_failed_callback
-pinggy_tunnel_set_on_additional_forwarding_succeeded_callback   = cdll.pinggy_tunnel_set_on_additional_forwarding_succeeded_callback
-pinggy_tunnel_set_on_additional_forwarding_failed_callback      = cdll.pinggy_tunnel_set_on_additional_forwarding_failed_callback
-pinggy_tunnel_set_on_disconnected_callback                      = cdll.pinggy_tunnel_set_on_disconnected_callback
-pinggy_tunnel_set_on_tunnel_error_callback                      = cdll.pinggy_tunnel_set_on_tunnel_error_callback
-pinggy_tunnel_set_on_new_channel_callback                       = cdll.pinggy_tunnel_set_on_new_channel_callback
-
-if __compare_versions(libPinggyVersion, "0.0.19") > 0 :
-    pinggy_tunnel_set_on_will_reconnect_callback                    = cdll.pinggy_tunnel_set_on_will_reconnect_callback
-    pinggy_tunnel_set_on_reconnecting_callback                      = cdll.pinggy_tunnel_set_on_reconnecting_callback
-    pinggy_tunnel_set_on_reconnection_completed_callback            = cdll.pinggy_tunnel_set_on_reconnection_completed_callback
-    pinggy_tunnel_set_on_reconnection_failed_callback               = cdll.pinggy_tunnel_set_on_reconnection_failed_callback
-    pinggy_tunnel_set_on_usage_update_callback                      = cdll.pinggy_tunnel_set_on_usage_update_callback
-
-pinggy_tunnel_initiate                                          = cdll.pinggy_tunnel_initiate
-pinggy_tunnel_start                                             = cdll.pinggy_tunnel_start
-pinggy_tunnel_connect                                           = cdll.pinggy_tunnel_connect
-pinggy_tunnel_resume                                            = cdll.pinggy_tunnel_resume
-pinggy_tunnel_stop                                              = cdll.pinggy_tunnel_stop
-pinggy_tunnel_is_active                                         = cdll.pinggy_tunnel_is_active
-pinggy_tunnel_start_web_debugging                               = cdll.pinggy_tunnel_start_web_debugging
-pinggy_tunnel_request_primary_forwarding                        = cdll.pinggy_tunnel_request_primary_forwarding
-pinggy_tunnel_request_additional_forwarding                     = cdll.pinggy_tunnel_request_additional_forwarding
-pinggy_tunnel_start_usage_update                                = cdll.pinggy_tunnel_start_usage_update
-pinggy_tunnel_stop_usage_update                                 = cdll.pinggy_tunnel_stop_usage_update
-pinggy_tunnel_get_current_usages                                = cdll.pinggy_tunnel_get_current_usages
-pinggy_tunnel_get_greeting_msgs                                 = cdll.pinggy_tunnel_get_greeting_msgs
+pinggy_set_log_path                                             = __getFromCDLLIfSupported("pinggy_set_log_path")
+pinggy_set_log_enable                                           = __getFromCDLLIfSupported("pinggy_set_log_enable")
+pinggy_set_on_exception_callback                                = __getFromCDLLIfSupported("pinggy_set_on_exception_callback")
+pinggy_free_ref                                                 = __getFromCDLLIfSupported("pinggy_free_ref")
+pinggy_create_config                                            = __getFromCDLLIfSupported("pinggy_create_config")
+pinggy_config_set_server_address                                = __getFromCDLLIfSupported("pinggy_config_set_server_address")
+pinggy_config_set_token                                         = __getFromCDLLIfSupported("pinggy_config_set_token")
+pinggy_config_set_type                                          = __getFromCDLLIfSupported("pinggy_config_set_type")
+pinggy_config_set_udp_type                                      = __getFromCDLLIfSupported("pinggy_config_set_udp_type")
+pinggy_config_set_tcp_forward_to                                = __getFromCDLLIfSupported("pinggy_config_set_tcp_forward_to")
+pinggy_config_set_udp_forward_to                                = __getFromCDLLIfSupported("pinggy_config_set_udp_forward_to")
+pinggy_config_set_force                                         = __getFromCDLLIfSupported("pinggy_config_set_force")
+pinggy_config_set_argument                                      = __getFromCDLLIfSupported("pinggy_config_set_argument")
+pinggy_config_set_advanced_parsing                              = __getFromCDLLIfSupported("pinggy_config_set_advanced_parsing")
+pinggy_config_set_ssl                                           = __getFromCDLLIfSupported("pinggy_config_set_ssl")
+pinggy_config_set_auto_reconnect                                = __getFromCDLLIfSupported("pinggy_config_set_auto_reconnect")
+pinggy_config_set_sni_server_name                               = __getFromCDLLIfSupported("pinggy_config_set_sni_server_name")
+pinggy_config_set_insecure                                      = __getFromCDLLIfSupported("pinggy_config_set_insecure")
+pinggy_config_get_server_address                                = __getFromCDLLIfSupported("pinggy_config_get_server_address")
+pinggy_config_get_token                                         = __getFromCDLLIfSupported("pinggy_config_get_token")
+pinggy_config_get_type                                          = __getFromCDLLIfSupported("pinggy_config_get_type")
+pinggy_config_get_udp_type                                      = __getFromCDLLIfSupported("pinggy_config_get_udp_type")
+pinggy_config_get_tcp_forward_to                                = __getFromCDLLIfSupported("pinggy_config_get_tcp_forward_to")
+pinggy_config_get_udp_forward_to                                = __getFromCDLLIfSupported("pinggy_config_get_udp_forward_to")
+pinggy_config_get_force                                         = __getFromCDLLIfSupported("pinggy_config_get_force")
+pinggy_config_get_argument                                      = __getFromCDLLIfSupported("pinggy_config_get_argument")
+pinggy_config_get_advanced_parsing                              = __getFromCDLLIfSupported("pinggy_config_get_advanced_parsing")
+pinggy_config_get_ssl                                           = __getFromCDLLIfSupported("pinggy_config_get_ssl")
+pinggy_config_get_auto_reconnect                                = __getFromCDLLIfSupported("pinggy_config_get_auto_reconnect")
+pinggy_config_get_sni_server_name                               = __getFromCDLLIfSupported("pinggy_config_get_sni_server_name")
+pinggy_config_get_insecure                                      = __getFromCDLLIfSupported("pinggy_config_get_insecure")
+pinggy_tunnel_set_on_connected_callback                         = __getFromCDLLIfSupported("pinggy_tunnel_set_on_connected_callback", ret=False)
+pinggy_tunnel_set_on_authenticated_callback                     = __getFromCDLLIfSupported("pinggy_tunnel_set_on_authenticated_callback", ret=False)
+pinggy_tunnel_set_on_authentication_failed_callback             = __getFromCDLLIfSupported("pinggy_tunnel_set_on_authentication_failed_callback", ret=False)
+pinggy_tunnel_set_on_primary_forwarding_succeeded_callback      = __getFromCDLLIfSupported("pinggy_tunnel_set_on_primary_forwarding_succeeded_callback", ret=False)
+pinggy_tunnel_set_on_primary_forwarding_failed_callback         = __getFromCDLLIfSupported("pinggy_tunnel_set_on_primary_forwarding_failed_callback", ret=False)
+pinggy_tunnel_set_on_additional_forwarding_succeeded_callback   = __getFromCDLLIfSupported("pinggy_tunnel_set_on_additional_forwarding_succeeded_callback", ret=False)
+pinggy_tunnel_set_on_additional_forwarding_failed_callback      = __getFromCDLLIfSupported("pinggy_tunnel_set_on_additional_forwarding_failed_callback", ret=False)
+pinggy_tunnel_set_on_disconnected_callback                      = __getFromCDLLIfSupported("pinggy_tunnel_set_on_disconnected_callback", ret=False)
+pinggy_tunnel_set_on_tunnel_error_callback                      = __getFromCDLLIfSupported("pinggy_tunnel_set_on_tunnel_error_callback", ret=False)
+pinggy_tunnel_set_on_new_channel_callback                       = __getFromCDLLIfSupported("pinggy_tunnel_set_on_new_channel_callback", ret=False)
+pinggy_tunnel_set_on_will_reconnect_callback                    = __getFromCDLLIfSupported("pinggy_tunnel_set_on_will_reconnect_callback", ret=False)
+pinggy_tunnel_set_on_reconnecting_callback                      = __getFromCDLLIfSupported("pinggy_tunnel_set_on_reconnecting_callback", ret=False)
+pinggy_tunnel_set_on_reconnection_completed_callback            = __getFromCDLLIfSupported("pinggy_tunnel_set_on_reconnection_completed_callback", ret=False)
+pinggy_tunnel_set_on_reconnection_failed_callback               = __getFromCDLLIfSupported("pinggy_tunnel_set_on_reconnection_failed_callback", ret=False)
+pinggy_tunnel_set_on_usage_update_callback                      = __getFromCDLLIfSupported("pinggy_tunnel_set_on_usage_update_callback", ret=False)
+pinggy_tunnel_initiate                                          = __getFromCDLLIfSupported("pinggy_tunnel_initiate")
+pinggy_tunnel_start                                             = __getFromCDLLIfSupported("pinggy_tunnel_start")
+pinggy_tunnel_connect                                           = __getFromCDLLIfSupported("pinggy_tunnel_connect")
+pinggy_tunnel_resume                                            = __getFromCDLLIfSupported("pinggy_tunnel_resume")
+pinggy_tunnel_stop                                              = __getFromCDLLIfSupported("pinggy_tunnel_stop")
+pinggy_tunnel_is_active                                         = __getFromCDLLIfSupported("pinggy_tunnel_is_active")
+pinggy_tunnel_start_web_debugging                               = __getFromCDLLIfSupported("pinggy_tunnel_start_web_debugging")
+pinggy_tunnel_request_primary_forwarding                        = __getFromCDLLIfSupported("pinggy_tunnel_request_primary_forwarding")
+pinggy_tunnel_request_additional_forwarding                     = __getFromCDLLIfSupported("pinggy_tunnel_request_additional_forwarding")
+pinggy_tunnel_start_usage_update                                = __getFromCDLLIfSupported("pinggy_tunnel_start_usage_update")
+pinggy_tunnel_stop_usage_update                                 = __getFromCDLLIfSupported("pinggy_tunnel_stop_usage_update")
+pinggy_tunnel_get_current_usages                                = __getFromCDLLIfSupported("pinggy_tunnel_get_current_usages")
+pinggy_tunnel_get_greeting_msgs                                 = __getFromCDLLIfSupported("pinggy_tunnel_get_greeting_msgs")
 #==============
 
-pinggy_tunnel_channel_set_data_received_callback                = cdll.pinggy_tunnel_channel_set_data_received_callback
-pinggy_tunnel_channel_set_ready_to_send_callback                = cdll.pinggy_tunnel_channel_set_ready_to_send_callback
-pinggy_tunnel_channel_set_error_callback                        = cdll.pinggy_tunnel_channel_set_error_callback
-pinggy_tunnel_channel_set_cleanup_callback                      = cdll.pinggy_tunnel_channel_set_cleanup_callback
-pinggy_tunnel_channel_accept                                    = cdll.pinggy_tunnel_channel_accept
-pinggy_tunnel_channel_reject                                    = cdll.pinggy_tunnel_channel_reject
-pinggy_tunnel_channel_close                                     = cdll.pinggy_tunnel_channel_close
-pinggy_tunnel_channel_send                                      = cdll.pinggy_tunnel_channel_send
-pinggy_tunnel_channel_recv                                      = cdll.pinggy_tunnel_channel_recv
-pinggy_tunnel_channel_have_data_to_recv                         = cdll.pinggy_tunnel_channel_have_data_to_recv
-pinggy_tunnel_channel_have_buffer_to_send                       = cdll.pinggy_tunnel_channel_have_buffer_to_send
-pinggy_tunnel_channel_is_connected                              = cdll.pinggy_tunnel_channel_is_connected
-pinggy_tunnel_channel_get_type                                  = cdll.pinggy_tunnel_channel_get_type
-pinggy_tunnel_channel_get_dest_port                             = cdll.pinggy_tunnel_channel_get_dest_port
-pinggy_tunnel_channel_get_dest_host                             = cdll.pinggy_tunnel_channel_get_dest_host
-pinggy_tunnel_channel_get_src_port                              = cdll.pinggy_tunnel_channel_get_src_port
-pinggy_tunnel_channel_get_src_host                              = cdll.pinggy_tunnel_channel_get_src_host
-pinggy_version                                                  = cdll.pinggy_version
-pinggy_git_commit                                               = cdll.pinggy_git_commit
-pinggy_build_timestamp                                          = cdll.pinggy_build_timestamp
-pinggy_libc_version                                             = cdll.pinggy_libc_version
-pinggy_build_os                                                 = cdll.pinggy_build_os
+pinggy_tunnel_channel_set_data_received_callback                = __getFromCDLLIfSupported("pinggy_tunnel_channel_set_data_received_callback")
+pinggy_tunnel_channel_set_ready_to_send_callback                = __getFromCDLLIfSupported("pinggy_tunnel_channel_set_ready_to_send_callback")
+pinggy_tunnel_channel_set_error_callback                        = __getFromCDLLIfSupported("pinggy_tunnel_channel_set_error_callback")
+pinggy_tunnel_channel_set_cleanup_callback                      = __getFromCDLLIfSupported("pinggy_tunnel_channel_set_cleanup_callback")
+pinggy_tunnel_channel_accept                                    = __getFromCDLLIfSupported("pinggy_tunnel_channel_accept")
+pinggy_tunnel_channel_reject                                    = __getFromCDLLIfSupported("pinggy_tunnel_channel_reject")
+pinggy_tunnel_channel_close                                     = __getFromCDLLIfSupported("pinggy_tunnel_channel_close")
+pinggy_tunnel_channel_send                                      = __getFromCDLLIfSupported("pinggy_tunnel_channel_send")
+pinggy_tunnel_channel_recv                                      = __getFromCDLLIfSupported("pinggy_tunnel_channel_recv")
+pinggy_tunnel_channel_have_data_to_recv                         = __getFromCDLLIfSupported("pinggy_tunnel_channel_have_data_to_recv")
+pinggy_tunnel_channel_have_buffer_to_send                       = __getFromCDLLIfSupported("pinggy_tunnel_channel_have_buffer_to_send")
+pinggy_tunnel_channel_is_connected                              = __getFromCDLLIfSupported("pinggy_tunnel_channel_is_connected")
+pinggy_tunnel_channel_get_type                                  = __getFromCDLLIfSupported("pinggy_tunnel_channel_get_type")
+pinggy_tunnel_channel_get_dest_port                             = __getFromCDLLIfSupported("pinggy_tunnel_channel_get_dest_port")
+pinggy_tunnel_channel_get_dest_host                             = __getFromCDLLIfSupported("pinggy_tunnel_channel_get_dest_host")
+pinggy_tunnel_channel_get_src_port                              = __getFromCDLLIfSupported("pinggy_tunnel_channel_get_src_port")
+pinggy_tunnel_channel_get_src_host                              = __getFromCDLLIfSupported("pinggy_tunnel_channel_get_src_host")
+pinggy_version                                                  = __getFromCDLLIfSupported("pinggy_version")
+pinggy_git_commit                                               = __getFromCDLLIfSupported("pinggy_git_commit")
+pinggy_build_timestamp                                          = __getFromCDLLIfSupported("pinggy_build_timestamp")
+pinggy_libc_version                                             = __getFromCDLLIfSupported("pinggy_libc_version")
+pinggy_build_os                                                 = __getFromCDLLIfSupported("pinggy_build_os")
 
 
 #==========

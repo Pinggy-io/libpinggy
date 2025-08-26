@@ -1148,6 +1148,7 @@ def start_tunnel(
         reverseproxy: bool = True,
         serveraddress: str = "a.pinggy.io:443",
         udpforwardto: int | str = 0,
+        autoreconnect: bool = False,
         eventclass = BaseTunnelHandler
 ):
     """
@@ -1192,6 +1193,8 @@ def start_tunnel(
 
         udpforwardto: same as tcp forward to, however, it allows users to forward udp along with tcp. If user wants to forward only udp, use `start_udptunnel`.
 
+        autoreconnect: automatically reconnects when tunnel failes. It happens silently. So, to detect reconnection, one need to override the event handler.
+
         eventclass: event handler class. Object would be created for the tunnel.
     """
 
@@ -1203,6 +1206,11 @@ def start_tunnel(
     tun.type                    = type
     tun.token                   = token
     tun.force                   = force
+    try:
+        tun.auto_reconnect      = autoreconnect
+        #auto reconnection may not present in the library
+    except:
+        pass
 
     if bool(udpforwardto):
         tun.udp_forward_to = udpforwardto
@@ -1238,6 +1246,7 @@ def start_udptunnel(
         ipwhitelist: list[str]|str|None = None,
         webdebuggerport: int = 4300,
         serveraddress: str = "a.pinggy.io:443",
+        autoreconnect: bool = False,
         eventclass = BaseTunnelHandler
 ):
     """
@@ -1256,6 +1265,8 @@ def start_udptunnel(
 
         serveraddress: User can set the server address to which pinggy would connect. Default: `a.pinggy.io:443`.
 
+        autoreconnect: automatically reconnects when tunnel failes. It happens silently. So, to detect reconnection, one need to override the event handler.
+
         eventclass: event handler class. Object would be created for the tunnel.
     """
 
@@ -1268,6 +1279,11 @@ def start_udptunnel(
     tun.type                    = "udp"
     tun.token                   = token
     tun.force                   = force
+    try:
+        tun.auto_reconnect      = autoreconnect
+        #auto reconnection may not present in the library
+    except:
+        pass
 
     if ipwhitelist is not None:
         tun.ipwhitelist = ipwhitelist
