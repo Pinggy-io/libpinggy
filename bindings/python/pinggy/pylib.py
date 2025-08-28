@@ -17,9 +17,6 @@ except pinggyexception.PinggyNativeLoaderError as e:
             pass
         def __getattr__(self, name):
                 raise self.loading_exception
-            # ImportError(
-            #         f"Could not import 'core'. Attempted to call '{name}' with args={args}, kwargs={kwargs}."
-            #     )
 
         def __call__(self, *args, **kwargs):
             raise self.loading_exception
@@ -633,7 +630,6 @@ class Tunnel:
         # print(f"AuthenticatedFunc: Reference: {ref}")
 
     def __func_authenticated(self, userdata, ref):
-        print("Authenticated: ")
         self.__authenticated = True
         self.__continue_polling = False
         self.__eventHandler.authenticated()
@@ -646,7 +642,6 @@ class Tunnel:
         # print(f"AuthenticationFailedFunc: Reference: {ref} {l} {arr} {core._getStringArray(l, arr)}")
 
     def __func_primary_forwarding_succeeded(self, userdata, ref, l, arr):
-        print("primary_forwarding_done: ")
         self.tunnel_statup_messages = core._getStringArray(l, arr)
         self.__continue_polling = False
         self.__tunnel_started = True
@@ -1075,9 +1070,6 @@ class Tunnel:
 
         if self.__xff:
             val.append("x:xff")
-
-        if self.__localservertls:
-            val.append
 
         if self.__httpsonly:
             val.append("x:https")
