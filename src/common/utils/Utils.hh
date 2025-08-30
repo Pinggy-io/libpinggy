@@ -132,7 +132,7 @@ operator<<(std::ostream& os, const std::vector<T>& vect)
   bool comma = false;
   for (auto ele : vect) {
       if (comma)
-        os << ",";
+        os << ", ";
       comma = true;
       os << ele;
   }
@@ -148,9 +148,9 @@ operator<<(std::ostream& os, const std::map<K, V>& map)
   bool comma = false;
   for (auto ele : map) {
       if (comma)
-        os << ",";
+        os << ", ";
       comma = true;
-      os << ele.first << ":" << ele.second;
+      os << ele.first << ": " << ele.second;
   }
   os << "}";
   return os;

@@ -781,7 +781,7 @@ Sdk::ChannelDataReceived(protocol::ChannelPtr channel)
         auto [len, data] = usageChannel->Recv(4096);
         if (len > 0) {
             if (eventHandler && usagesRunning) {
-                auto lastUsagesUpdate = data->ToString();
+                lastUsagesUpdate = data->ToString();
                 eventHandler->OnUsageUpdate(lastUsagesUpdate);
             }
         }
@@ -882,7 +882,7 @@ Sdk::authenticate()
 
     state = SdkState_Authenticating;
 
-    session->AuthenticateAsClient(sdkConfig->getUser(), sdkConfig->Argument, sdkConfig->AdvancedParsing);
+    session->AuthenticateAsClient(sdkConfig->getUser(), sdkConfig->GetArguments(), sdkConfig->AdvancedParsing);
     LOGT("Authentication sent");
 }
 
@@ -1120,66 +1120,6 @@ Sdk::setupLocalChannelNGetData(port_t port, tString tag)
     channel->SetUserTag(tag);
     channel->RegisterEventHandler(thisPtr);
     channel->Connect();
-}
-
-//===============================================
-//===============================================
-//===============================================
-
-SDKConfig::SDKConfig():
-    Force(false),
-    AdvancedParsing(true),
-    Ssl(true),
-    SniServerName("a.pinggy.io"),
-    Insecure(false),
-    AutoReconnect(false)
-{
-}
-
-void
-SDKConfig::validate()
-{
-    if (!ServerAddress) {
-        ServerAddress = NewUrlPtr("a.pinggy.ip:443");
-    }
-
-    if (TcpForwardTo && Mode == "") {
-        Mode = "http";
-    }
-
-    if (UdpForwardTo && UdpMode == "") {
-        UdpMode = "udp";
-    }
-
-    if (Mode != "http" && Mode != "tcp" && Mode != "tls" && Mode != "tlstcp")
-        Mode = "";
-    if (UdpMode != "udp")
-        UdpMode = "";
-    if (Mode.empty() && UdpMode.empty())
-        Mode = "http";
-}
-
-tString
-SDKConfig::getUser()
-{
-    tString user = "";
-    if (!Token.empty()) {
-        user += "+" + Token;
-    }
-
-    if (!Mode.empty()) {
-        user += "+" + Mode;
-    }
-
-    if (!UdpMode.empty()) {
-        user += "+" + UdpMode;
-    }
-
-    if (Force) {
-        user += "+force";
-    }
-
-    return user.substr(1);
 }
 
 

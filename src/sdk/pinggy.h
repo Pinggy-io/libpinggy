@@ -130,6 +130,7 @@ typedef const         pinggy_bool_t pinggy_const_bool_t;
 typedef int           pinggy_int_t;
 typedef int16_t       pinggy_len_t;
 typedef uint32_t      pinggy_capa_t;
+typedef uint32_t     *pinggy_capa_p_t;
 typedef uint32_t      pinggy_uint32_t;
 typedef uint16_t      pinggy_uint16_t;
 typedef int32_t       pinggy_raw_len_t;
@@ -365,6 +366,109 @@ pinggy_config_set_sni_server_name(pinggy_ref_t config, pinggy_char_p_t sni_serve
 PINGGY_EXPORT pinggy_void_t
 pinggy_config_set_insecure(pinggy_ref_t config, pinggy_bool_t insecure);
 
+//====
+
+/**
+ * @brief
+ * @param config  reference to tunnel config
+ * @param header_manipulations json array of header modifications. https://github.com/Pinggy-io/Wiki/blob/f8fe49883a5277a43e7606618bccd2a04d8ac0dc/TunnelConfigSpec/README.md?plain=1#L58
+ * @return
+ */
+PINGGY_EXPORT pinggy_void_t
+pinggy_config_set_header_manipulations(pinggy_ref_t config, pinggy_const_char_p_t header_manipulations);
+
+/**
+ * @brief
+ * @param config  reference to tunnel config
+ * @param basic_auths json array of basic authentications. https://github.com/Pinggy-io/Wiki/blob/f8fe49883a5277a43e7606618bccd2a04d8ac0dc/TunnelConfigSpec/README.md?plain=1#L51
+ * @return
+ */
+PINGGY_EXPORT pinggy_void_t
+pinggy_config_set_basic_auths(pinggy_ref_t config, pinggy_const_char_p_t basic_auths);
+
+/**
+ * @brief
+ * @param config  reference to tunnel config
+ * @param bearer_token_auths Json array of strings. https://github.com/Pinggy-io/Wiki/blob/f8fe49883a5277a43e7606618bccd2a04d8ac0dc/TunnelConfigSpec/README.md?plain=1#L55
+ * @return
+ */
+PINGGY_EXPORT pinggy_void_t
+pinggy_config_set_bearer_token_auths(pinggy_ref_t config, pinggy_const_char_p_t bearer_token_auths);
+
+/**
+ * @brief
+ * @param config  reference to tunnel config
+ * @param ip_white_list json array of strings. https://github.com/Pinggy-io/Wiki/blob/f8fe49883a5277a43e7606618bccd2a04d8ac0dc/TunnelConfigSpec/README.md?plain=1#L48
+ * @return
+ */
+PINGGY_EXPORT pinggy_void_t
+pinggy_config_set_ip_white_list(pinggy_ref_t config, pinggy_const_char_p_t ip_white_list);
+
+/**
+ * @brief
+ * @param config  reference to tunnel config
+ * @param reverse_proxy
+ * @return
+ */
+PINGGY_EXPORT pinggy_void_t
+pinggy_config_set_reverse_proxy(pinggy_ref_t config, pinggy_bool_t reverse_proxy);
+
+/**
+ * @brief
+ * @param config  reference to tunnel config
+ * @param x_forwarder_for
+ * @return
+ */
+PINGGY_EXPORT pinggy_void_t
+pinggy_config_set_x_forwarder_for(pinggy_ref_t config, pinggy_bool_t x_forwarder_for);
+
+/**
+ * @brief
+ * @param config  reference to tunnel config
+ * @param https_only
+ * @return
+ */
+PINGGY_EXPORT pinggy_void_t
+pinggy_config_set_https_only(pinggy_ref_t config, pinggy_bool_t https_only);
+
+/**
+ * @brief
+ * @param config  reference to tunnel config
+ * @param original_request_url
+ * @return
+ */
+PINGGY_EXPORT pinggy_void_t
+pinggy_config_set_original_request_url(pinggy_ref_t config, pinggy_bool_t original_request_url);
+
+/**
+ * @brief
+ * @param config  reference to tunnel config
+ * @param allow_preflight
+ * @return
+ */
+PINGGY_EXPORT pinggy_void_t
+pinggy_config_set_allow_preflight(pinggy_ref_t config, pinggy_bool_t allow_preflight);
+
+/**
+ * @brief
+ * @param config  reference to tunnel config
+ * @param no_reverse_proxy
+ * @return
+ */
+PINGGY_EXPORT pinggy_void_t
+pinggy_config_set_no_reverse_proxy(pinggy_ref_t config, pinggy_bool_t no_reverse_proxy);
+
+/**
+ * @brief
+ * @param config  reference to tunnel config
+ * @param local_server_tls
+ * @return
+ */
+PINGGY_EXPORT pinggy_void_t
+pinggy_config_set_local_server_tls(pinggy_ref_t config, pinggy_const_char_p_t local_server_tls);
+
+//==============================
+
 /**
  * @brief Get the current server address configured in the config
  * @param config  reference to tunnel config
@@ -374,6 +478,17 @@ pinggy_config_set_insecure(pinggy_ref_t config, pinggy_bool_t insecure);
  */
 PINGGY_EXPORT pinggy_const_int_t
 pinggy_config_get_server_address(pinggy_ref_t config, pinggy_capa_t buffer_len, pinggy_char_p_t buffer);
+
+/**
+ * @brief Get the current server address configured in the config
+ * @param config  reference to tunnel config
+ * @param buffer_len  lenth of the buffer where server address would be copied.
+ * @param buffer  pointer to a character array
+ * @param max_len pointer to variable to store the maximum len required to get entire data
+ * @return lenth of server address copied to the buffer
+ */
+PINGGY_EXPORT pinggy_const_int_t
+pinggy_config_get_server_address_len(pinggy_ref_t config, pinggy_capa_t buffer_len, pinggy_char_p_t buffer, pinggy_capa_p_t max_len);
 
 /**
  * @brief Get the current token configure in the config
@@ -386,6 +501,17 @@ PINGGY_EXPORT pinggy_const_int_t
 pinggy_config_get_token(pinggy_ref_t config, pinggy_capa_t buffer_len, pinggy_char_p_t buffer);
 
 /**
+ * @brief Get the current token configure in the config
+ * @param config  reference to tunnel config
+ * @param buffer_len  lenth of the buffer where token would be copied.
+ * @param buffer  pointer to a character array
+ * @param max_len pointer to variable to store the maximum len required to get entire data
+ * @return lenth of token copied to the buffer
+ */
+PINGGY_EXPORT pinggy_const_int_t
+pinggy_config_get_token_len(pinggy_ref_t config, pinggy_capa_t buffer_len, pinggy_char_p_t buffer, pinggy_capa_p_t max_len);
+
+/**
  * @brief Get the current tcp tunnel type
  * @param config  reference to tunnel config
  * @param buffer_len  lenth of the buffer where type would be copied.
@@ -394,6 +520,17 @@ pinggy_config_get_token(pinggy_ref_t config, pinggy_capa_t buffer_len, pinggy_ch
  */
 PINGGY_EXPORT pinggy_const_int_t
 pinggy_config_get_type(pinggy_ref_t config, pinggy_capa_t buffer_len, pinggy_char_p_t buffer);
+
+/**
+ * @brief Get the current tcp tunnel type
+ * @param config  reference to tunnel config
+ * @param buffer_len  lenth of the buffer where type would be copied.
+ * @param buffer  pointer to a character array
+ * @param max_len pointer to variable to store the maximum len required to get entire data
+ * @return lenth of type copied to the buffer
+ */
+PINGGY_EXPORT pinggy_const_int_t
+pinggy_config_get_type_len(pinggy_ref_t config, pinggy_capa_t buffer_len, pinggy_char_p_t buffer, pinggy_capa_p_t max_len);
 
 /**
  * @brief Get the current udp tunnel type
@@ -406,6 +543,17 @@ PINGGY_EXPORT pinggy_const_int_t
 pinggy_config_get_udp_type(pinggy_ref_t config, pinggy_capa_t buffer_len, pinggy_char_p_t buffer);
 
 /**
+ * @brief Get the current udp tunnel type
+ * @param config  reference to tunnel config
+ * @param buffer_len  lenth of the buffer where udp_type would be copied.
+ * @param buffer  pointer to a character array
+ * @param max_len pointer to variable to store the maximum len required to get entire data
+ * @return lenth of udp_type copied to the buffer
+ */
+PINGGY_EXPORT pinggy_const_int_t
+pinggy_config_get_udp_type_len(pinggy_ref_t config, pinggy_capa_t buffer_len, pinggy_char_p_t buffer, pinggy_capa_p_t max_len);
+
+/**
  * @brief Get the current tcp forwarding address
  * @param config  reference to tunnel config
  * @param buffer_len  lenth of the buffer where forwarding address would be copied.
@@ -416,6 +564,17 @@ PINGGY_EXPORT pinggy_const_int_t
 pinggy_config_get_tcp_forward_to(pinggy_ref_t config, pinggy_capa_t buffer_len, pinggy_char_p_t buffer);
 
 /**
+ * @brief Get the current tcp forwarding address
+ * @param config  reference to tunnel config
+ * @param buffer_len  lenth of the buffer where forwarding address would be copied.
+ * @param buffer  pointer to a character array
+ * @param max_len pointer to variable to store the maximum len required to get entire data
+ * @return lenth of forwarding address copied to the buffer
+ */
+PINGGY_EXPORT pinggy_const_int_t
+pinggy_config_get_tcp_forward_to_len(pinggy_ref_t config, pinggy_capa_t buffer_len, pinggy_char_p_t buffer, pinggy_capa_p_t max_len);
+
+/**
  * @brief Get the current udp forwarding address
  * @param config  reference to tunnel config
  * @param buffer_len  lenth of the buffer where forwarding address would be copied.
@@ -424,6 +583,17 @@ pinggy_config_get_tcp_forward_to(pinggy_ref_t config, pinggy_capa_t buffer_len, 
  */
 PINGGY_EXPORT pinggy_const_int_t
 pinggy_config_get_udp_forward_to(pinggy_ref_t config, pinggy_capa_t buffer_len, pinggy_char_p_t buffer);
+
+/**
+ * @brief Get the current udp forwarding address
+ * @param config  reference to tunnel config
+ * @param buffer_len  lenth of the buffer where forwarding address would be copied.
+ * @param buffer  pointer to a character array
+ * @param max_len pointer to variable to store the maximum len required to get entire data
+ * @return lenth of forwarding address copied to the buffer
+ */
+PINGGY_EXPORT pinggy_const_int_t
+pinggy_config_get_udp_forward_to_len(pinggy_ref_t config, pinggy_capa_t buffer_len, pinggy_char_p_t buffer, pinggy_capa_p_t max_len);
 
 /**
  * @brief Get whether force is enabled or not
@@ -442,6 +612,17 @@ pinggy_config_get_force(pinggy_ref_t config);
  */
 PINGGY_EXPORT pinggy_const_int_t
 pinggy_config_get_argument(pinggy_ref_t config, pinggy_capa_t buffer_len, pinggy_char_p_t buffer);
+
+/**
+ * @brief Get the current arguments
+ * @param config  reference to tunnel config
+ * @param buffer_len  lenth of the buffer where arguments would be copied.
+ * @param buffer  pointer to a character array
+ * @param max_len pointer to variable to store the maximum len required to get entire data
+ * @return lenth of arguments copied to the buffer
+ */
+PINGGY_EXPORT pinggy_const_int_t
+pinggy_config_get_argument_len(pinggy_ref_t config, pinggy_capa_t buffer_len, pinggy_char_p_t buffer, pinggy_capa_p_t max_len);
 
 /**
  * @brief Get whether advanced parsing is enabled or not
@@ -478,12 +659,178 @@ PINGGY_EXPORT pinggy_const_int_t
 pinggy_config_get_sni_server_name(pinggy_ref_t config, pinggy_capa_t buffer_len, pinggy_char_p_t buffer);
 
 /**
+ * @brief Get the current sni server name
+ * @param config  reference to tunnel config
+ * @param buffer_len  lenth of the buffer where sni server name would be copied.
+ * @param buffer  pointer to a character array
+ * @param max_len pointer to variable to store the maximum len required to get entire data
+ * @return lenth of sni server name copied to the buffer
+ */
+PINGGY_EXPORT pinggy_const_int_t
+pinggy_config_get_sni_server_name_len(pinggy_ref_t config, pinggy_capa_t buffer_len, pinggy_char_p_t buffer, pinggy_capa_p_t max_len);
+
+/**
  * @brief Get whether insecure ssl is enabled or not
  * @param config  reference to tunnel config
  * @return return whether insecure ssl is enabled or not
  */
 PINGGY_EXPORT pinggy_const_bool_t
 pinggy_config_get_insecure(pinggy_ref_t config);
+
+//========
+
+/**
+ * @brief
+ * @param config  reference to tunnel config
+ * @param buffer_len  lenth of the buffer where `header_manipulations` would be copied.
+ * @param buffer  pointer to a character array
+ * @return lenth of `header_manipulations` copied to the buffer
+ */
+PINGGY_EXPORT pinggy_const_int_t
+pinggy_config_get_header_manipulations(pinggy_ref_t config, pinggy_capa_t buffer_len, pinggy_char_p_t buffer);
+
+/**
+ * @brief
+ * @param config  reference to tunnel config
+ * @param buffer_len  lenth of the buffer where `header_manipulations` would be copied.
+ * @param buffer  pointer to a character array
+ * @param max_len pointer to variable to store the maximum len required to get entire data
+ * @return lenth of `header_manipulations` copied to the buffer
+ */
+PINGGY_EXPORT pinggy_const_int_t
+pinggy_config_get_header_manipulations_len(pinggy_ref_t config, pinggy_capa_t buffer_len, pinggy_char_p_t buffer, pinggy_capa_p_t max_len);
+
+/**
+ * @brief
+ * @param config  reference to tunnel config
+ * @param buffer_len  lenth of the buffer where `basic_auths` would be copied.
+ * @param buffer  pointer to a character array
+ * @return lenth of `basic_auths` copied to the buffer
+ */
+PINGGY_EXPORT pinggy_const_int_t
+pinggy_config_get_basic_auths(pinggy_ref_t config, pinggy_capa_t buffer_len, pinggy_char_p_t buffer);
+
+/**
+ * @brief
+ * @param config  reference to tunnel config
+ * @param buffer_len  lenth of the buffer where `basic_auths` would be copied.
+ * @param buffer  pointer to a character array
+ * @param max_len pointer to variable to store the maximum len required to get entire data
+ * @return lenth of `basic_auths` copied to the buffer
+ */
+PINGGY_EXPORT pinggy_const_int_t
+pinggy_config_get_basic_auths_len(pinggy_ref_t config, pinggy_capa_t buffer_len, pinggy_char_p_t buffer, pinggy_capa_p_t max_len);
+
+/**
+ * @brief
+ * @param config  reference to tunnel config
+ * @param buffer_len  lenth of the buffer where `bearer_token_auths` would be copied.
+ * @param buffer  pointer to a character array
+ * @return lenth of `bearer_token_auths` copied to the buffer
+ */
+PINGGY_EXPORT pinggy_const_int_t
+pinggy_config_get_bearer_token_auths(pinggy_ref_t config, pinggy_capa_t buffer_len, pinggy_char_p_t buffer);
+
+/**
+ * @brief
+ * @param config  reference to tunnel config
+ * @param buffer_len  lenth of the buffer where `bearer_token_auths` would be copied.
+ * @param buffer  pointer to a character array
+ * @param max_len pointer to variable to store the maximum len required to get entire data
+ * @return lenth of `bearer_token_auths` copied to the buffer
+ */
+PINGGY_EXPORT pinggy_const_int_t
+pinggy_config_get_bearer_token_auths_len(pinggy_ref_t config, pinggy_capa_t buffer_len, pinggy_char_p_t buffer, pinggy_capa_p_t max_len);
+
+/**
+ * @brief
+ * @param config  reference to tunnel config
+ * @param buffer_len  lenth of the buffer where `ip_white_list` would be copied.
+ * @param buffer  pointer to a character array
+ * @return lenth of `ip_white_list` copied to the buffer
+ */
+PINGGY_EXPORT pinggy_const_int_t
+pinggy_config_get_ip_white_list(pinggy_ref_t config, pinggy_capa_t buffer_len, pinggy_char_p_t buffer);
+
+/**
+ * @brief
+ * @param config  reference to tunnel config
+ * @param buffer_len  lenth of the buffer where `ip_white_list` would be copied.
+ * @param buffer  pointer to a character array
+ * @param max_len pointer to variable to store the maximum len required to get entire data
+ * @return lenth of `ip_white_list` copied to the buffer
+ */
+PINGGY_EXPORT pinggy_const_int_t
+pinggy_config_get_ip_white_list_len(pinggy_ref_t config, pinggy_capa_t buffer_len, pinggy_char_p_t buffer, pinggy_capa_p_t max_len);
+
+/**
+ * @brief
+ * @param config  reference to tunnel config
+ * @return reverse_proxy
+ */
+PINGGY_EXPORT pinggy_bool_t
+pinggy_config_get_reverse_proxy(pinggy_ref_t config);
+
+/**
+ * @brief
+ * @param config  reference to tunnel config
+ * @return x_forwarder_for
+ */
+PINGGY_EXPORT pinggy_bool_t
+pinggy_config_get_x_forwarder_for(pinggy_ref_t config);
+
+/**
+ * @brief
+ * @param config  reference to tunnel config
+ * @return https_only
+ */
+PINGGY_EXPORT pinggy_bool_t
+pinggy_config_get_https_only(pinggy_ref_t config);
+
+/**
+ * @brief
+ * @param config  reference to tunnel config
+ * @return original_request_url
+ */
+PINGGY_EXPORT pinggy_bool_t
+pinggy_config_get_original_request_url(pinggy_ref_t config);
+
+/**
+ * @brief
+ * @param config  reference to tunnel config
+ * @return allow_preflight
+ */
+PINGGY_EXPORT pinggy_bool_t
+pinggy_config_get_allow_preflight(pinggy_ref_t config);
+
+/**
+ * @brief
+ * @param config  reference to tunnel config
+ * @return no_reverse_proxy
+ */
+PINGGY_EXPORT pinggy_bool_t
+pinggy_config_get_no_reverse_proxy(pinggy_ref_t config);
+
+/**
+ * @brief
+ * @param config  reference to tunnel config
+ * @param buffer_len  lenth of the buffer where `local_server_tls` would be copied.
+ * @param buffer  pointer to a character array
+ * @return lenth of `local_server_tls` copied to the buffer
+ */
+PINGGY_EXPORT pinggy_const_int_t
+pinggy_config_get_local_server_tls(pinggy_ref_t config, pinggy_capa_t buffer_len, pinggy_char_p_t buffer);
+
+/**
+ * @brief
+ * @param config  reference to tunnel config
+ * @param buffer_len  lenth of the buffer where `local_server_tls` would be copied.
+ * @param buffer  pointer to a character array
+ * @param max_len pointer to variable to store the maximum len required to get entire data
+ * @return lenth of `local_server_tls` copied to the buffer
+ */
+PINGGY_EXPORT pinggy_const_int_t
+pinggy_config_get_local_server_tls_len(pinggy_ref_t config, pinggy_capa_t buffer_len, pinggy_char_p_t buffer, pinggy_capa_p_t max_len);
 
 //====================================
 
@@ -605,15 +952,29 @@ pinggy_tunnel_stop_usage_update(pinggy_ref_t tunnel);
  * @brief Get current usages in json.
  * @param tunnel
  */
-PINGGY_EXPORT pinggy_const_char_p_t
-pinggy_tunnel_get_current_usages(pinggy_ref_t tunnel);
+PINGGY_EXPORT pinggy_const_int_t
+pinggy_tunnel_get_current_usages(pinggy_ref_t tunnel, pinggy_capa_t capa, pinggy_char_p_t val);
+
+/**
+ * @brief Get current usages in json.
+ * @param tunnel
+ */
+PINGGY_EXPORT pinggy_const_int_t
+pinggy_tunnel_get_current_usages_len(pinggy_ref_t tunnel, pinggy_capa_t capa, pinggy_char_p_t val, pinggy_capa_p_t max_len);
 
 /**
  * @brief Get greeting messages in json.
  * @param tunnel
  */
-PINGGY_EXPORT pinggy_const_char_p_t
-pinggy_tunnel_get_greeting_msgs(pinggy_ref_t tunnel);
+PINGGY_EXPORT pinggy_const_int_t
+pinggy_tunnel_get_greeting_msgs(pinggy_ref_t tunnel, pinggy_capa_t capa, pinggy_char_p_t val);
+
+/**
+ * @brief Get greeting messages in json.
+ * @param tunnel
+ */
+PINGGY_EXPORT pinggy_const_int_t
+pinggy_tunnel_get_greeting_msgs_len(pinggy_ref_t tunnel, pinggy_capa_t capa, pinggy_char_p_t val, pinggy_capa_p_t max_len);
 
 
 
@@ -920,6 +1281,17 @@ PINGGY_EXPORT pinggy_const_int_t
 pinggy_tunnel_channel_get_dest_host(pinggy_ref_t channel, pinggy_capa_t buffer_len, pinggy_char_p_t buffer);
 
 /**
+ * @brief Get connect to host i.e. local server hostname
+ * @param channel
+ * @param buffer_len
+ * @param buffer
+ * @param max_len
+ * @return
+ */
+PINGGY_EXPORT pinggy_const_int_t
+pinggy_tunnel_channel_get_dest_host_len(pinggy_ref_t channel, pinggy_capa_t buffer_len, pinggy_char_p_t buffer, pinggy_capa_p_t max_len);
+
+/**
  * @brief Get the source port.
  * @param channel
  * @return
@@ -937,6 +1309,17 @@ pinggy_tunnel_channel_get_src_port(pinggy_ref_t channel);
 PINGGY_EXPORT pinggy_const_int_t
 pinggy_tunnel_channel_get_src_host(pinggy_ref_t channel, pinggy_capa_t buffer_len, pinggy_char_p_t buffer);
 
+/**
+ * @brief Get source address
+ * @param channel
+ * @param buffer_len
+ * @param buffer
+ * @param max_len
+ * @return
+ */
+PINGGY_EXPORT pinggy_const_int_t
+pinggy_tunnel_channel_get_src_host_len(pinggy_ref_t channel, pinggy_capa_t buffer_len, pinggy_char_p_t buffer, pinggy_capa_p_t max_len);
+
 //========================================
 //==============================================================
 
@@ -950,6 +1333,16 @@ PINGGY_EXPORT pinggy_const_int_t
 pinggy_version(pinggy_capa_t capa, pinggy_char_p_t val);
 
 /**
+ * @brief Get pinggy library version. The library gets this information from the latest tag.
+ * @param capa capacity of provided pointer (`val`)
+ * @param val  pointer to char buffer where version would be copied.
+ * @param max_len pointer to variable to store the maximum len required to get entire data
+ * @return number of bytes copied to the buffer
+ */
+PINGGY_EXPORT pinggy_const_int_t
+pinggy_version_len(pinggy_capa_t capa, pinggy_char_p_t val, pinggy_capa_p_t max_len);
+
+/**
  * @brief Get the exact commit id for the source during build time.
  * @param capa capacity of provided pointer (`val`)
  * @param val  pointer to char buffer where commit id would be copied.
@@ -957,6 +1350,16 @@ pinggy_version(pinggy_capa_t capa, pinggy_char_p_t val);
  */
 PINGGY_EXPORT pinggy_const_int_t
 pinggy_git_commit(pinggy_capa_t capa, pinggy_char_p_t val);
+
+/**
+ * @brief Get the exact commit id for the source during build time.
+ * @param capa capacity of provided pointer (`val`)
+ * @param val  pointer to char buffer where version would be copied.
+ * @param max_len pointer to variable to store the maximum len required to get entire data
+ * @return number of bytes copied to the buffer
+ */
+PINGGY_EXPORT pinggy_const_int_t
+pinggy_git_commit_len(pinggy_capa_t capa, pinggy_char_p_t val, pinggy_capa_p_t max_len);
 
 /**
  * @brief Get the timestamp when this library was build.
@@ -968,6 +1371,16 @@ PINGGY_EXPORT pinggy_const_int_t
 pinggy_build_timestamp(pinggy_capa_t capa, pinggy_char_p_t val);
 
 /**
+ * @brief Get the timestamp when this library was build.
+ * @param capa capacity of provided pointer (`val`)
+ * @param val  pointer to char buffer where version would be copied.
+ * @param max_len pointer to variable to store the maximum len required to get entire data
+ * @return number of bytes copied to the buffer
+ */
+PINGGY_EXPORT pinggy_const_int_t
+pinggy_build_timestamp_len(pinggy_capa_t capa, pinggy_char_p_t val, pinggy_capa_p_t max_len);
+
+/**
  * @brief Get the libc version. This data can be incorrect or incomplete. Kindly allocate generous amount of buffer as this can be as very large.
  * @param capa capacity of provided pointer (`val`)
  * @param val  pointer to char buffer where libc version would be copied.
@@ -977,6 +1390,16 @@ PINGGY_EXPORT pinggy_const_int_t
 pinggy_libc_version(pinggy_capa_t capa, pinggy_char_p_t val);
 
 /**
+ * @brief Get the libc version. This data can be incorrect or incomplete. Kindly allocate generous amount of buffer as this can be as very large.
+ * @param capa capacity of provided pointer (`val`)
+ * @param val  pointer to char buffer where version would be copied.
+ * @param max_len pointer to variable to store the maximum len required to get entire data
+ * @return number of bytes copied to the buffer
+ */
+PINGGY_EXPORT pinggy_const_int_t
+pinggy_libc_version_len(pinggy_capa_t capa, pinggy_char_p_t val, pinggy_capa_p_t max_len);
+
+/**
  * @brief Get the os information of the build system.
  * @param capa capacity of provided pointer (`val`)
  * @param val  pointer to char buffer where os information would be copied.
@@ -984,6 +1407,16 @@ pinggy_libc_version(pinggy_capa_t capa, pinggy_char_p_t val);
  */
 PINGGY_EXPORT pinggy_const_int_t
 pinggy_build_os(pinggy_capa_t capa, pinggy_char_p_t val);
+
+/**
+ * @brief Get the os information of the build system.
+ * @param capa capacity of provided pointer (`val`)
+ * @param val  pointer to char buffer where version would be copied.
+ * @param max_len pointer to variable to store the maximum len required to get entire data
+ * @return number of bytes copied to the buffer
+ */
+PINGGY_EXPORT pinggy_const_int_t
+pinggy_build_os_len(pinggy_capa_t capa, pinggy_char_p_t val, pinggy_capa_p_t max_len);
 //==============================================================
 
 //==========================================

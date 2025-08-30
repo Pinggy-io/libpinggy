@@ -24,6 +24,7 @@
 #include <thread>
 #include <utils/Semaphore.hh>
 #include "SdkChannelWraper.hh"
+#include "SdkConfig.hh"
 
 namespace sdk
 {
@@ -45,62 +46,6 @@ enum SdkState {
     SdkState_PrimaryReverseForwardingInitiated,
     SdkState_PrimaryReverseForwardingSucceeded,
 };
-
-struct SDKConfig: virtual public pinggy::SharedObject
-{
-    SDKConfig();
-
-    //The token and any other parameters as well.
-    tString                     Token;
-
-    //The tcp tunnel type tcp, tls, tlstcp or http
-    tString                     Mode;
-
-    //The udp tunnel type i.e. udp
-    tString                     UdpMode;
-
-    //sshOverSsl does not exists here as it use ssl only, no ssh
-
-    // Pinggy server address. It is supposed to be a.pinggy.io or regional server as well.
-    UrlPtr                      ServerAddress;
-
-    //this TcpForwarding address
-    UrlPtr                      TcpForwardTo;
-
-    //this UdpForwarding address
-    UrlPtr                      UdpForwardTo;
-
-    //force login. It add `force` as user name
-    bool                        Force;
-
-    //rest of the arguments that we passed to ssh
-    tString                     Argument;
-
-    //Whether if we want to run advancedparsing for http.
-    // disabling this would disable webdebugger as well.
-    bool                        AdvancedParsing;
-
-    //Enable it if you wants to connect with server using
-    // encrypted ssl channel or not. Most of the production
-    // production server does not support plaintext connection.
-    // enable it all the times.
-    bool                        Ssl;
-
-    //this needs to set to a.pinggy.io. Some test server may
-    // accept values different than a.pinggy.io.
-    tString                     SniServerName;
-
-    bool                        Insecure;
-
-    bool                        AutoReconnect;
-
-private:
-    friend class Sdk;
-
-    void                        validate();
-    tString                     getUser();
-};
-DefineMakeSharedPtr(SDKConfig);
 
 abstract class SdkEventHandler: virtual public pinggy::SharedObject
 {

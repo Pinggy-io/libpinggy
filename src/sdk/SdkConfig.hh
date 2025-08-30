@@ -1,0 +1,192 @@
+/*
+ * Copyright (C) 2025 PINGGY TECHNOLOGY PRIVATE LIMITED
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#ifndef __SRC_CPP_PUBLIC_SDK_SDKCONFIG_HH__
+#define __SRC_CPP_PUBLIC_SDK_SDKCONFIG_HH__
+
+#include <utils/Utils.hh>
+#include <vector>
+
+namespace sdk
+{
+
+class Sdk;
+
+struct SDKConfig: virtual public pinggy::SharedObject
+{
+    SDKConfig();
+
+    //The token and any other parameters as well.
+    tString                     Token;
+
+    //The tcp tunnel type tcp, tls, tlstcp or http
+    tString                     Mode;
+
+    //The udp tunnel type i.e. udp
+    tString                     UdpMode;
+
+    //sshOverSsl does not exists here as it use ssl only, no ssh
+
+    // Pinggy server address. It is supposed to be a.pinggy.io or regional server as well.
+    UrlPtr                      ServerAddress;
+
+    //this TcpForwarding address
+    UrlPtr                      TcpForwardTo;
+
+    //this UdpForwarding address
+    UrlPtr                      UdpForwardTo;
+
+    //force login. It add `force` as user name
+    bool                        Force;
+
+    //Whether if we want to run advancedparsing for http.
+    // disabling this would disable webdebugger as well.
+    bool                        AdvancedParsing;
+
+    //Enable it if you wants to connect with server using
+    // encrypted ssl channel or not. Most of the production
+    // production server does not support plaintext connection.
+    // enable it all the times.
+    bool                        Ssl;
+
+    //this needs to set to a.pinggy.io. Some test server may
+    // accept values different than a.pinggy.io.
+    tString                     SniServerName;
+
+    bool                        Insecure;
+
+    bool                        AutoReconnect;
+
+
+    const tString &
+    GetHeaderManipulations()
+                                { return headerManipulations; }
+
+    const tString &
+    GetBasicAuths()
+                                { return basicAuths; }
+
+    const tString &
+    GetBearerTokenAuths()
+                                { return bearerTokenAuths; }
+
+    const tString &
+    GetIpWhiteList()
+                                { return ipWhiteList; }
+
+    bool
+    IsReverseProxy()
+                                { return reverseProxy; }
+
+    bool
+    IsXForwarderFor()
+                                { return xForwarderFor; }
+
+    bool
+    IsHttpsOnly()
+                                { return httpsOnly; }
+
+    bool
+    IsOriginalRequestUrl()
+                                { return originalRequestUrl; }
+
+    bool
+    IsAllowPreflight()
+                                { return allowPreflight; }
+
+    bool
+    IsNoReverseProxy()
+                                { return !reverseProxy; }
+
+    const tString &
+    GetLocalServerTls()
+                                { return localServerTls; }
+
+    void SetHeaderManipulations(tString val)
+                                { headerManipulations = val; }
+
+    void SetBasicAuths(tString val)
+                                { basicAuths = val; }
+
+    void SetBearerTokenAuths(tString val)
+                                { bearerTokenAuths = val; }
+
+    void SetIpWhiteList(tString val)
+                                { ipWhiteList = val; }
+
+    void SetReverseProxy(bool val)
+                                { reverseProxy = val; }
+
+    void SetXForwarderFor(bool val)
+                                { xForwarderFor = val; }
+
+    void SetHttpsOnly(bool val)
+                                { httpsOnly = val; }
+
+    void SetOriginalRequestUrl(bool val)
+                                { originalRequestUrl = val; }
+
+    void SetAllowPreflight(bool val)
+                                { allowPreflight = val; }
+
+    void SetNoReverseProxy(bool val)
+                                { reverseProxy = !val; }
+
+    void SetLocalServerTls(tString val)
+                                { localServerTls = val; }
+
+    //===================
+
+    void
+    SetArguments(tString args);
+
+    const tString &
+    GetArguments();
+
+private:
+    friend class Sdk;
+
+
+    //Other argument options
+    tString                     headerManipulations;
+    tString                     basicAuths;
+    tString                     bearerTokenAuths;
+    tString                     ipWhiteList;
+    bool                        reverseProxy;
+    bool                        xForwarderFor;
+    bool                        httpsOnly;
+    bool                        originalRequestUrl;
+    bool                        allowPreflight;
+    tString                     localServerTls;
+
+    //rest of the arguments that we passed to ssh
+    tString                     arguments;
+
+    void
+    validate();
+
+    tString
+    getUser();
+
+    void
+    resetArguments();
+};
+DefineMakeSharedPtr(SDKConfig);
+
+} // namespace sdk
+
+
+#endif // __SRC_CPP_PUBLIC_SDK_SDKCONFIG_HH__

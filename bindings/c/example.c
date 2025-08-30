@@ -72,6 +72,11 @@ main() {
     // pinggy_config_set_insecure(config, pinggy_true);
     pinggy_config_set_tcp_forward_to(config, "l:4000");
 
+    pinggy_config_set_basic_auths(config, "[['user1', 'pass1'], ['user2', 'pass two']]");
+    char str[1024];
+    pinggy_config_get_argument_len(config, 1024, str, NULL);
+    printf("aasd %s\n", str);
+
     struct Tunnel tunnel;
 
     tunnel.tunnelRef = pinggy_tunnel_initiate(config);

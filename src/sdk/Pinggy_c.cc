@@ -388,10 +388,24 @@ DefineMakeSharedPtr(ApiEventHandler);
 extern "C" {
 #endif //__cplusplus
 
-#define CopyStringToOutput(capa_, val_, str_) \
-    if (capa_ < (str_.length()+1) || str_.length() == 0) \
-        return 0; \
-    memcpy(val_, str_.c_str(), str_.length()+1);
+#define CopyStringToOutputLen(capa_, val_, str_, len_)                  \
+    do {                                                                \
+        try {                                                           \
+            auto str = str_;                                            \
+            if (len_) *len_ = str.length()+2;                           \
+            if (!val_) return 0;                                        \
+            if (capa_ < (str.length()+1) || str.length() == 0)          \
+                return 0;                                               \
+            memcpy(val_, str.c_str(), str.length()+1);                  \
+            return str.length()+1;                                      \
+        } catch (const std::exception &e) {                             \
+            if (exception_callback) {                                   \
+                exception_callback("CPP exception:", e.what());         \
+            } else {                                                    \
+                LOGE("No exception handler found");                     \
+            }                                                           \
+        }                                                               \
+    } while(0)
 
 static pinggy_on_raise_exception_cb_t exception_callback = NULL;
 
@@ -509,7 +523,7 @@ pinggy_config_set_argument(pinggy_ref_t ref, pinggy_char_p_t argument)
         LOGE("No sdkConf found for the ref:", ref);
         return;
     }
-    sdkConf->Argument = EmptyStringIfNull(argument);
+    sdkConf->SetArguments(EmptyStringIfNull(argument));
 }
 
 PINGGY_EXPORT pinggy_void_t
@@ -567,68 +581,255 @@ pinggy_config_set_insecure(pinggy_ref_t ref, pinggy_bool_t insecure)
     sdkConf->Insecure = insecure;
 }
 
-// #undef EmptyStringIfNull
+//======
 
-#define SdkConfigCopyStringToOutput(capa_, val_, str_) \
-    auto sdkConf = getSDKConfig(ref); \
-    if (!sdkConf) { \
-        LOGE("No sdkConf found for the ref:", ref); \
-        return 0; \
-    } \
-    if (capa_ < (sdkConf->str_.length()+1) || sdkConf->str_.length() == 0) \
-        return 0; \
-    memcpy(val_, sdkConf->str_.c_str(), sdkConf->str_.length()+1);\
-    return sdkConf->str_.length()
+PINGGY_EXPORT pinggy_void_t
+pinggy_config_set_header_manipulations(pinggy_ref_t ref, pinggy_const_char_p_t header_manipulations)
+{
+    auto sdkConf = getSDKConfig(ref);
+    if (!sdkConf) {
+        LOGE("No sdkConf found for the ref:", ref);
+        return;
+    }
+    sdkConf->SetHeaderManipulations(tString(header_manipulations));
+}
+
+PINGGY_EXPORT pinggy_void_t
+pinggy_config_set_basic_auths(pinggy_ref_t ref, pinggy_const_char_p_t basic_auths)
+{
+    auto sdkConf = getSDKConfig(ref);
+    if (!sdkConf) {
+        LOGE("No sdkConf found for the ref:", ref);
+        return;
+    }
+    sdkConf->SetBasicAuths(tString(basic_auths));
+}
+
+PINGGY_EXPORT pinggy_void_t
+pinggy_config_set_bearer_token_auths(pinggy_ref_t ref, pinggy_const_char_p_t bearer_token_auths)
+{
+    auto sdkConf = getSDKConfig(ref);
+    if (!sdkConf) {
+        LOGE("No sdkConf found for the ref:", ref);
+        return;
+    }
+    sdkConf->SetBearerTokenAuths(tString(bearer_token_auths));
+}
+
+PINGGY_EXPORT pinggy_void_t
+pinggy_config_set_ip_white_list(pinggy_ref_t ref, pinggy_const_char_p_t ip_white_list)
+{
+    auto sdkConf = getSDKConfig(ref);
+    if (!sdkConf) {
+        LOGE("No sdkConf found for the ref:", ref);
+        return;
+    }
+    sdkConf->SetIpWhiteList(tString(ip_white_list));
+}
+
+PINGGY_EXPORT pinggy_void_t
+pinggy_config_set_reverse_proxy(pinggy_ref_t ref, pinggy_bool_t reverse_proxy)
+{
+    auto sdkConf = getSDKConfig(ref);
+    if (!sdkConf) {
+        LOGE("No sdkConf found for the ref:", ref);
+        return;
+    }
+    sdkConf->SetReverseProxy(reverse_proxy == pinggy_true ? true : false);
+}
+
+PINGGY_EXPORT pinggy_void_t
+pinggy_config_set_x_forwarder_for(pinggy_ref_t ref, pinggy_bool_t x_forwarder_for)
+{
+    auto sdkConf = getSDKConfig(ref);
+    if (!sdkConf) {
+        LOGE("No sdkConf found for the ref:", ref);
+        return;
+    }
+    sdkConf->SetXForwarderFor(x_forwarder_for == pinggy_true ? true : false);
+}
+
+PINGGY_EXPORT pinggy_void_t
+pinggy_config_set_https_only(pinggy_ref_t ref, pinggy_bool_t https_only)
+{
+    auto sdkConf = getSDKConfig(ref);
+    if (!sdkConf) {
+        LOGE("No sdkConf found for the ref:", ref);
+        return;
+    }
+    sdkConf->SetHttpsOnly(https_only == pinggy_true ? true : false);
+}
+
+PINGGY_EXPORT pinggy_void_t
+pinggy_config_set_original_request_url(pinggy_ref_t ref, pinggy_bool_t original_request_url)
+{
+    auto sdkConf = getSDKConfig(ref);
+    if (!sdkConf) {
+        LOGE("No sdkConf found for the ref:", ref);
+        return;
+    }
+    sdkConf->SetOriginalRequestUrl(original_request_url == pinggy_true ? true : false);
+}
+
+PINGGY_EXPORT pinggy_void_t
+pinggy_config_set_allow_preflight(pinggy_ref_t ref, pinggy_bool_t allow_preflight)
+{
+    auto sdkConf = getSDKConfig(ref);
+    if (!sdkConf) {
+        LOGE("No sdkConf found for the ref:", ref);
+        return;
+    }
+    sdkConf->SetAllowPreflight(allow_preflight == pinggy_true ? true : false);
+}
+
+PINGGY_EXPORT pinggy_void_t
+pinggy_config_set_no_reverse_proxy(pinggy_ref_t ref, pinggy_bool_t no_reverse_proxy)
+{
+    auto sdkConf = getSDKConfig(ref);
+    if (!sdkConf) {
+        LOGE("No sdkConf found for the ref:", ref);
+        return;
+    }
+    sdkConf->SetNoReverseProxy(no_reverse_proxy == pinggy_true ? true : false);
+}
+
+PINGGY_EXPORT pinggy_void_t
+pinggy_config_set_local_server_tls(pinggy_ref_t ref, pinggy_const_char_p_t local_server_tls)
+{
+    auto sdkConf = getSDKConfig(ref);
+    if (!sdkConf) {
+        LOGE("No sdkConf found for the ref:", ref);
+        return;
+    }
+    sdkConf->SetLocalServerTls(tString(local_server_tls));
+}
 
 
-#define SdkConfigCopyUrlToOutput(capa_, val_, url_) \
-    auto sdkConf = getSDKConfig(ref); \
-    if (!sdkConf) { \
-        LOGE("No sdkConf found for the ref:", ref); \
-        return 0; \
-    } \
-    if (!(sdkConf->url_)) \
-        return 0; \
-    auto str_ = sdkConf->url_->GetSockAddrString(); \
-    if (capa_ < (str_.length()+1) || str_.length() == 0) \
-        return 0; \
-    memcpy(val_, str_.c_str(), str_.length()+1);\
-    return str_.length()
+
+#define SdkConfigCopyStringToOutputLen(capa_, val_, str_, len_)                 \
+    do {                                                                        \
+        if (len_) *len_ = 0;                                                    \
+        auto sdkConf = getSDKConfig(ref);                                       \
+        if (!sdkConf) {                                                         \
+            LOGE("No sdkConf found for the ref:", ref);                         \
+            return 0;                                                           \
+        }                                                                       \
+        try {                                                                   \
+            auto str = sdkConf->str_;                                           \
+            if (len_) *len_ = str.length()+2;                                   \
+            if (!val_) return 0;                                                \
+            if (capa_ < (str.length()+1) || str.length() == 0)                  \
+                return 0;                                                       \
+            memcpy(val_, str.c_str(), str.length()+1);                          \
+            return str.length();                                                \
+        } catch (const std::exception &e) {                                     \
+            if (exception_callback) {                                           \
+                exception_callback("CPP exception:", e.what());                 \
+            } else {                                                            \
+                LOGE("No exception handler found");                             \
+            }                                                                   \
+            return 0;                                                           \
+        }                                                                       \
+    } while(0)
+
+#define SdkConfigCopyUrlToOutputLen(capa_, val_, url_, len_)                    \
+    do {                                                                        \
+        if (len_) *len_ = 0;                                                    \
+        auto sdkConf = getSDKConfig(ref);                                       \
+        if (!sdkConf) {                                                         \
+            LOGE("No sdkConf found for the ref:", ref);                         \
+            return 0;                                                           \
+        }                                                                       \
+        try {                                                                   \
+            if (!(sdkConf->url_))                                               \
+                return 0;                                                       \
+            auto str_ = sdkConf->url_->GetSockAddrString();                     \
+            if (len_) *len_ = str_.length()+2;                                  \
+            if (!val_) return 0;                                                \
+            if (capa_ < (str_.length()+1) || str_.length() == 0)                \
+                return 0;                                                       \
+            memcpy(val_, str_.c_str(), str_.length()+1);                        \
+            return str_.length();                                               \
+        } catch (const std::exception &e) {                                     \
+            if (exception_callback) {                                           \
+                exception_callback("CPP exception:", e.what());                 \
+            } else {                                                            \
+                LOGE("No exception handler found");                             \
+            }                                                                   \
+            return 0;                                                           \
+        }                                                                       \
+    } while(0)
 
 PINGGY_EXPORT pinggy_const_int_t
 pinggy_config_get_server_address(pinggy_ref_t ref, pinggy_capa_t capa, pinggy_char_p_t val)
 {
-    SdkConfigCopyUrlToOutput(capa, val, ServerAddress);
+    return pinggy_config_get_server_address_len(ref, capa, val, NULL);
+}
+
+PINGGY_EXPORT pinggy_const_int_t
+pinggy_config_get_server_address_len(pinggy_ref_t ref, pinggy_capa_t capa, pinggy_char_p_t val, pinggy_capa_p_t max_len)
+{
+    SdkConfigCopyUrlToOutputLen(capa, val, ServerAddress, max_len);
 }
 
 PINGGY_EXPORT pinggy_const_int_t
 pinggy_config_get_token(pinggy_ref_t ref, pinggy_capa_t capa, pinggy_char_p_t val)
 {
-    SdkConfigCopyStringToOutput(capa, val, Token);
+    return pinggy_config_get_token_len(ref, capa, val, NULL);
+}
+
+PINGGY_EXPORT pinggy_const_int_t
+pinggy_config_get_token_len(pinggy_ref_t ref, pinggy_capa_t capa, pinggy_char_p_t val, pinggy_capa_p_t max_len)
+{
+    SdkConfigCopyStringToOutputLen(capa, val, Token, max_len);
 }
 
 PINGGY_EXPORT pinggy_const_int_t
 pinggy_config_get_type(pinggy_ref_t ref, pinggy_capa_t capa, pinggy_char_p_t val)
 {
-    SdkConfigCopyStringToOutput(capa, val, Mode);
+    return pinggy_config_get_type_len(ref, capa, val, NULL);
+}
+
+PINGGY_EXPORT pinggy_const_int_t
+pinggy_config_get_type_len(pinggy_ref_t ref, pinggy_capa_t capa, pinggy_char_p_t val, pinggy_capa_p_t max_len)
+{
+    SdkConfigCopyStringToOutputLen(capa, val, Mode, max_len);
 }
 
 PINGGY_EXPORT pinggy_const_int_t
 pinggy_config_get_udp_type(pinggy_ref_t ref, pinggy_capa_t capa, pinggy_char_p_t val)
 {
-    SdkConfigCopyStringToOutput(capa, val, UdpMode);
+    return pinggy_config_get_udp_type_len(ref, capa, val, NULL);
+}
+
+PINGGY_EXPORT pinggy_const_int_t
+pinggy_config_get_udp_type_len(pinggy_ref_t ref, pinggy_capa_t capa, pinggy_char_p_t val, pinggy_capa_p_t max_len)
+{
+    SdkConfigCopyStringToOutputLen(capa, val, UdpMode, max_len);
 }
 
 PINGGY_EXPORT pinggy_const_int_t
 pinggy_config_get_tcp_forward_to(pinggy_ref_t ref, pinggy_capa_t capa, pinggy_char_p_t val)
 {
-    SdkConfigCopyUrlToOutput(capa, val, TcpForwardTo);
+    return pinggy_config_get_tcp_forward_to_len(ref, capa, val, NULL);
+}
+
+PINGGY_EXPORT pinggy_const_int_t
+pinggy_config_get_tcp_forward_to_len(pinggy_ref_t ref, pinggy_capa_t capa, pinggy_char_p_t val, pinggy_capa_p_t max_len)
+{
+    SdkConfigCopyUrlToOutputLen(capa, val, TcpForwardTo, max_len);
 }
 
 PINGGY_EXPORT pinggy_const_int_t
 pinggy_config_get_udp_forward_to(pinggy_ref_t ref, pinggy_capa_t capa, pinggy_char_p_t val)
 {
-    SdkConfigCopyUrlToOutput(capa, val, UdpForwardTo);
+    return pinggy_config_get_udp_forward_to_len(ref, capa, val, NULL);
+}
+
+PINGGY_EXPORT pinggy_const_int_t
+pinggy_config_get_udp_forward_to_len(pinggy_ref_t ref, pinggy_capa_t capa, pinggy_char_p_t val, pinggy_capa_p_t max_len)
+{
+    SdkConfigCopyUrlToOutputLen(capa, val, UdpForwardTo, max_len);
 }
 
 PINGGY_EXPORT pinggy_const_bool_t
@@ -643,7 +844,13 @@ pinggy_config_get_force(pinggy_ref_t ref)
 PINGGY_EXPORT pinggy_const_int_t
 pinggy_config_get_argument(pinggy_ref_t ref, pinggy_capa_t capa, pinggy_char_p_t val)
 {
-    SdkConfigCopyStringToOutput(capa, val, Argument);
+    return pinggy_config_get_argument_len(ref, capa, val, NULL);
+}
+
+PINGGY_EXPORT pinggy_const_int_t
+pinggy_config_get_argument_len(pinggy_ref_t ref, pinggy_capa_t capa, pinggy_char_p_t val, pinggy_capa_p_t max_len)
+{
+    SdkConfigCopyStringToOutputLen(capa, val, GetArguments(), max_len);
 }
 
 PINGGY_EXPORT pinggy_const_bool_t
@@ -682,7 +889,13 @@ pinggy_config_get_auto_reconnect(pinggy_ref_t ref)
 PINGGY_EXPORT pinggy_const_int_t
 pinggy_config_get_sni_server_name(pinggy_ref_t ref, pinggy_capa_t capa, pinggy_char_p_t val)
 {
-    SdkConfigCopyStringToOutput(capa, val, SniServerName);
+    return pinggy_config_get_sni_server_name_len(ref, capa, val, NULL);
+}
+
+PINGGY_EXPORT pinggy_const_int_t
+pinggy_config_get_sni_server_name_len(pinggy_ref_t ref, pinggy_capa_t capa, pinggy_char_p_t val, pinggy_capa_p_t max_len)
+{
+    SdkConfigCopyStringToOutputLen(capa, val, SniServerName, max_len);
 }
 
 PINGGY_EXPORT pinggy_const_bool_t
@@ -696,8 +909,138 @@ pinggy_config_get_insecure(pinggy_ref_t ref)
     return sdkConf->Insecure ? pinggy_true : pinggy_false;
 }
 
+//====
+
+PINGGY_EXPORT pinggy_const_int_t
+pinggy_config_get_header_manipulations(pinggy_ref_t ref, pinggy_capa_t capa, pinggy_char_p_t val)
+{
+    return pinggy_config_get_header_manipulations_len(ref, capa, val, NULL);
+}
+
+PINGGY_EXPORT pinggy_const_int_t
+pinggy_config_get_header_manipulations_len(pinggy_ref_t ref, pinggy_capa_t capa, pinggy_char_p_t val, pinggy_capa_p_t max_len)
+{
+    SdkConfigCopyStringToOutputLen(capa, val, GetHeaderManipulations(), max_len);
+}
+
+PINGGY_EXPORT pinggy_const_int_t
+pinggy_config_get_basic_auths(pinggy_ref_t ref, pinggy_capa_t capa, pinggy_char_p_t val)
+{
+    return pinggy_config_get_basic_auths_len(ref, capa, val, NULL);
+}
+
+PINGGY_EXPORT pinggy_const_int_t
+pinggy_config_get_basic_auths_len(pinggy_ref_t ref, pinggy_capa_t capa, pinggy_char_p_t val, pinggy_capa_p_t max_len)
+{
+    SdkConfigCopyStringToOutputLen(capa, val, GetBasicAuths(), max_len);
+}
+
+PINGGY_EXPORT pinggy_const_int_t
+pinggy_config_get_bearer_token_auths(pinggy_ref_t ref, pinggy_capa_t capa, pinggy_char_p_t val)
+{
+    return pinggy_config_get_bearer_token_auths_len(ref, capa, val, NULL);
+}
+
+PINGGY_EXPORT pinggy_const_int_t
+pinggy_config_get_bearer_token_auths_len(pinggy_ref_t ref, pinggy_capa_t capa, pinggy_char_p_t val, pinggy_capa_p_t max_len)
+{
+    SdkConfigCopyStringToOutputLen(capa, val, GetBearerTokenAuths(), max_len);
+}
+
+PINGGY_EXPORT pinggy_const_int_t
+pinggy_config_get_ip_white_list(pinggy_ref_t ref, pinggy_capa_t capa, pinggy_char_p_t val)
+{
+    return pinggy_config_get_ip_white_list_len(ref, capa, val, NULL);
+}
+
+PINGGY_EXPORT pinggy_const_int_t
+pinggy_config_get_ip_white_list_len(pinggy_ref_t ref, pinggy_capa_t capa, pinggy_char_p_t val, pinggy_capa_p_t max_len)
+{
+    SdkConfigCopyStringToOutputLen(capa, val, GetIpWhiteList(), max_len);
+}
+
+PINGGY_EXPORT pinggy_bool_t
+pinggy_config_get_reverse_proxy(pinggy_ref_t ref)
+{
+    auto sdkConf = getSDKConfig(ref);
+    if (!sdkConf) {
+        LOGE("No sdkConf found for the ref:", ref);
+        return pinggy_false;
+    }
+    return sdkConf->IsReverseProxy() ? pinggy_true : pinggy_false;
+}
+
+PINGGY_EXPORT pinggy_bool_t
+pinggy_config_get_x_forwarder_for(pinggy_ref_t ref)
+{
+    auto sdkConf = getSDKConfig(ref);
+    if (!sdkConf) {
+        LOGE("No sdkConf found for the ref:", ref);
+        return pinggy_false;
+    }
+    return sdkConf->IsXForwarderFor() ? pinggy_true : pinggy_false;
+}
+
+PINGGY_EXPORT pinggy_bool_t
+pinggy_config_get_https_only(pinggy_ref_t ref)
+{
+    auto sdkConf = getSDKConfig(ref);
+    if (!sdkConf) {
+        LOGE("No sdkConf found for the ref:", ref);
+        return pinggy_false;
+    }
+    return sdkConf->IsHttpsOnly() ? pinggy_true : pinggy_false;
+}
+
+PINGGY_EXPORT pinggy_bool_t
+pinggy_config_get_original_request_url(pinggy_ref_t ref)
+{
+    auto sdkConf = getSDKConfig(ref);
+    if (!sdkConf) {
+        LOGE("No sdkConf found for the ref:", ref);
+        return pinggy_false;
+    }
+    return sdkConf->IsOriginalRequestUrl() ? pinggy_true : pinggy_false;
+}
+
+PINGGY_EXPORT pinggy_bool_t
+pinggy_config_get_allow_preflight(pinggy_ref_t ref)
+{
+    auto sdkConf = getSDKConfig(ref);
+    if (!sdkConf) {
+        LOGE("No sdkConf found for the ref:", ref);
+        return pinggy_false;
+    }
+    return sdkConf->IsAllowPreflight() ? pinggy_true : pinggy_false;
+}
+
+PINGGY_EXPORT pinggy_bool_t
+pinggy_config_get_no_reverse_proxy(pinggy_ref_t ref)
+{
+    auto sdkConf = getSDKConfig(ref);
+    if (!sdkConf) {
+        LOGE("No sdkConf found for the ref:", ref);
+        return pinggy_false;
+    }
+    return sdkConf->IsNoReverseProxy() ? pinggy_true : pinggy_false;
+}
+
+PINGGY_EXPORT pinggy_const_int_t
+pinggy_config_get_local_server_tls(pinggy_ref_t ref, pinggy_capa_t capa, pinggy_char_p_t val)
+{
+    return pinggy_config_get_local_server_tls_len(ref, capa, val, NULL);
+}
+
+PINGGY_EXPORT pinggy_const_int_t
+pinggy_config_get_local_server_tls_len(pinggy_ref_t ref, pinggy_capa_t capa, pinggy_char_p_t val, pinggy_capa_p_t max_len)
+{
+    SdkConfigCopyStringToOutputLen(capa, val, GetLocalServerTls(), max_len);
+}
+
 #undef SdkConfigCopyStringToOutput
 #undef SdkConfigCopyUrlToOutput
+#undef SdkConfigCopyStringToOutputLen
+#undef SdkConfigCopyUrlToOutputLen
 
 //========================================
 
@@ -950,44 +1293,42 @@ pinggy_tunnel_stop_usage_update(pinggy_ref_t ref)
     }
 }
 
-PINGGY_EXPORT pinggy_const_char_p_t
-pinggy_tunnel_get_current_usages(pinggy_ref_t ref)
+PINGGY_EXPORT pinggy_const_int_t
+pinggy_tunnel_get_current_usages(pinggy_ref_t ref, pinggy_capa_t capa, pinggy_char_p_t val)
 {
-    auto sdk =  getSdk(ref);
-    if (sdk == nullptr) {
-        LOGE("null sdk");
-        return "";
-    }
-    try {
-        return sdk->GetCurrentUsages().c_str();
-    } catch (const std::exception &e) {
-        if (exception_callback) {
-            exception_callback("CPP exception:", e.what());
-        } else {
-            LOGE("No exception handler found");
-        }
-    }
-    return "";
+    return pinggy_tunnel_get_current_usages_len(ref, capa, val, NULL);
 }
 
-PINGGY_EXPORT pinggy_const_char_p_t
-pinggy_tunnel_get_greeting_msgs(pinggy_ref_t ref)
+PINGGY_EXPORT pinggy_const_int_t
+pinggy_tunnel_get_current_usages_len(pinggy_ref_t ref, pinggy_capa_t capa, pinggy_char_p_t val, pinggy_capa_p_t max_len)
 {
+    if (max_len) *max_len = 0;
     auto sdk =  getSdk(ref);
     if (sdk == nullptr) {
         LOGE("null sdk");
-        return "";
+        return 0;
     }
-    try {
-        return sdk->GetGreetingMsg().c_str();
-    } catch (const std::exception &e) {
-        if (exception_callback) {
-            exception_callback("CPP exception:", e.what());
-        } else {
-            LOGE("No exception handler found");
-        }
+    CopyStringToOutputLen(capa, val, sdk->GetCurrentUsages(), max_len);
+    return 0;
+}
+
+PINGGY_EXPORT pinggy_const_int_t
+pinggy_tunnel_get_greeting_msgs(pinggy_ref_t ref, pinggy_capa_t capa, pinggy_char_p_t val)
+{
+    return pinggy_tunnel_get_greeting_msgs_len(ref, capa, val, NULL);
+}
+
+PINGGY_EXPORT pinggy_const_int_t
+pinggy_tunnel_get_greeting_msgs_len(pinggy_ref_t ref, pinggy_capa_t capa, pinggy_char_p_t val, pinggy_capa_p_t max_len)
+{
+    if (max_len) *max_len = 0;
+    auto sdk =  getSdk(ref);
+    if (sdk == nullptr) {
+        LOGE("null sdk");
+        return 0;
     }
-    return "";
+    CopyStringToOutputLen(capa, val, sdk->GetGreetingMsg(), max_len);
+    return 0;
 }
 
 //===============================
@@ -1320,13 +1661,18 @@ pinggy_tunnel_channel_get_dest_port(pinggy_ref_t channelRef)
 PINGGY_EXPORT pinggy_const_int_t
 pinggy_tunnel_channel_get_dest_host(pinggy_ref_t channelRef, pinggy_capa_t capa, pinggy_char_p_t val)
 {
+    return pinggy_tunnel_channel_get_dest_host_len(channelRef, capa, val, NULL);
+}
+
+PINGGY_EXPORT pinggy_const_int_t
+pinggy_tunnel_channel_get_dest_host_len(pinggy_ref_t channelRef, pinggy_capa_t capa, pinggy_char_p_t val, pinggy_capa_p_t max_len)
+{
     auto channel = getSdkChannelWraper(channelRef);
     if (!channel)
         return 0;
 
-    auto str = channel->GetDestHost();
-    CopyStringToOutput(capa, val, str);
-    return str.length();
+    CopyStringToOutputLen(capa, val, channel->GetDestHost(), max_len);
+    return 0;
 }
 
 PINGGY_EXPORT pinggy_uint16_t
@@ -1342,13 +1688,19 @@ pinggy_tunnel_channel_get_src_port(pinggy_ref_t channelRef)
 PINGGY_EXPORT pinggy_const_int_t
 pinggy_tunnel_channel_get_src_host(pinggy_ref_t channelRef, pinggy_capa_t capa, pinggy_char_p_t val)
 {
+    return pinggy_tunnel_channel_get_src_host_len(channelRef, capa, val, NULL);
+}
+
+
+PINGGY_EXPORT pinggy_const_int_t
+pinggy_tunnel_channel_get_src_host_len(pinggy_ref_t channelRef, pinggy_capa_t capa, pinggy_char_p_t val, pinggy_capa_p_t max_len)
+{
     auto channel = getSdkChannelWraper(channelRef);
     if (!channel)
         return 0;
 
-    auto str = channel->GetSrcHost();
-    CopyStringToOutput(capa, val, str);
-    return str.length();
+    CopyStringToOutputLen(capa, val, channel->GetSrcHost(), max_len);
+    return 0;
 }
 
 //==============================
@@ -1357,18 +1709,30 @@ pinggy_tunnel_channel_get_src_host(pinggy_ref_t channelRef, pinggy_capa_t capa, 
 PINGGY_EXPORT pinggy_const_int_t
 pinggy_version(pinggy_capa_t capa, pinggy_char_p_t val)
 {
-    tString str = std::to_string(PinggyVersionMajor) + "." + std::to_string(PinggyVersionMinor) + "." + std::to_string(PinggyVersionPatch);
-    CopyStringToOutput(capa, val, str);
-    return str.length();
+    return pinggy_version_len(capa, val, NULL);
 }
 
-#define DEFINE_CONFIG_GET_FUNC(funcname, macro)         \
-PINGGY_EXPORT pinggy_const_int_t                        \
-funcname(pinggy_capa_t capa, pinggy_char_p_t val)       \
-{                                                       \
-    tString str = macro;                                \
-    CopyStringToOutput(capa, val, str);                 \
-    return str.length();                                \
+PINGGY_EXPORT pinggy_const_int_t
+pinggy_version_len(pinggy_capa_t capa, pinggy_char_p_t val, pinggy_capa_p_t max_len)
+{
+    tString version = std::to_string(PinggyVersionMajor) + "." + std::to_string(PinggyVersionMinor) + "." + std::to_string(PinggyVersionPatch);
+    CopyStringToOutputLen(capa, val, version, max_len);
+    return 0;
+}
+
+#define DEFINE_CONFIG_GET_FUNC(funcname, macro)                                     \
+PINGGY_EXPORT pinggy_const_int_t                                                    \
+funcname(pinggy_capa_t capa, pinggy_char_p_t val)                                   \
+{                                                                                   \
+    return funcname##_len(capa, val, NULL);                                         \
+}                                                                                   \
+                                                                                    \
+PINGGY_EXPORT pinggy_const_int_t                                                    \
+funcname##_len(pinggy_capa_t capa, pinggy_char_p_t val, pinggy_capa_p_t max_len)    \
+{                                                                                   \
+    tString funcname##str = macro;                                                  \
+    CopyStringToOutputLen(capa, val, funcname##str, max_len);                       \
+    return 0;                                                                       \
 }
 
 DEFINE_CONFIG_GET_FUNC(pinggy_git_commit, PINGGY_GIT_COMMIT_ID);

@@ -1,6 +1,7 @@
 
 set(PINGGYSDK_TUNNEL_SOURCES
     Sdk.cc
+    SdkConfig.cc
     SdkChannelWraper.cc
 )
 

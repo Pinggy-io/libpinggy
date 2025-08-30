@@ -23,8 +23,22 @@ tun.tcp_forward_to = "127.0.0.1:4000"
 tun.sni_server_name = "t.pinggy.io"
 tun.type = "http"
 
+tun.basicauth = {'user1': 'pass1', 'user2': 'pass two'}
+print(tun.getProcessedArguments())
+tun.basicauth = None
+print(tun.getProcessedArguments())
+exit(0)
+
+tun.connect()
+
+print(tun.tcp_forward_to)
+
 tun.start(True)
-print(tun.get_greeting_msgs())
+print(tun.greeting_msgs)
 print(tun.urls)
 time.sleep(2)
-print(tun.get_greeting_msgs())
+print(tun.greeting_msgs)
+time.sleep(5)
+print(tun.current_usages)
+time.sleep(5)
+tun.stop()

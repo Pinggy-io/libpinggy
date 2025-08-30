@@ -31,4 +31,24 @@ using json = nlohmann::json;
     void to_json(nlohmann::json& nlohmann_json_j, const Type##Ptr nlohmann_json_t); \
     void from_json(const nlohmann::json& nlohmann_json_j, Type##Ptr nlohmann_json_t);
 
+
+#define NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_CUSTOME_PTR(Type, ...)  \
+    void to_json(nlohmann::json& nlohmann_json_j, const Type##Ptr &nlohmann_json_t); \
+    void from_json(const nlohmann::json& nlohmann_json_j, Type##Ptr &nlohmann_json_t);
+
+
+#define NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_CUSTOME_PTR1(Type, ...)  \
+    void to_json(nlohmann::json& nlohmann_json_j, const Type##Ptr &nlohmann_json_t); \
+    void from_json(const nlohmann::json& nlohmann_json_j, Type##Ptr &nlohmann_json_t);
+
+
+#define NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_CUSTOME_NEW_PTR(Type, argsToCreateNewObject, ...) \
+    void to_json(nlohmann::json& nlohmann_json_j, const Type##Ptr &nlohmann_json_t); \
+    void from_json(const nlohmann::json& nlohmann_json_j, Type##Ptr &nlohmann_json_t);
+
+
+#define NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_CUSTOME_NEW_PTR1(Type, argsToCreateNewObject, ...) \
+    void to_json(nlohmann::json& nlohmann_json_j, const Type##Ptr &nlohmann_json_t); \
+    void from_json(const nlohmann::json& nlohmann_json_j, Type##Ptr &nlohmann_json_t);
+
 #endif /* SRC_CPP_COMMON_JSONH_HH_ */

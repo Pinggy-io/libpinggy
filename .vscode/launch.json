@@ -39,14 +39,14 @@
         },
         {
             "name": "Debug test-pythonclient",
-            "type": "lldb",
+            "type": "lldb-dap",
             "request": "launch",
             "program": "python3",
-            "args": [ "${workspaceFolder}/bindings/python/test.py"],
+            "args": [ "${workspaceFolder}/bindings/python/example.py"],
             "cwd": "${workspaceFolder}",
             "stopOnEntry": false,
             "env": {},
-            "sourceLanguages": ["cpp"]
+            // "sourceLanguages": ["cpp"]
         }
     ]
 }

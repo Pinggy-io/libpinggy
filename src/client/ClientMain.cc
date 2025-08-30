@@ -216,7 +216,7 @@ parseSdkArguments(ClientConfigPtr config, int argc, char *argv[])
     for (int i = 0; i < argc; i++) {
         args.push_back(tString(argv[i]));
     }
-    config->sdkConfig->Argument = ShlexJoinStrings(args);
+    config->sdkConfig->SetArguments(ShlexJoinStrings(args));
 
     return true;
 }

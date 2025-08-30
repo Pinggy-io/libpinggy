@@ -55,7 +55,7 @@ def version():
     Returns:
         str: libpinggy version.
     """
-    return core._get_string_via_cfunc(core.pinggy_version)
+    return core.pinggy_version_len()
 
 def git_commit():
     """
@@ -64,7 +64,7 @@ def git_commit():
     Returns:
         str: git commit hash.
     """
-    return core._get_string_via_cfunc(core.pinggy_git_commit)
+    return core.pinggy_git_commit_len()
 
 def build_timestamp():
     """
@@ -73,7 +73,7 @@ def build_timestamp():
     Returns:
         str: build timestamp.
     """
-    return core._get_string_via_cfunc(core.pinggy_build_timestamp)
+    return core.pinggy_build_timestamp_len()
 
 def libc_version():
     """
@@ -82,7 +82,7 @@ def libc_version():
     Returns:
         str: libc version.
     """
-    return core._get_string_via_cfunc(core.pinggy_libc_version)
+    return core.pinggy_libc_version_len()
 
 def build_os():
     """
@@ -91,7 +91,7 @@ def build_os():
     Returns:
         str: os detail.
     """
-    return core._get_string_via_cfunc(core.pinggy_build_os)
+    return core.pinggy_build_os_len()
 
 
 class Channel:
@@ -149,11 +149,11 @@ class Channel:
     def get_dest_port(self):
         return core.pinggy_tunnel_channel_get_dest_port(self.__channelRef)
     def get_dest_host(self):
-        return core._get_string_via_cfunc(core.pinggy_tunnel_channel_get_dest_host, self.__channelRef)
+        return core.pinggy_tunnel_channel_get_dest_host_len(self.__channelRef)
     def get_src_port(self):
         return core.pinggy_tunnel_channel_get_src_port(self.__channelRef)
     def get_src_host(self):
-        return core._get_string_via_cfunc(core.pinggy_tunnel_channel_get_src_host, self.__channelRef)
+        return core.pinggy_tunnel_channel_get_src_host_len(self.__channelRef)
 
 class BaseTunnelHandler:
     """
@@ -579,19 +579,19 @@ class Tunnel:
         """
         core.pinggy_tunnel_stop_usage_update(self.__tunnelRef)
 
-    def get_current_usages(self):
+    @property
+    def current_usages(self):
         """
         Get the usage.
         """
-        usages = core.pinggy_tunnel_get_current_usages(self.__tunnelRef)
-        usages = usages.decode("utf-8")
+        usages = core.pinggy_tunnel_get_current_usages_len(self.__tunnelRef)
         if usages == "" or usages is None:
             return None
         return json.loads(usages)
 
-    def get_greeting_msgs(self):
-        msgs = core.pinggy_tunnel_get_greeting_msgs(self.__tunnelRef)
-        msgs = msgs.decode("utf-8")
+    @property
+    def greeting_msgs(self):
+        msgs = core.pinggy_tunnel_get_greeting_msgs_len(self.__tunnelRef)
         if msgs == "" or msgs is None:
             return None
         return json.loads(msgs)
@@ -717,12 +717,12 @@ class Tunnel:
         str: pinggy server address. The default server address is `a.pinggy.io`. You can also add the
             port as follows: `a.pinggy.io:443`.
         """
-        return core._get_string_via_cfunc(core.pinggy_config_get_server_address, self.__configRef)
+        return core.pinggy_config_get_server_address(self.__configRef)
 
     @property
     def token(self):
         """str: Token for the tunnel. One can it from `dashboard.pinggy.io`"""
-        return core._get_string_via_cfunc(core.pinggy_config_get_token, self.__configRef)
+        return core.pinggy_config_get_token(self.__configRef)
 
     @property
     def type(self):
@@ -730,14 +730,14 @@ class Tunnel:
         str: Tunnel type or mode. This is only for TCP type. So, the accepted values are 'http',
             'tcp', 'tls' and 'tlstcp'. Default is 'http'.
         """
-        return core._get_string_via_cfunc(core.pinggy_config_get_type, self.__configRef)
+        return core.pinggy_config_get_type(self.__configRef)
 
     @property
     def udp_type(self):
         """
         str: Tunnel type or mode. This is only for UDP type. currently, only accepted value is 'udp'.
         """
-        return core._get_string_via_cfunc(core.pinggy_config_get_udp_type, self.__configRef)
+        return core.pinggy_config_get_udp_type(self.__configRef)
 
     @property
     def tcp_forward_to(self):
@@ -749,14 +749,14 @@ class Tunnel:
 
             >>> tunnel.tcp_forward_to = "localhost:8080"
         """
-        return core._get_string_via_cfunc(core.pinggy_config_get_tcp_forward_to, self.__configRef)
+        return core.pinggy_config_get_tcp_forward_to(self.__configRef)
 
     @property
     def udp_forward_to(self):
         """
         str: Similar to `tcp_forward_to`. However, it is for udp tunnel.
         """
-        return core._get_string_via_cfunc(core.pinggy_config_get_udp_forward_to, self.__configRef)
+        return core.pinggy_config_get_udp_forward_to(self.__configRef)
 
     @property
     def force(self):
@@ -781,7 +781,7 @@ class Tunnel:
 
     @property
     def sni_server_name(self):
-        return core._get_string_via_cfunc(core.pinggy_config_get_sni_server_name, self.__configRef)
+        return core.pinggy_config_get_sni_server_name(self.__configRef)
 
     @property
     def insecure(self):
@@ -891,7 +891,10 @@ class Tunnel:
     @property
     def ipwhitelist(self):
         """list[str]|None: List of IP/IP ranges that allowed to connect to the tunnel. SDK does not verify the IP"""
-        return self.__ipwhitelist
+        ipw = core.pinggy_config_get_ip_white_list_len(self.__configRef)
+        if ipw == "" or ipw is None:
+            return None
+        return json.loads(ipw)
 
     @ipwhitelist.setter
     def ipwhitelist(self, ipwhitelist: list[str]|str):
@@ -899,19 +902,28 @@ class Tunnel:
             raise Exception("Tunnel is already connected, no modification allowed")
         if type(ipwhitelist) == str:
             ipwhitelist = [ipwhitelist]
-        self.__ipwhitelist = ipwhitelist
+        if ipwhitelist is None:
+            ipwhitelist = []
+        core.pinggy_config_set_ip_white_list(self.__configRef, json.dumps(ipwhitelist))
+        # self.__ipwhitelist = ipwhitelist
 
 
     @property
     def basicauth(self):
         """dict[str, str]|None: List of username and correstponding password."""
-        return self.__basicauth
+        ba = core.pinggy_config_get_basic_auths_len(self.__configRef)
+        return json.loads(ba)
 
     @basicauth.setter
-    def basicauth(self, basicauth:  dict[str,str]):
+    def basicauth(self, basicauth:  list[{str, str}]|dict[str,str]):
         if not self.__editableConfig:
             raise Exception("Tunnel is already connected, no modification allowed")
-        self.__basicauth = basicauth
+        if type(basicauth) == dict:
+            basicauth = [{"username":u, "password": p} for u,p in basicauth.items()]
+        if basicauth is None:
+            basicauth = []
+        core.pinggy_config_set_basic_auths(self.__configRef, json.dumps(basicauth))
+        # self.__basicauth = basicauth
 
 
     @property
@@ -1044,9 +1056,9 @@ class Tunnel:
         self.__reverseproxy = reverseproxy
 
     def getProcessedArguments(self):
-        if not self.__editableConfig:
-            return core.pinggy_config_get_argument(self.__configRef)
-        return self.__prepare_argument()
+        # if not self.__editableConfig:
+        return core.pinggy_config_get_argument_len(self.__configRef)
+        # return self.__prepare_argument()
 
     def __prepare_argument(self):
         val = []

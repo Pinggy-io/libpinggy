@@ -1,0 +1,321 @@
+/*
+ * Copyright (C) 2025 PINGGY TECHNOLOGY PRIVATE LIMITED
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#include "SdkConfig.hh"
+#include <utils/StringUtils.hh>
+#include <utils/Json.hh>
+#include <platform/Log.hh>
+
+namespace sdk
+{
+
+struct HeaderMod : virtual public pinggy::SharedObject
+{
+    enum class Action {
+        Unknown,
+        Add,
+        Remove,
+        Update
+    };
+    Action                      action;
+    tString                     header;
+    std::vector<tString>        values;
+};
+DefineMakeSharedPtr(HeaderMod);
+
+
+NLOHMANN_JSON_SERIALIZE_ENUM(HeaderMod::Action, {
+    {HeaderMod::Action::Unknown,   "unknown"},
+    {HeaderMod::Action::Add,       "add"},
+    {HeaderMod::Action::Remove,    "remove"},
+    {HeaderMod::Action::Update,    "update"},
+})
+
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_CUSTOME_PTR(HeaderMod,
+    (action, type),
+    (header, key),
+    (values, value)
+);
+
+struct UserPass : virtual public pinggy::SharedObject
+{
+    tString                     username;
+    tString                     password;
+};
+DefineMakeSharedPtr(UserPass);
+
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_CUSTOME_NEW_PTR1(UserPass,
+    (),
+    username,
+    password
+);
+
+SDKConfig::SDKConfig():
+    Force(false),
+    AdvancedParsing(true),
+    Ssl(true),
+    SniServerName("a.pinggy.io"),
+    Insecure(false),
+    AutoReconnect(false),
+    headerManipulations("[]"),
+    basicAuths("[]"),
+    bearerTokenAuths("[]"),
+    ipWhiteList("[]"),
+    reverseProxy(true),
+    xForwarderFor(false),
+    httpsOnly(false),
+    originalRequestUrl(false),
+    allowPreflight(false)
+{
+}
+
+void
+SDKConfig::resetArguments() {
+    headerManipulations = "[]";
+    basicAuths          = "[]";
+    bearerTokenAuths    = "[]";
+    ipWhiteList         = "[]";
+    reverseProxy        = true;
+    xForwarderFor       = false;
+    httpsOnly           = false;
+    originalRequestUrl  = false;
+    allowPreflight      = false;
+    localServerTls      = "";
+}
+
+void
+SDKConfig::validate()
+{
+    if (!ServerAddress) {
+        ServerAddress = NewUrlPtr("a.pinggy.ip:443");
+    }
+
+    if (TcpForwardTo && Mode == "") {
+        Mode = "http";
+    }
+
+    if (UdpForwardTo && UdpMode == "") {
+        UdpMode = "udp";
+    }
+
+    if (Mode != "http" && Mode != "tcp" && Mode != "tls" && Mode != "tlstcp")
+        Mode = "";
+    if (UdpMode != "udp")
+        UdpMode = "";
+    if (Mode.empty() && UdpMode.empty())
+        Mode = "http";
+}
+
+tString
+SDKConfig::getUser()
+{
+    tString user = "";
+    if (!Token.empty()) {
+        user += "+" + Token;
+    }
+
+    if (!Mode.empty()) {
+        user += "+" + Mode;
+    }
+
+    if (!UdpMode.empty()) {
+        user += "+" + UdpMode;
+    }
+
+    if (Force) {
+        user += "+force";
+    }
+
+    return user.substr(1);
+}
+
+void
+SDKConfig::SetArguments(tString args)
+{
+    resetArguments();
+    auto cmds = ShlexSplitString(args);
+
+    std::vector<HeaderModPtr>   headerManipulations;
+    std::vector<UserPassPtr>    basicAuths;
+    std::vector<tString>        bearerTokenAuths;
+    std::vector<tString>        ipWhiteList;
+
+    for (auto cmd : cmds) {
+        auto vals = SplitString(cmd, ":", 1);
+        if (vals.size() < 2 || vals[0].empty()) //sliently ignore unknow cmds
+            continue;
+        auto cmdType = cmd.at(0);
+        switch(cmdType) {
+            case 'a':
+            case 'u':
+            case 'r':
+                {
+                    auto bodies = SplitString(vals[1], ":", 1);
+                    if ((cmdType == 'r' && bodies.size() < 1) || bodies.size() < 2)
+                        break;
+                    auto hm = NewHeaderModPtr();
+                    hm->header = bodies[0];
+                    hm->values.push_back(bodies[1]);
+                    if (cmdType == 'a') hm->action = HeaderMod::Action::Add;
+                    else hm->action = HeaderMod::Action::Add;
+
+                    headerManipulations.push_back(hm);
+                }
+                break;
+            case 'b':
+                {
+                    auto bodies = SplitString(vals[1], ":", 1);
+                    if (bodies.size() < 2)
+                        break;
+                    auto pu = NewUserPassPtr();
+                    pu->username = bodies[0];
+                    pu->password = bodies[1];
+                    basicAuths.push_back(pu);
+                }
+                break;
+            case 'k':
+                bearerTokenAuths.push_back(vals[1]);
+                break;
+            case 'w':
+                {
+                    auto bodies = SplitString(vals[1], ",");
+                    ipWhiteList.insert(ipWhiteList.end(), bodies.begin(), bodies.end());
+                }
+                break;
+            case 'x':
+                {
+                    auto bodies = SplitString(vals[1], ":", 1);
+                    if (bodies.size() < 1)
+                        break;
+                    auto keyType = StringToLower(bodies[0]);
+                    if (keyType == "https") {
+                        httpsOnly = true;
+                    } else if (keyType == "xff") {
+                        xForwarderFor = true;
+                    } else if (keyType == "fullurl") {
+                        originalRequestUrl = true;
+                    } else if (keyType == "localservertls") {
+                        localServerTls = bodies.size() > 1 ? bodies[1] : "localhost" ;
+                    } else if (keyType == "passpreflight") {
+                        allowPreflight = true;
+                    } else if (keyType == "noreverseproxy") {
+                        reverseProxy = false;
+                    }
+                }
+        }
+    }
+
+#define TO_JSON_STR(x)      \
+    do {                    \
+        json j = x;         \
+        this->x = j.dump(); \
+    } while(0)
+    TO_JSON_STR(headerManipulations);
+    TO_JSON_STR(basicAuths);
+    TO_JSON_STR(bearerTokenAuths);
+    TO_JSON_STR(ipWhiteList);
+#undef TO_JSON_STR
+}
+
+const tString &
+SDKConfig::GetArguments()
+{
+    std::vector<HeaderModPtr>   headerManipulations;
+    std::vector<UserPassPtr>    basicAuths;
+    std::vector<tString>        bearerTokenAuths;
+    std::vector<tString>        ipWhiteList;
+
+#define FROM_JSON_STR(x)                    \
+    do {                                    \
+        if (!this->x.empty()) {             \
+            json j = json::parse(this->x);  \
+            j.get_to(x);                    \
+        }                                   \
+    } while(0)
+    FROM_JSON_STR(headerManipulations);
+    FROM_JSON_STR(basicAuths);
+    FROM_JSON_STR(bearerTokenAuths);
+    FROM_JSON_STR(ipWhiteList);
+#undef FROM_JSON_STR
+
+    std::vector<tString> val;
+
+    if (ipWhiteList.size()) {
+        tString whitelist = "w:";
+        whitelist += JoinString(ipWhiteList, ",");
+        val.push_back(whitelist);
+    }
+
+    if (basicAuths.size()) {
+        for (auto ele : basicAuths)
+            val.push_back("b:" + ele->username + ":" + ele->password);
+    }
+
+    if (bearerTokenAuths.size()) {
+        for (auto key : bearerTokenAuths)
+            val.push_back("k:" + key);
+    }
+
+    if (headerManipulations.size()) {
+        for (auto hm : headerManipulations) {
+            switch (hm->action)
+            {
+            case HeaderMod::Action::Add:
+                for (auto v : hm->values)
+                    val.push_back("a:" + hm->header + ":" + v);
+                break;
+
+            case HeaderMod::Action::Update:
+                for (auto v : hm->values)
+                    val.push_back("u:" + hm->header + ":" + v);
+                break;
+
+            case HeaderMod::Action::Remove:
+                val.push_back("r:" + hm->header);
+                break;
+
+            default:
+                break;
+            }
+        }
+    }
+
+    if (xForwarderFor)
+        val.push_back("x:xff");
+
+    if (httpsOnly)
+        val.push_back("x:https");
+
+    if (originalRequestUrl)         // bool = False
+        val.push_back("x:fullurl");
+
+    if (allowPreflight)             // bool = False
+        val.push_back("x:passpreflight");
+
+    if (!reverseProxy)             // bool = False
+        val.push_back("x:noreverseproxy");
+
+    if (!localServerTls.empty())
+        val.push_back("x:localserverlts:"+localServerTls);
+
+    auto cmds = ShlexJoinStrings(val);
+
+    arguments = cmds;
+
+    return arguments;
+}
+
+} // namespace sdk
