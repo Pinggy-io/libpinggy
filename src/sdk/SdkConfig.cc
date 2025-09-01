@@ -80,10 +80,10 @@ SDKConfig::SDKConfig():
 }
 
 
-#define TO_JSON_STR(x, y)      \
-    do {                    \
-        json j = x;         \
-        y = j.dump(); \
+#define TO_JSON_STR(x, y)       \
+    do {                        \
+        json j = x;             \
+        y = j.dump();           \
     } while(0)
 
 const tString
@@ -121,12 +121,12 @@ SDKConfig::GetIpWhiteList()
 #undef TO_JSON_STR
 
 
-#define FROM_JSON_STR(x, y)                    \
-    do {                                    \
-        if (!y.empty()) {             \
-            json j = json::parse(y);  \
-            j.get_to(x);                    \
-        }                                   \
+#define FROM_JSON_STR(x, y)             \
+    do {                                \
+        if (!y.empty()) {               \
+            json j = json::parse(y);    \
+            j.get_to(x);                \
+        }                               \
     } while(0)
 
 void
