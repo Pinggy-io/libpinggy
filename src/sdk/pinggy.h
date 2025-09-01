@@ -37,16 +37,6 @@
  *   Tunnels are completely isolated. Operations on tunnels are also thread-safe
  *   when performed via the provided interfaces.
  *
- * ## Usage
- * ```c
- * #include "mylibrary.h"
- *
- * int main() {
- *     MyClass obj;
- *     obj.performTask();
- *     return 0;
- * }
- * ```
  *
  * @version 1.0
  * @author

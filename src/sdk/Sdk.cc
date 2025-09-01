@@ -176,6 +176,12 @@ Sdk::Start()
         return false;
     }
 
+    if (state < SdkState_TunnelReady) {
+        getPortConfig();
+
+        setupContinuousUsagesNGetGreeting();
+    }
+
     while(true) {
         auto ret = ResumeTunnel();
         if (!ret)
@@ -363,7 +369,12 @@ Sdk::RequestPrimaryRemoteForwarding(bool block)
     if (cleanupNow)
         cleanup();
 
-    return state == SdkState_PrimaryReverseForwardingSucceeded ;
+
+    getPortConfig();
+
+    setupContinuousUsagesNGetGreeting();
+
+    return state >= SdkState_PrimaryReverseForwardingSucceeded ;
 }
 
 void
@@ -457,6 +468,7 @@ Sdk::HandleSessionRemoteForwardingSucceeded(protocol::tReqId reqId, std::vector<
     LOGT("Remote Fowarding succeeded");
 
     if (primaryForwardingReqId == reqId) {
+
         DEFER({pollController->StopPolling();});
 
         if (state >= SdkState_PrimaryReverseForwardingSucceeded) {
@@ -468,8 +480,6 @@ Sdk::HandleSessionRemoteForwardingSucceeded(protocol::tReqId reqId, std::vector<
             this->urls = urls;
 
         state = SdkState_PrimaryReverseForwardingSucceeded;
-
-        tunnelInitiated();
 
         if (eventHandler && !reconnectNow)
             eventHandler->OnPrimaryForwardingSucceeded(urls);
@@ -789,6 +799,7 @@ Sdk::ChannelDataReceived(protocol::ChannelPtr channel)
     }
     auto tag = channel->GetUserTag();
     if (tag == PORT_CONF) {
+        DEFER({pollController->StopPolling();});
         auto data = NewRawDataPtr();
         while (channel->HaveDataToRead()) {
             auto [len, newData] = channel->Recv(4096);
@@ -811,11 +822,6 @@ Sdk::ChannelDataReceived(protocol::ChannelPtr channel)
                                 GreetingMsgTCP
                             )
             thisPtr->portConfig = portConfigPtr;
-
-            if (!usageChannel) {
-                initiateContinousUsages();
-            }
-            setupLocalChannelNGetData(portConfig->GreetingMsgTCP, GREETING_MSG_TAG);
         } catch(...) {
             LOGE("Some error while parsing port config");
         }
@@ -838,6 +844,7 @@ Sdk::ChannelDataReceived(protocol::ChannelPtr channel)
             } catch(...) {
                 LOGE("Some error while parsing greeting msg");
             }
+            state = SdkState_TunnelReady;
         }
         return;
     }
@@ -862,7 +869,7 @@ Sdk::ChannelCleanup(protocol::ChannelPtr channel)
         channel->Close();
         usageChannel = nullptr;
         //TODO reinitiate channel
-        pollController->SetTimeout(SECOND, thisPtr, &Sdk::initiateContinousUsages);
+        pollController->SetTimeout(SECOND, thisPtr, &Sdk::setupContinuousUsagesNGetGreeting);
     }
 
     channel->Close();
@@ -887,12 +894,14 @@ Sdk::authenticate()
 }
 
 void
-Sdk::tunnelInitiated()
+Sdk::getPortConfig()
 {
     auto channel = session->CreateChannel(4, "localhost", 4300, "localhost");
     channel->RegisterEventHandler(thisPtr);
     channel->SetUserTag(PORT_CONF);
     channel->Connect();
+
+    pollController->StartPolling();
 }
 
 bool Sdk::internalConnect(bool block)
@@ -1079,7 +1088,7 @@ void Sdk::initPollController()
 }
 
 void
-Sdk::initiateContinousUsages()
+Sdk::setupContinuousUsagesNGetGreeting()
 {
     if (usageChannel) {
         return; //No point in raising exception
@@ -1094,6 +1103,13 @@ Sdk::initiateContinousUsages()
     usageChannel = session->CreateChannel(portConfig->UsageContinuousTcp, "localhost", 0, "localhost");
     usageChannel->RegisterEventHandler(thisPtr);
     usageChannel->Connect();
+
+    auto channel = session->CreateChannel(portConfig->GreetingMsgTCP, "localhost", 0, "localhost");
+    channel->SetUserTag(GREETING_MSG_TAG);
+    channel->RegisterEventHandler(thisPtr);
+    channel->Connect();
+
+    pollController->StartPolling();
 }
 
 bool
@@ -1111,15 +1127,6 @@ Sdk::resumeWithoutLock(tString funcName)
     auto success = (ret < 0 && app_get_errno() != EINTR ? false : true);
     lockAccess.unlock();
     return success;
-}
-
-void
-Sdk::setupLocalChannelNGetData(port_t port, tString tag)
-{
-    auto channel = session->CreateChannel(port, "localhost", 0, "localhost");
-    channel->SetUserTag(tag);
-    channel->RegisterEventHandler(thisPtr);
-    channel->Connect();
 }
 
 
