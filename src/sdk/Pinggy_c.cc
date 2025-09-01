@@ -16,7 +16,7 @@
 
 
 #include "Sdk.hh"
-#include <mutex>
+#include <shared_mutex>
 #include <exception>
 
 #define PINGGY_TYPETEST_ENABLED
@@ -39,7 +39,7 @@
 
 //==============================================================
 std::map<pinggy_ref_t, pinggy::VoidPtr> pinggyReferenceMap;
-std::mutex globalMutex;
+std::shared_mutex globalMutex;
 //==============================================================
 PINGGY_EXPORT pinggy_void_t
 pinggy_set_log_path(pinggy_char_p_t path)
@@ -65,7 +65,7 @@ pinggy_is_interrupted()
 static pinggy_ref_t
 getRef(pinggy::VoidPtr ptr)
 {
-    std::lock_guard<std::mutex> lock(globalMutex);
+    std::unique_lock<std::shared_mutex> lock(globalMutex);
 
     static pinggy_ref_t curRef= 2;
     curRef += 1;
@@ -77,11 +77,24 @@ getRef(pinggy::VoidPtr ptr)
 static pinggy::VoidPtr
 getObj(pinggy_ref_t ref)
 {
-    std::lock_guard<std::mutex> lock(globalMutex);
+    std::shared_lock<std::shared_mutex> lock(globalMutex);
     if (pinggyReferenceMap.find(ref) == pinggyReferenceMap.end()) {
         return nullptr;
     }
     return pinggyReferenceMap[ref];
+}
+
+static pinggy_bool_t
+removeRef(pinggy_ref_t ref) {
+    std::unique_lock<std::shared_mutex> lock(globalMutex);
+    if (pinggyReferenceMap.find(ref) != pinggyReferenceMap.end()) {
+        // LOGI("Freeing ref", ref);
+        pinggyReferenceMap.erase(ref);
+        return pinggy_true;
+    } else {
+        LOGE("Invalid ref", ref);
+        return pinggy_false;
+    }
 }
 
 #define GetObjFuncs2(name,cls) \
@@ -249,17 +262,17 @@ public:
 
     virtual ~ApiEventHandler()  { }
 
-#define GetCStringArray(cVec,vec) \
-        auto cVec = new pinggy_char_p_t[vec.size()+2]; \
-        for (size_t i = 0; i < vec.size(); ++i) { \
-            cVec[i] = new char[vec[i].length() + 3]; \
-            strncpy(cVec[i], vec[i].c_str(), vec[i].length()); \
-            cVec[i][vec[i].length()] = 0; \
+#define GetCStringArray(cVec,vec)                               \
+        auto cVec = new pinggy_char_p_t[vec.size()+2];          \
+        for (size_t i = 0; i < vec.size(); ++i) {               \
+            cVec[i] = new char[vec[i].length() + 3];            \
+            strncpy(cVec[i], vec[i].c_str(), vec[i].length());  \
+            cVec[i][vec[i].length()] = 0;                       \
         }
-#define ReleaseCStringArray(cVec, vec) \
-        for (size_t i = 0; i < vec.size(); ++i) \
-            delete[] cVec[i]; \
-        delete[] cVec; \
+#define ReleaseCStringArray(cVec, vec)                          \
+        for (size_t i = 0; i < vec.size(); ++i)                 \
+            delete[] cVec[i];                                   \
+        delete[] cVec;                                          \
 
     virtual pinggy_void_t
     OnConnected() override
@@ -388,16 +401,12 @@ DefineMakeSharedPtr(ApiEventHandler);
 extern "C" {
 #endif //__cplusplus
 
-#define CopyStringToOutputLen(capa_, val_, str_, len_)                  \
+
+
+#define ExpectException(x)                                              \
     do {                                                                \
-        try {                                                           \
-            auto str = str_;                                            \
-            if (len_) *len_ = str.length()+2;                           \
-            if (!val_) return 0;                                        \
-            if (capa_ < (str.length()+1) || str.length() == 0)          \
-                return 0;                                               \
-            memcpy(val_, str.c_str(), str.length()+1);                  \
-            return str.length()+1;                                      \
+        try{                                                            \
+            x                                                           \
         } catch (const std::exception &e) {                             \
             if (exception_callback) {                                   \
                 exception_callback("CPP exception:", e.what());         \
@@ -406,6 +415,18 @@ extern "C" {
             }                                                           \
         }                                                               \
     } while(0)
+
+#define CopyStringToOutputLen(capa_, val_, str_, len_)                  \
+        ExpectException(                                                \
+            auto str = str_;                                            \
+            if (len_) *len_ = str.length()+2;                           \
+            if (!val_) return 0;                                        \
+            if (capa_ < (str.length()+1) || str.length() == 0)          \
+                return 0;                                               \
+            memcpy(val_, str.c_str(), str.length()+1);                  \
+            return str.length()+1;                                      \
+        );                                                              \
+        return 0
 
 static pinggy_on_raise_exception_cb_t exception_callback = NULL;
 
@@ -418,15 +439,7 @@ pinggy_set_on_exception_callback(pinggy_on_raise_exception_cb_t cb)
 PINGGY_EXPORT pinggy_bool_t
 pinggy_free_ref(pinggy_ref_t ref)
 {
-    std::lock_guard<std::mutex> lock(globalMutex);
-    if (pinggyReferenceMap.find(ref) != pinggyReferenceMap.end()) {
-        // LOGI("Freeing ref", ref);
-        pinggyReferenceMap.erase(ref);
-        return pinggy_true;
-    } else {
-        LOGE("Invalid ref", ref);
-        return pinggy_false;
-    }
+    return removeRef(ref);
 }
 
 PINGGY_EXPORT pinggy_ref_t
@@ -446,7 +459,9 @@ pinggy_config_set_server_address(pinggy_ref_t ref, pinggy_char_p_t server_addres
         LOGE("No sdkConf found for the ref:", ref);
         return;
     }
-    sdkConf->ServerAddress = NewUrlPtr(EmptyStringIfNull(server_address), 443);
+    ExpectException(
+        sdkConf->ServerAddress = NewUrlPtr(EmptyStringIfNull(server_address), 443);
+    );
 }
 
 PINGGY_EXPORT pinggy_void_t
@@ -457,7 +472,9 @@ pinggy_config_set_token(pinggy_ref_t ref, pinggy_char_p_t token)
         LOGE("No sdkConf found for the ref:", ref);
         return;
     }
-    sdkConf->Token = EmptyStringIfNull(token);
+    ExpectException(
+        sdkConf->Token = EmptyStringIfNull(token);
+    );
 }
 
 PINGGY_EXPORT pinggy_void_t
@@ -468,7 +485,9 @@ pinggy_config_set_type(pinggy_ref_t ref, pinggy_char_p_t mode)
         LOGE("No sdkConf found for the ref:", ref);
         return;
     }
-    sdkConf->Mode = EmptyStringIfNull(mode);
+    ExpectException(
+        sdkConf->Mode = EmptyStringIfNull(mode);
+    );
 }
 
 PINGGY_EXPORT pinggy_void_t
@@ -479,7 +498,9 @@ pinggy_config_set_udp_type(pinggy_ref_t ref, pinggy_char_p_t udp_type)
         LOGE("No sdkConf found for the ref:", ref);
         return;
     }
-    sdkConf->UdpMode = EmptyStringIfNull(udp_type);
+    ExpectException(
+        sdkConf->UdpMode = EmptyStringIfNull(udp_type);
+    );
 }
 
 PINGGY_EXPORT pinggy_void_t
@@ -490,7 +511,9 @@ pinggy_config_set_tcp_forward_to(pinggy_ref_t ref, pinggy_char_p_t tcp_forward_t
         LOGE("No sdkConf found for the ref:", ref);
         return;
     }
-    sdkConf->TcpForwardTo = NewUrlPtr(EmptyStringIfNull(tcp_forward_to));
+    ExpectException(
+        sdkConf->TcpForwardTo = NewUrlPtr(EmptyStringIfNull(tcp_forward_to));
+    );
 }
 
 PINGGY_EXPORT pinggy_void_t
@@ -501,7 +524,9 @@ pinggy_config_set_udp_forward_to(pinggy_ref_t ref, pinggy_char_p_t udp_forward_t
         LOGE("No sdkConf found for the ref:", ref);
         return;
     }
-    sdkConf->UdpForwardTo = NewUrlPtr(EmptyStringIfNull(udp_forward_to), 80, "udp");
+    ExpectException(
+        sdkConf->UdpForwardTo = NewUrlPtr(EmptyStringIfNull(udp_forward_to), 80, "udp");
+    );
 }
 
 PINGGY_EXPORT pinggy_void_t
@@ -512,7 +537,9 @@ pinggy_config_set_force(pinggy_ref_t ref, pinggy_bool_t force)
         LOGE("No sdkConf found for the ref:", ref);
         return;
     }
-    sdkConf->Force = force;
+    ExpectException(
+        sdkConf->Force = force;
+    );
 }
 
 PINGGY_EXPORT pinggy_void_t
@@ -523,7 +550,9 @@ pinggy_config_set_argument(pinggy_ref_t ref, pinggy_char_p_t argument)
         LOGE("No sdkConf found for the ref:", ref);
         return;
     }
-    sdkConf->SetArguments(EmptyStringIfNull(argument));
+    ExpectException(
+        sdkConf->SetArguments(EmptyStringIfNull(argument));
+    );
 }
 
 PINGGY_EXPORT pinggy_void_t
@@ -534,7 +563,9 @@ pinggy_config_set_advanced_parsing(pinggy_ref_t ref, pinggy_bool_t advanced_pars
         LOGE("No sdkConf found for the ref:", ref);
         return;
     }
-    sdkConf->AdvancedParsing = advanced_parsing;
+    ExpectException(
+        sdkConf->AdvancedParsing = advanced_parsing;
+    );
 }
 
 PINGGY_EXPORT pinggy_void_t
@@ -545,7 +576,9 @@ pinggy_config_set_ssl(pinggy_ref_t ref, pinggy_bool_t ssl)
         LOGE("No sdkConf found for the ref:", ref);
         return;
     }
-    sdkConf->Ssl = ssl;
+    ExpectException(
+        sdkConf->Ssl = ssl;
+    );
 }
 
 PINGGY_EXPORT pinggy_void_t
@@ -556,7 +589,9 @@ pinggy_config_set_auto_reconnect(pinggy_ref_t ref, pinggy_bool_t enable)
         LOGE("No sdkConf found for the ref:", ref);
         return;
     }
-    sdkConf->AutoReconnect = enable;
+    ExpectException(
+        sdkConf->AutoReconnect = enable;
+    );
 }
 
 PINGGY_EXPORT pinggy_void_t
@@ -567,7 +602,9 @@ pinggy_config_set_sni_server_name(pinggy_ref_t ref, pinggy_char_p_t sni_server_n
         LOGE("No sdkConf found for the ref:", ref);
         return;
     }
-    sdkConf->SniServerName = EmptyStringIfNull(sni_server_name);
+    ExpectException(
+        sdkConf->SniServerName = EmptyStringIfNull(sni_server_name);
+    );
 }
 
 PINGGY_EXPORT pinggy_void_t
@@ -578,7 +615,9 @@ pinggy_config_set_insecure(pinggy_ref_t ref, pinggy_bool_t insecure)
         LOGE("No sdkConf found for the ref:", ref);
         return;
     }
-    sdkConf->Insecure = insecure;
+    ExpectException(
+        sdkConf->Insecure = insecure;
+    );
 }
 
 //======
@@ -591,7 +630,9 @@ pinggy_config_set_header_manipulations(pinggy_ref_t ref, pinggy_const_char_p_t h
         LOGE("No sdkConf found for the ref:", ref);
         return;
     }
-    sdkConf->SetHeaderManipulations(tString(header_manipulations));
+    ExpectException(
+        sdkConf->SetHeaderManipulations(tString(header_manipulations));
+    );
 }
 
 PINGGY_EXPORT pinggy_void_t
@@ -602,7 +643,9 @@ pinggy_config_set_basic_auths(pinggy_ref_t ref, pinggy_const_char_p_t basic_auth
         LOGE("No sdkConf found for the ref:", ref);
         return;
     }
-    sdkConf->SetBasicAuths(tString(basic_auths));
+    ExpectException(
+        sdkConf->SetBasicAuths(tString(basic_auths));
+    );
 }
 
 PINGGY_EXPORT pinggy_void_t
@@ -613,7 +656,9 @@ pinggy_config_set_bearer_token_auths(pinggy_ref_t ref, pinggy_const_char_p_t bea
         LOGE("No sdkConf found for the ref:", ref);
         return;
     }
-    sdkConf->SetBearerTokenAuths(tString(bearer_token_auths));
+    ExpectException(
+        sdkConf->SetBearerTokenAuths(tString(bearer_token_auths));
+    );
 }
 
 PINGGY_EXPORT pinggy_void_t
@@ -624,7 +669,9 @@ pinggy_config_set_ip_white_list(pinggy_ref_t ref, pinggy_const_char_p_t ip_white
         LOGE("No sdkConf found for the ref:", ref);
         return;
     }
-    sdkConf->SetIpWhiteList(tString(ip_white_list));
+    ExpectException(
+        sdkConf->SetIpWhiteList(tString(ip_white_list));
+    );
 }
 
 PINGGY_EXPORT pinggy_void_t
@@ -635,7 +682,9 @@ pinggy_config_set_reverse_proxy(pinggy_ref_t ref, pinggy_bool_t reverse_proxy)
         LOGE("No sdkConf found for the ref:", ref);
         return;
     }
-    sdkConf->SetReverseProxy(reverse_proxy == pinggy_true ? true : false);
+    ExpectException(
+        sdkConf->SetReverseProxy(reverse_proxy == pinggy_true ? true : false);
+    );
 }
 
 PINGGY_EXPORT pinggy_void_t
@@ -646,7 +695,9 @@ pinggy_config_set_x_forwarder_for(pinggy_ref_t ref, pinggy_bool_t x_forwarder_fo
         LOGE("No sdkConf found for the ref:", ref);
         return;
     }
-    sdkConf->SetXForwarderFor(x_forwarder_for == pinggy_true ? true : false);
+    ExpectException(
+        sdkConf->SetXForwarderFor(x_forwarder_for == pinggy_true ? true : false);
+    );
 }
 
 PINGGY_EXPORT pinggy_void_t
@@ -657,7 +708,9 @@ pinggy_config_set_https_only(pinggy_ref_t ref, pinggy_bool_t https_only)
         LOGE("No sdkConf found for the ref:", ref);
         return;
     }
-    sdkConf->SetHttpsOnly(https_only == pinggy_true ? true : false);
+    ExpectException(
+        sdkConf->SetHttpsOnly(https_only == pinggy_true ? true : false);
+    );
 }
 
 PINGGY_EXPORT pinggy_void_t
@@ -668,7 +721,9 @@ pinggy_config_set_original_request_url(pinggy_ref_t ref, pinggy_bool_t original_
         LOGE("No sdkConf found for the ref:", ref);
         return;
     }
-    sdkConf->SetOriginalRequestUrl(original_request_url == pinggy_true ? true : false);
+    ExpectException(
+        sdkConf->SetOriginalRequestUrl(original_request_url == pinggy_true ? true : false);
+    );
 }
 
 PINGGY_EXPORT pinggy_void_t
@@ -679,7 +734,9 @@ pinggy_config_set_allow_preflight(pinggy_ref_t ref, pinggy_bool_t allow_prefligh
         LOGE("No sdkConf found for the ref:", ref);
         return;
     }
-    sdkConf->SetAllowPreflight(allow_preflight == pinggy_true ? true : false);
+    ExpectException(
+        sdkConf->SetAllowPreflight(allow_preflight == pinggy_true ? true : false);
+    );
 }
 
 PINGGY_EXPORT pinggy_void_t
@@ -690,7 +747,9 @@ pinggy_config_set_no_reverse_proxy(pinggy_ref_t ref, pinggy_bool_t no_reverse_pr
         LOGE("No sdkConf found for the ref:", ref);
         return;
     }
-    sdkConf->SetNoReverseProxy(no_reverse_proxy == pinggy_true ? true : false);
+    ExpectException(
+        sdkConf->SetNoReverseProxy(no_reverse_proxy == pinggy_true ? true : false);
+    );
 }
 
 PINGGY_EXPORT pinggy_void_t
@@ -701,7 +760,9 @@ pinggy_config_set_local_server_tls(pinggy_ref_t ref, pinggy_const_char_p_t local
         LOGE("No sdkConf found for the ref:", ref);
         return;
     }
-    sdkConf->SetLocalServerTls(tString(local_server_tls));
+    ExpectException(
+        sdkConf->SetLocalServerTls(tString(local_server_tls));
+    );
 }
 
 
@@ -714,7 +775,7 @@ pinggy_config_set_local_server_tls(pinggy_ref_t ref, pinggy_const_char_p_t local
             LOGE("No sdkConf found for the ref:", ref);                         \
             return 0;                                                           \
         }                                                                       \
-        try {                                                                   \
+        ExpectException(                                                        \
             auto str = sdkConf->str_;                                           \
             if (len_) *len_ = str.length()+2;                                   \
             if (!val_) return 0;                                                \
@@ -722,14 +783,8 @@ pinggy_config_set_local_server_tls(pinggy_ref_t ref, pinggy_const_char_p_t local
                 return 0;                                                       \
             memcpy(val_, str.c_str(), str.length()+1);                          \
             return str.length();                                                \
-        } catch (const std::exception &e) {                                     \
-            if (exception_callback) {                                           \
-                exception_callback("CPP exception:", e.what());                 \
-            } else {                                                            \
-                LOGE("No exception handler found");                             \
-            }                                                                   \
-            return 0;                                                           \
-        }                                                                       \
+        );                                                                      \
+        return 0;                                                               \
     } while(0)
 
 #define SdkConfigCopyUrlToOutputLen(capa_, val_, url_, len_)                    \
@@ -740,7 +795,7 @@ pinggy_config_set_local_server_tls(pinggy_ref_t ref, pinggy_const_char_p_t local
             LOGE("No sdkConf found for the ref:", ref);                         \
             return 0;                                                           \
         }                                                                       \
-        try {                                                                   \
+        ExpectException(                                                        \
             if (!(sdkConf->url_))                                               \
                 return 0;                                                       \
             auto str_ = sdkConf->url_->GetSockAddrString();                     \
@@ -750,14 +805,8 @@ pinggy_config_set_local_server_tls(pinggy_ref_t ref, pinggy_const_char_p_t local
                 return 0;                                                       \
             memcpy(val_, str_.c_str(), str_.length()+1);                        \
             return str_.length();                                               \
-        } catch (const std::exception &e) {                                     \
-            if (exception_callback) {                                           \
-                exception_callback("CPP exception:", e.what());                 \
-            } else {                                                            \
-                LOGE("No exception handler found");                             \
-            }                                                                   \
-            return 0;                                                           \
-        }                                                                       \
+        );                                                                      \
+        return 0;                                                               \
     } while(0)
 
 PINGGY_EXPORT pinggy_const_int_t
@@ -1309,7 +1358,6 @@ pinggy_tunnel_get_current_usages_len(pinggy_ref_t ref, pinggy_capa_t capa, pingg
         return 0;
     }
     CopyStringToOutputLen(capa, val, sdk->GetCurrentUsages(), max_len);
-    return 0;
 }
 
 PINGGY_EXPORT pinggy_const_int_t
@@ -1328,7 +1376,6 @@ pinggy_tunnel_get_greeting_msgs_len(pinggy_ref_t ref, pinggy_capa_t capa, pinggy
         return 0;
     }
     CopyStringToOutputLen(capa, val, sdk->GetGreetingMsg(), max_len);
-    return 0;
 }
 
 //===============================
@@ -1672,7 +1719,6 @@ pinggy_tunnel_channel_get_dest_host_len(pinggy_ref_t channelRef, pinggy_capa_t c
         return 0;
 
     CopyStringToOutputLen(capa, val, channel->GetDestHost(), max_len);
-    return 0;
 }
 
 PINGGY_EXPORT pinggy_uint16_t
@@ -1700,7 +1746,6 @@ pinggy_tunnel_channel_get_src_host_len(pinggy_ref_t channelRef, pinggy_capa_t ca
         return 0;
 
     CopyStringToOutputLen(capa, val, channel->GetSrcHost(), max_len);
-    return 0;
 }
 
 //==============================
@@ -1717,7 +1762,6 @@ pinggy_version_len(pinggy_capa_t capa, pinggy_char_p_t val, pinggy_capa_p_t max_
 {
     tString version = std::to_string(PinggyVersionMajor) + "." + std::to_string(PinggyVersionMinor) + "." + std::to_string(PinggyVersionPatch);
     CopyStringToOutputLen(capa, val, version, max_len);
-    return 0;
 }
 
 #define DEFINE_CONFIG_GET_FUNC(funcname, macro)                                     \
@@ -1732,7 +1776,6 @@ funcname##_len(pinggy_capa_t capa, pinggy_char_p_t val, pinggy_capa_p_t max_len)
 {                                                                                   \
     tString funcname##str = macro;                                                  \
     CopyStringToOutputLen(capa, val, funcname##str, max_len);                       \
-    return 0;                                                                       \
 }
 
 DEFINE_CONFIG_GET_FUNC(pinggy_git_commit, PINGGY_GIT_COMMIT_ID);

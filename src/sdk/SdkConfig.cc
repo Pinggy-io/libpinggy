@@ -44,7 +44,8 @@ NLOHMANN_JSON_SERIALIZE_ENUM(HeaderMod::Action, {
     {HeaderMod::Action::Update,    "update"},
 })
 
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_CUSTOME_PTR(HeaderMod,
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_CUSTOME_NEW_PTR(HeaderMod,
+    (),
     (action, type),
     (header, key),
     (values, value)
@@ -70,10 +71,6 @@ SDKConfig::SDKConfig():
     SniServerName("a.pinggy.io"),
     Insecure(false),
     AutoReconnect(false),
-    headerManipulations("[]"),
-    basicAuths("[]"),
-    bearerTokenAuths("[]"),
-    ipWhiteList("[]"),
     reverseProxy(true),
     xForwarderFor(false),
     httpsOnly(false),
@@ -82,12 +79,88 @@ SDKConfig::SDKConfig():
 {
 }
 
+
+#define TO_JSON_STR(x, y)      \
+    do {                    \
+        json j = x;         \
+        y = j.dump(); \
+    } while(0)
+
+const tString
+SDKConfig::GetHeaderManipulations()
+{
+    tString val = "";
+    TO_JSON_STR(headerManipulations, val);
+    return val;
+}
+
+const tString
+SDKConfig::GetBasicAuths()
+{
+    tString val = "";
+    TO_JSON_STR(basicAuths, val);
+    return val;
+}
+
+const tString
+SDKConfig::GetBearerTokenAuths()
+{
+    tString val = "";
+    TO_JSON_STR(bearerTokenAuths, val);
+    return val;
+}
+
+const tString
+SDKConfig::GetIpWhiteList()
+{
+    tString val = "";
+    TO_JSON_STR(ipWhiteList, val);
+    return val;
+}
+
+#undef TO_JSON_STR
+
+
+#define FROM_JSON_STR(x, y)                    \
+    do {                                    \
+        if (!y.empty()) {             \
+            json j = json::parse(y);  \
+            j.get_to(x);                    \
+        }                                   \
+    } while(0)
+
+void
+SDKConfig::SetHeaderManipulations(tString val)
+{
+    FROM_JSON_STR(headerManipulations, val);
+}
+
+void
+SDKConfig::SetBasicAuths(tString val)
+{
+    FROM_JSON_STR(basicAuths, val);
+}
+
+void
+SDKConfig::SetBearerTokenAuths(tString val)
+{
+    FROM_JSON_STR(bearerTokenAuths, val);
+}
+
+void
+SDKConfig::SetIpWhiteList(tString val)
+{
+    FROM_JSON_STR(ipWhiteList, val);
+}
+
+#undef FROM_JSON_STR
+
 void
 SDKConfig::resetArguments() {
-    headerManipulations = "[]";
-    basicAuths          = "[]";
-    bearerTokenAuths    = "[]";
-    ipWhiteList         = "[]";
+    headerManipulations.clear();
+    basicAuths.clear();
+    bearerTokenAuths.clear();
+    ipWhiteList.clear();
     reverseProxy        = true;
     xForwarderFor       = false;
     httpsOnly           = false;
@@ -147,11 +220,6 @@ SDKConfig::SetArguments(tString args)
 {
     resetArguments();
     auto cmds = ShlexSplitString(args);
-
-    std::vector<HeaderModPtr>   headerManipulations;
-    std::vector<UserPassPtr>    basicAuths;
-    std::vector<tString>        bearerTokenAuths;
-    std::vector<tString>        ipWhiteList;
 
     for (auto cmd : cmds) {
         auto vals = SplitString(cmd, ":", 1);
@@ -217,40 +285,11 @@ SDKConfig::SetArguments(tString args)
                 }
         }
     }
-
-#define TO_JSON_STR(x)      \
-    do {                    \
-        json j = x;         \
-        this->x = j.dump(); \
-    } while(0)
-    TO_JSON_STR(headerManipulations);
-    TO_JSON_STR(basicAuths);
-    TO_JSON_STR(bearerTokenAuths);
-    TO_JSON_STR(ipWhiteList);
-#undef TO_JSON_STR
 }
 
-const tString &
+const tString
 SDKConfig::GetArguments()
 {
-    std::vector<HeaderModPtr>   headerManipulations;
-    std::vector<UserPassPtr>    basicAuths;
-    std::vector<tString>        bearerTokenAuths;
-    std::vector<tString>        ipWhiteList;
-
-#define FROM_JSON_STR(x)                    \
-    do {                                    \
-        if (!this->x.empty()) {             \
-            json j = json::parse(this->x);  \
-            j.get_to(x);                    \
-        }                                   \
-    } while(0)
-    FROM_JSON_STR(headerManipulations);
-    FROM_JSON_STR(basicAuths);
-    FROM_JSON_STR(bearerTokenAuths);
-    FROM_JSON_STR(ipWhiteList);
-#undef FROM_JSON_STR
-
     std::vector<tString> val;
 
     if (ipWhiteList.size()) {
@@ -309,13 +348,11 @@ SDKConfig::GetArguments()
         val.push_back("x:noreverseproxy");
 
     if (!localServerTls.empty())
-        val.push_back("x:localserverlts:"+localServerTls);
+        val.push_back("x:localServerTls:"+localServerTls);
 
     auto cmds = ShlexJoinStrings(val);
 
-    arguments = cmds;
-
-    return arguments;
+    return cmds;
 }
 
 } // namespace sdk

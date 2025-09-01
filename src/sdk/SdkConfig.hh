@@ -25,6 +25,9 @@ namespace sdk
 
 class Sdk;
 
+DeclareStructWithSharedPtr(HeaderMod);
+DeclareStructWithSharedPtr(UserPass);
+
 struct SDKConfig: virtual public pinggy::SharedObject
 {
     SDKConfig();
@@ -71,21 +74,17 @@ struct SDKConfig: virtual public pinggy::SharedObject
     bool                        AutoReconnect;
 
 
-    const tString &
-    GetHeaderManipulations()
-                                { return headerManipulations; }
+    const tString
+    GetHeaderManipulations();
 
-    const tString &
-    GetBasicAuths()
-                                { return basicAuths; }
+    const tString
+    GetBasicAuths();
 
-    const tString &
-    GetBearerTokenAuths()
-                                { return bearerTokenAuths; }
+    const tString
+    GetBearerTokenAuths();
 
-    const tString &
-    GetIpWhiteList()
-                                { return ipWhiteList; }
+    const tString
+    GetIpWhiteList();
 
     bool
     IsReverseProxy()
@@ -115,37 +114,44 @@ struct SDKConfig: virtual public pinggy::SharedObject
     GetLocalServerTls()
                                 { return localServerTls; }
 
-    void SetHeaderManipulations(tString val)
-                                { headerManipulations = val; }
+    void
+    SetHeaderManipulations(tString val);
 
-    void SetBasicAuths(tString val)
-                                { basicAuths = val; }
+    void
+    SetBasicAuths(tString val);
 
-    void SetBearerTokenAuths(tString val)
-                                { bearerTokenAuths = val; }
+    void
+    SetBearerTokenAuths(tString val);
 
-    void SetIpWhiteList(tString val)
-                                { ipWhiteList = val; }
+    void
+    SetIpWhiteList(tString val);
 
-    void SetReverseProxy(bool val)
+    void
+    SetReverseProxy(bool val)
                                 { reverseProxy = val; }
 
-    void SetXForwarderFor(bool val)
+    void
+    SetXForwarderFor(bool val)
                                 { xForwarderFor = val; }
 
-    void SetHttpsOnly(bool val)
+    void
+    SetHttpsOnly(bool val)
                                 { httpsOnly = val; }
 
-    void SetOriginalRequestUrl(bool val)
+    void
+    SetOriginalRequestUrl(bool val)
                                 { originalRequestUrl = val; }
 
-    void SetAllowPreflight(bool val)
+    void
+    SetAllowPreflight(bool val)
                                 { allowPreflight = val; }
 
-    void SetNoReverseProxy(bool val)
+    void
+    SetNoReverseProxy(bool val)
                                 { reverseProxy = !val; }
 
-    void SetLocalServerTls(tString val)
+    void
+    SetLocalServerTls(tString val)
                                 { localServerTls = val; }
 
     //===================
@@ -153,7 +159,7 @@ struct SDKConfig: virtual public pinggy::SharedObject
     void
     SetArguments(tString args);
 
-    const tString &
+    const tString
     GetArguments();
 
 private:
@@ -161,19 +167,16 @@ private:
 
 
     //Other argument options
-    tString                     headerManipulations;
-    tString                     basicAuths;
-    tString                     bearerTokenAuths;
-    tString                     ipWhiteList;
+    std::vector<HeaderModPtr>   headerManipulations;
+    std::vector<UserPassPtr>    basicAuths;
+    std::vector<tString>        bearerTokenAuths;
+    std::vector<tString>        ipWhiteList;
     bool                        reverseProxy;
     bool                        xForwarderFor;
     bool                        httpsOnly;
     bool                        originalRequestUrl;
     bool                        allowPreflight;
     tString                     localServerTls;
-
-    //rest of the arguments that we passed to ssh
-    tString                     arguments;
 
     void
     validate();
