@@ -469,8 +469,8 @@ Sdk::HandleSessionRemoteForwardingSucceeded(protocol::tReqId reqId, std::vector<
         state = SdkState_PrimaryReverseForwardingAccepted;
 
         tunnelInitiated();
-        primaryForwardingCheckTimeout = pollController->SetTimeout(3 * SECOND, thisPtr, &Sdk::handlePrimaryForwardingFailed, tString("could not fetch greetingmsg"));
-        // Probably 3 second is not a lot. But, we want it to fail soon.
+        primaryForwardingCheckTimeout = pollController->SetTimeout(5 * SECOND, thisPtr, &Sdk::handlePrimaryForwardingFailed, tString("could not fetch greetingmsg"));
+        // Probably 5 second is not a lot. But, we want it to fail soon.
         LOGD("Primary forwarding done");
 
         return;
