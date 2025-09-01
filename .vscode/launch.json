@@ -42,10 +42,12 @@
             "type": "lldb-dap",
             "request": "launch",
             "program": "python3",
-            "args": [ "${workspaceFolder}/bindings/python/example.py"],
+            "args": [ "${workspaceFolder}/bindings/python/example2.py"],
             "cwd": "${workspaceFolder}",
             "stopOnEntry": false,
-            "env": {},
+            "env": {
+                "LIBPINGGY_LIBPATH": "${workspaceFolder}/releases/macos/universal/libpinggy.dylib"
+            },
             // "sourceLanguages": ["cpp"]
         }
     ]

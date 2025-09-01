@@ -112,6 +112,7 @@ $ cmake --build . distribute //creating libpinggy.tgz/zip
     * While the tunnel is running (either through `resume` or `start`), it can make the following callbacks in any order:
         1. `on_additional_forwarding_succeeded`
             * If additional forwarding is requested and accepted by the server.
+            * At these point, tunnel is ready to use. However, There are few task running in back ground.
         2. `on_additional_forwarding_failed`
         3. `on_disconnected`
             * When the tunnel is formally disconnected by the server, or a connection reset happens and reconnection is not enabled.

@@ -44,8 +44,8 @@ enum SdkState {
     SdkState_Authenticating,
     SdkState_Authenticated,
     SdkState_PrimaryReverseForwardingInitiated,
+    SdkState_PrimaryReverseForwardingAccepted,
     SdkState_PrimaryReverseForwardingSucceeded,
-    SdkState_TunnelReady
 };
 
 abstract class SdkEventHandler: virtual public pinggy::SharedObject
@@ -267,7 +267,7 @@ private:
     authenticate();
 
     void
-    getPortConfig();
+    tunnelInitiated();
 
     bool
     internalConnect(bool block);
@@ -300,13 +300,19 @@ private:
     initPollController();
 
     void
-    setupContinuousUsagesNGetGreeting();
+    initiateContinousUsages();
 
     bool
     resumeWithoutLock(tString funcName);
 
     void
+    setupLocalChannelNGetData(port_t port, tString tag);
+
+    void
     setState(SdkState s)        { state = s; }
+
+    void
+    handlePrimaryForwardingFailed(tString reason);
 
     net::NetworkConnectionPtr   baseConnection;
     common::PollControllerPtr   pollController;
@@ -353,6 +359,7 @@ private:
     bool                        usagesRunning;
     tString                     greetingMsgs;
     tString                     lastUsagesUpdate;
+    common::PollableTaskPtr     primaryForwardingCheckTimeout;
 };
 DefineMakeSharedPtr(Sdk);
 

@@ -365,6 +365,7 @@ struct ClientSdkEventHandler: virtual public sdk::SdkEventHandler
                 std::cout << "   " << url << std::endl;
             }
         }
+        std::cout << "Greeting: " << sdk.lock()->GetGreetingMsg() << std::endl;
     }
 
     virtual void
@@ -376,7 +377,6 @@ struct ClientSdkEventHandler: virtual public sdk::SdkEventHandler
     virtual void
     OnUsageUpdate(tString msg) override {
         std::cout << "Update msg: " << msg << std::endl;
-        std::cout << "Greeting: " << sdk.lock()->GetGreetingMsg() << std::endl;
     }
 
     tString                     error;
@@ -417,6 +417,8 @@ ClientSdkEventHandler::OnPrimaryForwardingSucceeded(std::vector<std::string> url
     for (auto url : urls) {
         std::cout << "   " << url << std::endl;
     }
+
+    std::cout << "Greeting: " << sdk.lock()->GetGreetingMsg() << std::endl;
     if (config->EnableWebDebugger && config->WebDebuggerPort > 0) {
         thisPtr->sdk.lock()->StartWebDebugging(config->WebDebuggerPort);
     }

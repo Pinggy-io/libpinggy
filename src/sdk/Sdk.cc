@@ -176,12 +176,6 @@ Sdk::Start()
         return false;
     }
 
-    if (state < SdkState_TunnelReady) {
-        getPortConfig();
-
-        setupContinuousUsagesNGetGreeting();
-    }
-
     while(true) {
         auto ret = ResumeTunnel();
         if (!ret)
@@ -369,12 +363,7 @@ Sdk::RequestPrimaryRemoteForwarding(bool block)
     if (cleanupNow)
         cleanup();
 
-
-    getPortConfig();
-
-    setupContinuousUsagesNGetGreeting();
-
-    return state >= SdkState_PrimaryReverseForwardingSucceeded ;
+    return state == SdkState_PrimaryReverseForwardingSucceeded ;
 }
 
 void
@@ -468,10 +457,8 @@ Sdk::HandleSessionRemoteForwardingSucceeded(protocol::tReqId reqId, std::vector<
     LOGT("Remote Fowarding succeeded");
 
     if (primaryForwardingReqId == reqId) {
-
-        DEFER({pollController->StopPolling();});
-
-        if (state >= SdkState_PrimaryReverseForwardingSucceeded) {
+        if (state >= SdkState_PrimaryReverseForwardingAccepted) {
+            DEFER({pollController->StopPolling();});
             ABORT_WITH_MSG("Received multiple primary forwarding");
             return;
         }
@@ -479,12 +466,12 @@ Sdk::HandleSessionRemoteForwardingSucceeded(protocol::tReqId reqId, std::vector<
         if (urls.size() > 0) //it would come with the primary forwarding only
             this->urls = urls;
 
-        state = SdkState_PrimaryReverseForwardingSucceeded;
+        state = SdkState_PrimaryReverseForwardingAccepted;
 
-        if (eventHandler && !reconnectNow)
-            eventHandler->OnPrimaryForwardingSucceeded(urls);
-
-        LOGD("Primary forwarding done", urls);
+        tunnelInitiated();
+        primaryForwardingCheckTimeout = pollController->SetTimeout(3 * SECOND, thisPtr, &Sdk::handlePrimaryForwardingFailed, tString("could not fetch greetingmsg"));
+        // Probably 3 second is not a lot. But, we want it to fail soon.
+        LOGD("Primary forwarding done");
 
         return;
     }
@@ -520,28 +507,12 @@ Sdk::HandleSessionRemoteForwardingFailed(protocol::tReqId reqId, tString error)
 
     if (primaryForwardingReqId == reqId) {
         DEFER({pollController->StopPolling();});
-        if (state >= SdkState_PrimaryReverseForwardingSucceeded) {
+        if (state >= SdkState_PrimaryReverseForwardingAccepted) {
             ABORT_WITH_MSG("Received multiple primary forwarding");
             return;
         }
 
-        state = sdkState_PrimaryReverseForwardingFailed;
-
-        if (notificationConn && notificationConn->IsValid()) {
-            notificationConn->CloseConn();
-            notificationConn = nullptr;
-            _notificateMonitorConn = nullptr;
-        }
-
-        if (eventHandler && !reconnectNow)
-            eventHandler->OnPrimaryForwardingFailed(error);
-
-        if (baseConnection->IsValid()) {
-            baseConnection->DeregisterFDEvenHandler();
-            baseConnection->CloseConn();
-        }
-
-        LOGD("Primary forwarding failed");
+        handlePrimaryForwardingFailed(error);
 
         return;
     }
@@ -799,7 +770,6 @@ Sdk::ChannelDataReceived(protocol::ChannelPtr channel)
     }
     auto tag = channel->GetUserTag();
     if (tag == PORT_CONF) {
-        DEFER({pollController->StopPolling();});
         auto data = NewRawDataPtr();
         while (channel->HaveDataToRead()) {
             auto [len, newData] = channel->Recv(4096);
@@ -822,6 +792,11 @@ Sdk::ChannelDataReceived(protocol::ChannelPtr channel)
                                 GreetingMsgTCP
                             )
             thisPtr->portConfig = portConfigPtr;
+
+            if (!usageChannel) {
+                initiateContinousUsages();
+            }
+            setupLocalChannelNGetData(portConfig->GreetingMsgTCP, GREETING_MSG_TAG);
         } catch(...) {
             LOGE("Some error while parsing port config");
         }
@@ -841,10 +816,18 @@ Sdk::ChannelDataReceived(protocol::ChannelPtr channel)
                 if (jdata.contains("Msgs")) {
                     greetingMsgs = jdata["Msgs"].dump();
                 }
+                if (primaryForwardingCheckTimeout){
+                    primaryForwardingCheckTimeout->DisArm();
+                    primaryForwardingCheckTimeout = nullptr;
+                }
+                LOGD("greeting received");
+                if (eventHandler && !reconnectNow)
+                    eventHandler->OnPrimaryForwardingSucceeded(urls);
+                state = SdkState_PrimaryReverseForwardingSucceeded;
+                pollController->StopPolling();
             } catch(...) {
                 LOGE("Some error while parsing greeting msg");
             }
-            state = SdkState_TunnelReady;
         }
         return;
     }
@@ -869,7 +852,7 @@ Sdk::ChannelCleanup(protocol::ChannelPtr channel)
         channel->Close();
         usageChannel = nullptr;
         //TODO reinitiate channel
-        pollController->SetTimeout(SECOND, thisPtr, &Sdk::setupContinuousUsagesNGetGreeting);
+        pollController->SetTimeout(SECOND, thisPtr, &Sdk::initiateContinousUsages);
     }
 
     channel->Close();
@@ -894,14 +877,12 @@ Sdk::authenticate()
 }
 
 void
-Sdk::getPortConfig()
+Sdk::tunnelInitiated()
 {
     auto channel = session->CreateChannel(4, "localhost", 4300, "localhost");
     channel->RegisterEventHandler(thisPtr);
     channel->SetUserTag(PORT_CONF);
     channel->Connect();
-
-    pollController->StartPolling();
 }
 
 bool Sdk::internalConnect(bool block)
@@ -1088,7 +1069,7 @@ void Sdk::initPollController()
 }
 
 void
-Sdk::setupContinuousUsagesNGetGreeting()
+Sdk::initiateContinousUsages()
 {
     if (usageChannel) {
         return; //No point in raising exception
@@ -1103,13 +1084,6 @@ Sdk::setupContinuousUsagesNGetGreeting()
     usageChannel = session->CreateChannel(portConfig->UsageContinuousTcp, "localhost", 0, "localhost");
     usageChannel->RegisterEventHandler(thisPtr);
     usageChannel->Connect();
-
-    auto channel = session->CreateChannel(portConfig->GreetingMsgTCP, "localhost", 0, "localhost");
-    channel->SetUserTag(GREETING_MSG_TAG);
-    channel->RegisterEventHandler(thisPtr);
-    channel->Connect();
-
-    pollController->StartPolling();
 }
 
 bool
@@ -1127,6 +1101,38 @@ Sdk::resumeWithoutLock(tString funcName)
     auto success = (ret < 0 && app_get_errno() != EINTR ? false : true);
     lockAccess.unlock();
     return success;
+}
+
+void
+Sdk::setupLocalChannelNGetData(port_t port, tString tag)
+{
+    auto channel = session->CreateChannel(port, "localhost", 0, "localhost");
+    channel->SetUserTag(tag);
+    channel->RegisterEventHandler(thisPtr);
+    channel->Connect();
+}
+
+void
+Sdk::handlePrimaryForwardingFailed(tString reason)
+{
+    DEFER({pollController->StopPolling();});
+    state = sdkState_PrimaryReverseForwardingFailed;
+
+    if (notificationConn && notificationConn->IsValid()) {
+        notificationConn->CloseConn();
+        notificationConn = nullptr;
+        _notificateMonitorConn = nullptr;
+    }
+
+    if (eventHandler && !reconnectNow)
+        eventHandler->OnPrimaryForwardingFailed(reason);
+
+    if (baseConnection->IsValid()) {
+        baseConnection->DeregisterFDEvenHandler();
+        baseConnection->CloseConn();
+    }
+
+    LOGD("Primary forwarding failed");
 }
 
 
