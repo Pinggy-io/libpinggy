@@ -98,12 +98,12 @@ bool
 parseReverseTunnel(ClientConfigPtr config, tString value)
 {
     auto values = parseForwarding(value);
-    if (value.length() < 2) {
+    if (values.size() < 2) { // fixed logic here
         return false;
     }
     auto url =  values[values.size() - 2] + ":" + values[values.size() - 1];
     try {
-        config->sdkConfig->TcpForwardTo = NewUrlPtr(url);
+        config->sdkConfig->SetTcpForwardTo(NewUrlPtr(url));
     } catch(...) {
         return false;
     }
@@ -135,32 +135,32 @@ parseUser(ClientConfigPtr config, tString user)
 
     auto sdkConfig = config->sdkConfig;
 
-    auto forwardingAddress = sdkConfig->TcpForwardTo;
-    sdkConfig->TcpForwardTo  = nullptr;
+    auto forwardingAddress = sdkConfig->GetTcpForwardTo();
+    sdkConfig->SetTcpForwardTo(nullptr);
 
     for(auto s : values) {
         auto sl = StringToLower(s);
         LOGT("s=" << s, "sl="<<sl);
         if (sl == ConnMode_HTTP || sl == ConnMode_TCP || sl == ConnMode_TLS || sl == ConnMode_TLSTCP) {
-            sdkConfig->TcpForwardTo = forwardingAddress;
-            sdkConfig->Mode = sl;
+            sdkConfig->SetTcpForwardTo(forwardingAddress);
+            sdkConfig->SetMode(sl);
         } else if (sl == ConnModeExt_UDP) {
-            sdkConfig->UdpForwardTo = forwardingAddress;
-            sdkConfig->UdpMode = sl;
+            sdkConfig->SetUdpForwardTo(forwardingAddress);
+            sdkConfig->SetUdpMode(sl);
         } else {
             token = "+" + s;
         }
     }
 
-    if (!sdkConfig->TcpForwardTo && !sdkConfig->UdpForwardTo) {
-        sdkConfig->TcpForwardTo = forwardingAddress;
-        sdkConfig->Mode = ConnMode_HTTP;
+    if (!sdkConfig->GetTcpForwardTo() && !sdkConfig->GetUdpForwardTo()) {
+        sdkConfig->SetTcpForwardTo(forwardingAddress);
+        sdkConfig->SetMode(ConnMode_HTTP);
     }
 
     if (token.length() > 1) {
-        sdkConfig->Token = token.substr(1);
+        sdkConfig->SetToken(token.substr(1));
     }
-    LOGI("token: ", sdkConfig->Token);
+    LOGI("token: ", sdkConfig->GetToken());
     return true;
 }
 
@@ -174,7 +174,7 @@ parseUserServer(ClientConfigPtr config, tString value, tString port)
 
     bool success = true;
     try {
-        config->sdkConfig->ServerAddress = NewUrlPtr(values[values.size() - 1] + ":" + port);
+        config->sdkConfig->SetServerAddress(NewUrlPtr(values[values.size() - 1] + ":" + port));
         if (values.size() > 1) {
             success = parseUser(config, values[values.size() - 2]);
         }
@@ -225,7 +225,6 @@ ClientConfigPtr
 parseArguments(int argc, char *argv[])
 {
     auto config = NewClientConfigPtr();
-    // config->sdkConfig->AdvancedParsing = false;
 
 
     int opt;
@@ -237,7 +236,7 @@ parseArguments(int argc, char *argv[])
         {"verbose", cli_no_argument, 0, 'V'},
         {"port", cli_required_argument, 0, 'p'},
         {"sni", cli_required_argument, 0, 's'},
-        {"inseceure", cli_required_argument, 0, 'n'},
+        {"insecure", cli_required_argument, 0, 'n'}, // fixed typo here
         {NULL, cli_required_argument, 0, 'R'},
         {NULL, cli_required_argument, 0, 'L'},
         {NULL, cli_required_argument, 0, 'o'},
@@ -250,9 +249,6 @@ parseArguments(int argc, char *argv[])
     while ((opt = cli_getopt_long(argc, argv, "ahvVno:R:L:p:s:r", longopts, &longindex)) != -1) {
         bool success = true;
         switch (opt) {
-            case 'a':
-                config->sdkConfig->AdvancedParsing = true;
-                break;
             case 'h':
                 printHelpOptions(prog);
                 exitNow = true;
@@ -279,13 +275,17 @@ parseArguments(int argc, char *argv[])
                 success = parseForwardTunnel(config, cli_optarg);
                 break;
             case 'n':
-                config->sdkConfig->Ssl = false;
+                config->sdkConfig->SetSsl(false);
+                config->sdkConfig->SetInsecure(true);
                 break;
             case 's':
-                config->sdkConfig->SniServerName = cli_optarg;
+                config->sdkConfig->SetSniServerName(cli_optarg);
                 break;
             case 'r':
-                config->sdkConfig->AutoReconnect = true;
+                config->sdkConfig->SetAutoReconnect(true);
+                break;
+            case 'a':
+                config->sdkConfig->SetAdvancedParsing(true);
                 break;
             case 256: // Handling for --config
                 printf("Config option with value: %s\n", cli_optarg);

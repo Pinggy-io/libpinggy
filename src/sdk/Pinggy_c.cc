@@ -460,7 +460,7 @@ pinggy_config_set_server_address(pinggy_ref_t ref, pinggy_char_p_t server_addres
         return;
     }
     ExpectException(
-        sdkConf->ServerAddress = NewUrlPtr(EmptyStringIfNull(server_address), 443);
+        sdkConf->SetServerAddress(NewUrlPtr(EmptyStringIfNull(server_address), 443));
     );
 }
 
@@ -473,7 +473,7 @@ pinggy_config_set_token(pinggy_ref_t ref, pinggy_char_p_t token)
         return;
     }
     ExpectException(
-        sdkConf->Token = EmptyStringIfNull(token);
+        sdkConf->SetToken(EmptyStringIfNull(token));
     );
 }
 
@@ -486,7 +486,7 @@ pinggy_config_set_type(pinggy_ref_t ref, pinggy_char_p_t mode)
         return;
     }
     ExpectException(
-        sdkConf->Mode = EmptyStringIfNull(mode);
+        sdkConf->SetMode(EmptyStringIfNull(mode));
     );
 }
 
@@ -499,7 +499,7 @@ pinggy_config_set_udp_type(pinggy_ref_t ref, pinggy_char_p_t udp_type)
         return;
     }
     ExpectException(
-        sdkConf->UdpMode = EmptyStringIfNull(udp_type);
+        sdkConf->SetUdpMode(EmptyStringIfNull(udp_type));
     );
 }
 
@@ -512,7 +512,7 @@ pinggy_config_set_tcp_forward_to(pinggy_ref_t ref, pinggy_char_p_t tcp_forward_t
         return;
     }
     ExpectException(
-        sdkConf->TcpForwardTo = NewUrlPtr(EmptyStringIfNull(tcp_forward_to));
+        sdkConf->SetTcpForwardTo(NewUrlPtr(EmptyStringIfNull(tcp_forward_to)));
     );
 }
 
@@ -525,7 +525,7 @@ pinggy_config_set_udp_forward_to(pinggy_ref_t ref, pinggy_char_p_t udp_forward_t
         return;
     }
     ExpectException(
-        sdkConf->UdpForwardTo = NewUrlPtr(EmptyStringIfNull(udp_forward_to), 80, "udp");
+        sdkConf->SetUdpForwardTo(NewUrlPtr(EmptyStringIfNull(udp_forward_to), 80, "udp"));
     );
 }
 
@@ -538,7 +538,7 @@ pinggy_config_set_force(pinggy_ref_t ref, pinggy_bool_t force)
         return;
     }
     ExpectException(
-        sdkConf->Force = force;
+        sdkConf->SetForce(force);
     );
 }
 
@@ -564,7 +564,7 @@ pinggy_config_set_advanced_parsing(pinggy_ref_t ref, pinggy_bool_t advanced_pars
         return;
     }
     ExpectException(
-        sdkConf->AdvancedParsing = advanced_parsing;
+        sdkConf->SetAdvancedParsing(advanced_parsing);
     );
 }
 
@@ -577,7 +577,7 @@ pinggy_config_set_ssl(pinggy_ref_t ref, pinggy_bool_t ssl)
         return;
     }
     ExpectException(
-        sdkConf->Ssl = ssl;
+        sdkConf->SetSsl(ssl);
     );
 }
 
@@ -590,7 +590,7 @@ pinggy_config_set_auto_reconnect(pinggy_ref_t ref, pinggy_bool_t enable)
         return;
     }
     ExpectException(
-        sdkConf->AutoReconnect = enable;
+        sdkConf->SetAutoReconnect(enable);
     );
 }
 
@@ -603,7 +603,7 @@ pinggy_config_set_sni_server_name(pinggy_ref_t ref, pinggy_char_p_t sni_server_n
         return;
     }
     ExpectException(
-        sdkConf->SniServerName = EmptyStringIfNull(sni_server_name);
+        sdkConf->SetSniServerName(EmptyStringIfNull(sni_server_name));
     );
 }
 
@@ -616,10 +616,22 @@ pinggy_config_set_insecure(pinggy_ref_t ref, pinggy_bool_t insecure)
         return;
     }
     ExpectException(
-        sdkConf->Insecure = insecure;
+        sdkConf->SetInsecure(insecure);
     );
 }
 
+PINGGY_EXPORT pinggy_void_t
+pinggy_config_set_max_reconnect_attempts(pinggy_ref_t ref, pinggy_uint16_t attempts)
+{
+    auto sdkConf = getSDKConfig(ref);
+    if (!sdkConf) {
+        LOGE("No sdkConf found for the ref:", ref);
+        return;
+    }
+    ExpectException(
+        sdkConf->SetMaxReconnectAttempts(attempts);
+    );
+}
 //======
 
 PINGGY_EXPORT pinggy_void_t
@@ -818,7 +830,7 @@ pinggy_config_get_server_address(pinggy_ref_t ref, pinggy_capa_t capa, pinggy_ch
 PINGGY_EXPORT pinggy_const_int_t
 pinggy_config_get_server_address_len(pinggy_ref_t ref, pinggy_capa_t capa, pinggy_char_p_t val, pinggy_capa_p_t max_len)
 {
-    SdkConfigCopyUrlToOutputLen(capa, val, ServerAddress, max_len);
+    SdkConfigCopyUrlToOutputLen(capa, val, GetServerAddress(), max_len);
 }
 
 PINGGY_EXPORT pinggy_const_int_t
@@ -830,7 +842,7 @@ pinggy_config_get_token(pinggy_ref_t ref, pinggy_capa_t capa, pinggy_char_p_t va
 PINGGY_EXPORT pinggy_const_int_t
 pinggy_config_get_token_len(pinggy_ref_t ref, pinggy_capa_t capa, pinggy_char_p_t val, pinggy_capa_p_t max_len)
 {
-    SdkConfigCopyStringToOutputLen(capa, val, Token, max_len);
+    SdkConfigCopyStringToOutputLen(capa, val, GetToken(), max_len);
 }
 
 PINGGY_EXPORT pinggy_const_int_t
@@ -842,7 +854,7 @@ pinggy_config_get_type(pinggy_ref_t ref, pinggy_capa_t capa, pinggy_char_p_t val
 PINGGY_EXPORT pinggy_const_int_t
 pinggy_config_get_type_len(pinggy_ref_t ref, pinggy_capa_t capa, pinggy_char_p_t val, pinggy_capa_p_t max_len)
 {
-    SdkConfigCopyStringToOutputLen(capa, val, Mode, max_len);
+    SdkConfigCopyStringToOutputLen(capa, val, GetMode(), max_len);
 }
 
 PINGGY_EXPORT pinggy_const_int_t
@@ -854,7 +866,7 @@ pinggy_config_get_udp_type(pinggy_ref_t ref, pinggy_capa_t capa, pinggy_char_p_t
 PINGGY_EXPORT pinggy_const_int_t
 pinggy_config_get_udp_type_len(pinggy_ref_t ref, pinggy_capa_t capa, pinggy_char_p_t val, pinggy_capa_p_t max_len)
 {
-    SdkConfigCopyStringToOutputLen(capa, val, UdpMode, max_len);
+    SdkConfigCopyStringToOutputLen(capa, val, GetUdpMode(), max_len);
 }
 
 PINGGY_EXPORT pinggy_const_int_t
@@ -866,7 +878,7 @@ pinggy_config_get_tcp_forward_to(pinggy_ref_t ref, pinggy_capa_t capa, pinggy_ch
 PINGGY_EXPORT pinggy_const_int_t
 pinggy_config_get_tcp_forward_to_len(pinggy_ref_t ref, pinggy_capa_t capa, pinggy_char_p_t val, pinggy_capa_p_t max_len)
 {
-    SdkConfigCopyUrlToOutputLen(capa, val, TcpForwardTo, max_len);
+    SdkConfigCopyUrlToOutputLen(capa, val, GetTcpForwardTo(), max_len);
 }
 
 PINGGY_EXPORT pinggy_const_int_t
@@ -878,7 +890,7 @@ pinggy_config_get_udp_forward_to(pinggy_ref_t ref, pinggy_capa_t capa, pinggy_ch
 PINGGY_EXPORT pinggy_const_int_t
 pinggy_config_get_udp_forward_to_len(pinggy_ref_t ref, pinggy_capa_t capa, pinggy_char_p_t val, pinggy_capa_p_t max_len)
 {
-    SdkConfigCopyUrlToOutputLen(capa, val, UdpForwardTo, max_len);
+    SdkConfigCopyUrlToOutputLen(capa, val, GetUdpForwardTo(), max_len);
 }
 
 PINGGY_EXPORT pinggy_const_bool_t
@@ -887,7 +899,7 @@ pinggy_config_get_force(pinggy_ref_t ref)
     auto sdkConf = getSDKConfig(ref);
     if (!sdkConf)
         return 0;
-    return sdkConf->Force ? pinggy_true : pinggy_false;
+    return sdkConf->IsForce() ? pinggy_true : pinggy_false;
 }
 
 PINGGY_EXPORT pinggy_const_int_t
@@ -910,7 +922,7 @@ pinggy_config_get_advanced_parsing(pinggy_ref_t ref)
         LOGE("No sdkConf found for the ref:", ref);
         return pinggy_false;
     }
-    return sdkConf->AdvancedParsing ? pinggy_true : pinggy_false;
+    return sdkConf->IsAdvancedParsing() ? pinggy_true : pinggy_false;
 }
 
 PINGGY_EXPORT pinggy_const_bool_t
@@ -921,18 +933,7 @@ pinggy_config_get_ssl(pinggy_ref_t ref)
         LOGE("No sdkConf found for the ref:", ref);
         return pinggy_false;
     }
-    return sdkConf->Ssl ? pinggy_true : pinggy_false;
-}
-
-PINGGY_EXPORT pinggy_const_bool_t
-pinggy_config_get_auto_reconnect(pinggy_ref_t ref)
-{
-    auto sdkConf = getSDKConfig(ref);
-    if (!sdkConf) {
-        LOGE("No sdkConf found for the ref:", ref);
-        return pinggy_false;
-    }
-    return sdkConf->AutoReconnect ? pinggy_true : pinggy_false;
+    return sdkConf->IsSsl() ? pinggy_true : pinggy_false;
 }
 
 PINGGY_EXPORT pinggy_const_int_t
@@ -944,7 +945,7 @@ pinggy_config_get_sni_server_name(pinggy_ref_t ref, pinggy_capa_t capa, pinggy_c
 PINGGY_EXPORT pinggy_const_int_t
 pinggy_config_get_sni_server_name_len(pinggy_ref_t ref, pinggy_capa_t capa, pinggy_char_p_t val, pinggy_capa_p_t max_len)
 {
-    SdkConfigCopyStringToOutputLen(capa, val, SniServerName, max_len);
+    SdkConfigCopyStringToOutputLen(capa, val, GetSniServerName(), max_len);
 }
 
 PINGGY_EXPORT pinggy_const_bool_t
@@ -955,7 +956,18 @@ pinggy_config_get_insecure(pinggy_ref_t ref)
         LOGE("No sdkConf found for the ref:", ref);
         return pinggy_false;
     }
-    return sdkConf->Insecure ? pinggy_true : pinggy_false;
+    return sdkConf->IsInsecure() ? pinggy_true : pinggy_false;
+}
+
+PINGGY_EXPORT pinggy_uint16_t
+pinggy_config_get_max_reconnect_attempts(pinggy_ref_t ref)
+{
+    auto sdkConf = getSDKConfig(ref);
+    if (!sdkConf) {
+        LOGE("No sdkConf found for the ref:", ref);
+        return pinggy_false;
+    }
+    return sdkConf->GetMaxReconnectAttempts();
 }
 
 //====

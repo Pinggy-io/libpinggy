@@ -303,7 +303,7 @@ private:
     initiateContinousUsages();
 
     bool
-    resumeWithoutLock(tString funcName);
+    resumeWithLock(tString funcName);
 
     void
     setupLocalChannelNGetData(port_t port, tString tag);

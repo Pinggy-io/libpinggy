@@ -330,15 +330,6 @@ PINGGY_EXPORT pinggy_void_t
 pinggy_config_set_ssl(pinggy_ref_t config, pinggy_bool_t ssl);
 
 /**
- * @brief Enable or disable auto reconnection. By default it is disabled.
- * @param config  reference to tunnel config
- * @param enable
- * @return
- */
-PINGGY_EXPORT pinggy_void_t
-pinggy_config_set_auto_reconnect(pinggy_ref_t config, pinggy_bool_t enable);
-
-/**
  * @brief Another developer only config
  * @param config  reference to tunnel config
  * @param sni_server_name
@@ -355,6 +346,24 @@ pinggy_config_set_sni_server_name(pinggy_ref_t config, pinggy_char_p_t sni_serve
  */
 PINGGY_EXPORT pinggy_void_t
 pinggy_config_set_insecure(pinggy_ref_t config, pinggy_bool_t insecure);
+
+/**
+ * @brief Enable or disable auto reconnection. By default it is disabled.
+ * @param config  reference to tunnel config
+ * @param enable
+ * @return
+ */
+PINGGY_EXPORT pinggy_void_t
+pinggy_config_set_auto_reconnect(pinggy_ref_t config, pinggy_bool_t enable);
+
+/**
+ * @brief Set max number of reconnection attempts before giving up. Default it 20.
+ * @param config  reference to tunnel config
+ * @param enable
+ * @return
+ */
+PINGGY_EXPORT pinggy_void_t
+pinggy_config_set_max_reconnect_attempts(pinggy_ref_t config, pinggy_uint16_t enable);
 
 //====
 
@@ -631,14 +640,6 @@ PINGGY_EXPORT pinggy_const_bool_t
 pinggy_config_get_ssl(pinggy_ref_t config);
 
 /**
- * @brief Get whether auto reconnect is enabled or not
- * @param config  reference to tunnel config
- * @return return whether auto reconnect is enabled or not
- */
-PINGGY_EXPORT pinggy_const_bool_t
-pinggy_config_get_auto_reconnect(pinggy_ref_t config);
-
-/**
  * @brief Get the current sni server name
  * @param config  reference to tunnel config
  * @param buffer_len  lenth of the buffer where sni server name would be copied.
@@ -666,6 +667,22 @@ pinggy_config_get_sni_server_name_len(pinggy_ref_t config, pinggy_capa_t buffer_
  */
 PINGGY_EXPORT pinggy_const_bool_t
 pinggy_config_get_insecure(pinggy_ref_t config);
+
+/**
+ * @brief Get whether auto reconnect is enabled or not
+ * @param config  reference to tunnel config
+ * @return return whether auto reconnect is enabled or not
+ */
+PINGGY_EXPORT pinggy_const_bool_t
+pinggy_config_get_auto_reconnect(pinggy_ref_t config);
+
+/**
+ * @brief Get whether auto reconnect is enabled or not
+ * @param config  reference to tunnel config
+ * @return return whether auto reconnect is enabled or not
+ */
+PINGGY_EXPORT pinggy_uint16_t
+pinggy_config_get_max_reconnect_attempts(pinggy_ref_t config);
 
 //========
 

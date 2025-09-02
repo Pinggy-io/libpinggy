@@ -32,47 +32,45 @@ struct SDKConfig: virtual public pinggy::SharedObject
 {
     SDKConfig();
 
-    //The token and any other parameters as well.
-    tString                     Token;
 
-    //The tcp tunnel type tcp, tls, tlstcp or http
-    tString                     Mode;
+    tString
+    GetToken()                  { return token; }
 
-    //The udp tunnel type i.e. udp
-    tString                     UdpMode;
+    tString
+    GetMode()                   { return mode; }
 
-    //sshOverSsl does not exists here as it use ssl only, no ssh
+    tString
+    GetUdpMode()                { return udpMode; }
 
-    // Pinggy server address. It is supposed to be a.pinggy.io or regional server as well.
-    UrlPtr                      ServerAddress;
+    UrlPtr
+    GetServerAddress()          { return serverAddress; }
 
-    //this TcpForwarding address
-    UrlPtr                      TcpForwardTo;
+    UrlPtr
+    GetTcpForwardTo()           { return tcpForwardTo; }
 
-    //this UdpForwarding address
-    UrlPtr                      UdpForwardTo;
+    UrlPtr
+    GetUdpForwardTo()           { return udpForwardTo; }
 
-    //force login. It add `force` as user name
-    bool                        Force;
+    bool
+    IsForce()                   { return force; }
 
-    //Whether if we want to run advancedparsing for http.
-    // disabling this would disable webdebugger as well.
-    bool                        AdvancedParsing;
+    bool
+    IsAdvancedParsing()         { return advancedParsing; }
 
-    //Enable it if you wants to connect with server using
-    // encrypted ssl channel or not. Most of the production
-    // production server does not support plaintext connection.
-    // enable it all the times.
-    bool                        Ssl;
+    bool
+    IsSsl()                     { return ssl; }
 
-    //this needs to set to a.pinggy.io. Some test server may
-    // accept values different than a.pinggy.io.
-    tString                     SniServerName;
+    tString
+    GetSniServerName()          { return sniServerName; }
 
-    bool                        Insecure;
+    bool
+    IsInsecure()                { return insecure; }
 
-    bool                        AutoReconnect;
+    bool
+    IsAutoReconnect()           { return autoReconnect; }
 
+    tUint16
+    GetMaxReconnectAttempts()   { return maxReconnectAttempts; }
 
     const tString
     GetHeaderManipulations();
@@ -113,6 +111,53 @@ struct SDKConfig: virtual public pinggy::SharedObject
     const tString &
     GetLocalServerTls()
                                 { return localServerTls; }
+
+
+    void
+    SetToken(tString token)     { isAllowed(); this->token = token; }
+
+    void
+    SetMode(tString mode)       { isAllowed(); this->mode = mode; }
+
+    void
+    SetUdpMode(tString udpMode) { isAllowed(); this->udpMode = udpMode; }
+
+    void
+    SetServerAddress(UrlPtr serverAddress)
+                                { isAllowed(); this->serverAddress = serverAddress; }
+
+    void
+    SetTcpForwardTo(UrlPtr tcpForwardTo)
+                                { isAllowed(); this->tcpForwardTo = tcpForwardTo; }
+
+    void
+    SetUdpForwardTo(UrlPtr udpForwardTo)
+                                { isAllowed(); this->udpForwardTo = udpForwardTo; }
+
+    void
+    SetForce(bool force)        { isAllowed(); this->force = force; }
+
+    void
+    SetAdvancedParsing(bool advancedParsing)
+                                { isAllowed(); this->advancedParsing = advancedParsing; }
+
+    void
+    SetSsl(bool ssl)            { isAllowed(); this->ssl = ssl; }
+
+    void
+    SetSniServerName(tString sniServerName)
+                                { isAllowed(); this->sniServerName = sniServerName; }
+
+    void
+    SetInsecure(bool insecure)  { isAllowed(); this->insecure = insecure; }
+
+    void
+    SetAutoReconnect(bool autoReconnect)
+                                { isAllowed(); this->autoReconnect = autoReconnect; }
+
+    void
+    SetMaxReconnectAttempts(tUint16 maxReconnectAttempts)
+                                { isAllowed(); this->maxReconnectAttempts = maxReconnectAttempts; }
 
     void
     SetHeaderManipulations(tString val);
@@ -165,6 +210,48 @@ struct SDKConfig: virtual public pinggy::SharedObject
 private:
     friend class Sdk;
 
+    //The token and any other parameters as well.
+    tString                     token;
+
+    //The tcp tunnel type tcp, tls, tlstcp or http
+    tString                     mode;
+
+    //The udp tunnel type i.e. udp
+    tString                     udpMode;
+
+    //sshOverSsl does not exists here as it use ssl only, no ssh
+
+    // Pinggy server address. It is supposed to be a.pinggy.io or regional server as well.
+    UrlPtr                      serverAddress;
+
+    //this TcpForwarding address
+    UrlPtr                      tcpForwardTo;
+
+    //this UdpForwarding address
+    UrlPtr                      udpForwardTo;
+
+    //force login. It add `force` as user name
+    bool                        force;
+
+    //Whether if we want to run advancedparsing for http.
+    // disabling this would disable webdebugger as well.
+    bool                        advancedParsing;
+
+    //Enable it if you wants to connect with server using
+    // encrypted ssl channel or not. Most of the production
+    // production server does not support plaintext connection.
+    // enable it all the times.
+    bool                        ssl;
+
+    //this needs to set to a.pinggy.io. Some test server may
+    // accept values different than a.pinggy.io.
+    tString                     sniServerName;
+
+    bool                        insecure;
+
+    bool                        autoReconnect;
+
+    tUint16                     maxReconnectAttempts;
 
     //Other argument options
     std::vector<HeaderModPtr>   headerManipulations;
@@ -177,6 +264,9 @@ private:
     bool                        originalRequestUrl;
     bool                        allowPreflight;
     tString                     localServerTls;
+
+    void
+    isAllowed()                 { }
 
     void
     validate();

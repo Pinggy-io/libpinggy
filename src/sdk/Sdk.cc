@@ -70,7 +70,11 @@ tString PORT_CONF = "PORT_CONF";
 tString NOTIFICATION_FD = "NOTIFICATION_FD";
 tString GREETING_MSG_TAG = "GREETING_MSG_TAG";
 
-#define MAX_RECONNECTION_TRY 20
+//Rules:
+// 1. no private function should lock the lockAccess
+// 2. Every life cycle function should lock the lockAccess even before starting
+// 3. Every non-life cycle functions that needs to access session (direct or undirect)
+//    needs lockAccess (unless same thread and running)
 
 struct PortConfig: virtual public pinggy::SharedObject
 {
@@ -146,6 +150,8 @@ bool
 Sdk::Connect(bool block)
 {
     //==== Setup =========
+    // lockAccess.lock();
+    // DEFER({lockAccess.unlock});
 
     if (state >= SdkState_Connecting)
         ABORT_WITH_MSG("Tunnel is already started");
@@ -167,13 +173,15 @@ Sdk::Connect(bool block)
 bool
 Sdk::Start()
 {
-    if (!Connect(true)) { //entry point
-        LOGD("Not connected or authenticated");
-        return false;
-    }
-    if (!RequestPrimaryRemoteForwarding(true)) {
-        LOGD("Primary forwarding failed");
-        return false;
+    if(!reconnectNow) {
+        if (!Connect(true)) { //entry point
+            LOGD("Not connected or authenticated");
+            return false;
+        }
+        if (!RequestPrimaryRemoteForwarding(true)) {
+            LOGD("Primary forwarding failed");
+            return false;
+        }
     }
 
     while(true) {
@@ -209,7 +217,7 @@ Sdk::ResumeTunnel()
         }
         cleanupForReconnection(); //cleaning up last connection
         state = SdkState_Reconnecting;
-        if (reconnectCounter >= MAX_RECONNECTION_TRY) {
+        if (reconnectCounter >= sdkConfig->maxReconnectAttempts) {
             if (eventHandler)
                 eventHandler->OnReconnectionFailed(reconnectCounter);
             return false;
@@ -247,7 +255,7 @@ Sdk::ResumeTunnel()
     if (stopped)
         return false;
 
-    auto success = resumeWithoutLock(__func__);
+    auto success = resumeWithLock(__func__);
     return success;
 }
 
@@ -335,7 +343,7 @@ Sdk::RequestPrimaryRemoteForwarding(bool block)
 
     throwWrongThreadException(__func__);
 
-    if (!sdkConfig->TcpForwardTo && !sdkConfig->UdpForwardTo) {
+    if (!sdkConfig->tcpForwardTo && !sdkConfig->udpForwardTo) {
         ABORT_WITH_MSG("Atleast one of the forwarding is required");
     }
 
@@ -344,12 +352,12 @@ Sdk::RequestPrimaryRemoteForwarding(bool block)
 
     tString host = "";
     port_t hostPort = 0;
-    if (sdkConfig->TcpForwardTo) {
-        host = sdkConfig->TcpForwardTo->GetRawHost();
-        hostPort = sdkConfig->TcpForwardTo->GetPort();
+    if (sdkConfig->tcpForwardTo) {
+        host = sdkConfig->tcpForwardTo->GetRawHost();
+        hostPort = sdkConfig->tcpForwardTo->GetPort();
     } else {
-        host = sdkConfig->UdpForwardTo->GetRawHost();
-        hostPort = sdkConfig->UdpForwardTo->GetPort();
+        host = sdkConfig->udpForwardTo->GetRawHost();
+        hostPort = sdkConfig->udpForwardTo->GetPort();
     }
 
     primaryForwardingReqId = session->SendRemoteForwardRequest(PRIMARY_REMOTE_FORWARDING_PORT,
@@ -358,7 +366,7 @@ Sdk::RequestPrimaryRemoteForwarding(bool block)
     if (!block)
         return true;
 
-    pollController->StartPolling();
+    startPollingInCurrentThread();
 
     if (cleanupNow)
         cleanup();
@@ -545,9 +553,9 @@ Sdk::HandleSessionNewChannelRequest(protocol::ChannelPtr channel)
         { //just to ignore some variable
             auto remoteBinding = std::tuple(toHost, toPort);
             if (remoteForwardings.find(remoteBinding) == remoteForwardings.end()) {
-                if (sdkConfig->TcpForwardTo) {
-                    toHost = sdkConfig->TcpForwardTo->GetRawHost();
-                    toPort = sdkConfig->TcpForwardTo->GetPort();
+                if (sdkConfig->tcpForwardTo) {
+                    toHost = sdkConfig->tcpForwardTo->GetRawHost();
+                    toPort = sdkConfig->tcpForwardTo->GetPort();
                 } else {
                     channel->Reject("Tcp forwarding not enabled");
                     LOGE("Rejecting tcp forwarding");
@@ -573,12 +581,12 @@ Sdk::HandleSessionNewChannelRequest(protocol::ChannelPtr channel)
             netConnImpl->Connect(thisPtr, channel);
             return; //we will handle this in different place
         } catch(...) {
-            LOGE("Could not connect to", sdkConfig->TcpForwardTo->ToString());
+            LOGE("Could not connect to", sdkConfig->tcpForwardTo->ToString());
             channel->Reject("Could not connect to provided address");
             return;
         }
     } else if (chanType == protocol::ChannelType_DataGram) {
-        if (!sdkConfig->UdpForwardTo) {
+        if (!sdkConfig->udpForwardTo) {
             channel->Reject("Udp forwarding not enabled");
             return;
         }
@@ -590,13 +598,13 @@ Sdk::HandleSessionNewChannelRequest(protocol::ChannelPtr channel)
         }
 
         try {
-            netConn = net::NewUdpConnectionImplPtr(sdkConfig->UdpForwardTo->GetRawHost(), sdkConfig->UdpForwardTo->GetPortStr());
+            netConn = net::NewUdpConnectionImplPtr(sdkConfig->udpForwardTo->GetRawHost(), sdkConfig->udpForwardTo->GetPortStr());
         } catch(const std::exception& e) {
-            LOGE("Could not connect to", sdkConfig->UdpForwardTo->ToString(), " due to ", e.what());
+            LOGE("Could not connect to", sdkConfig->udpForwardTo->ToString(), " due to ", e.what());
             channel->Reject("Could not connect to provided address");
             return;
         } catch(...) {
-            LOGE("Could not connect to", sdkConfig->UdpForwardTo->ToString());
+            LOGE("Could not connect to", sdkConfig->udpForwardTo->ToString());
             channel->Reject("Could not connect to provided address");
             return;
         }
@@ -872,7 +880,7 @@ Sdk::authenticate()
 
     state = SdkState_Authenticating;
 
-    session->AuthenticateAsClient(sdkConfig->getUser(), sdkConfig->GetArguments(), sdkConfig->AdvancedParsing);
+    session->AuthenticateAsClient(sdkConfig->getUser(), sdkConfig->GetArguments(), sdkConfig->advancedParsing);
     LOGT("Authentication sent");
 }
 
@@ -888,11 +896,11 @@ Sdk::tunnelInitiated()
 bool Sdk::internalConnect(bool block)
 {
     try {
-        auto serverAddress = sdkConfig->ServerAddress;
+        auto serverAddress = sdkConfig->serverAddress;
         baseConnection = net::NewNetworkConnectionImplPtr(serverAddress->GetRawHost(), serverAddress->GetPortStr());
 
-        if (sdkConfig->Ssl){
-            auto sslConnection = net::NewSslNetworkConnectionPtr(baseConnection, sdkConfig->SniServerName);
+        if (sdkConfig->ssl){
+            auto sslConnection = net::NewSslNetworkConnectionPtr(baseConnection, sdkConfig->sniServerName);
             sslConnection->SetBaseCertificate(BASE_CERTIFICATE);
             sslConnection->Connect();
             baseConnection = sslConnection;
@@ -1015,7 +1023,7 @@ Sdk::keepAliveTimeout(tUint64 tick)
             keepAliveTask->DisArm();
             keepAliveTask = nullptr;
         }
-        if (sdkConfig->AutoReconnect) {
+        if (sdkConfig->autoReconnect) {
             reconnectNow = true;
             if (eventHandler)
                 eventHandler->OnWillReconnect("Connection Reset", {"Reconnecting"});
@@ -1087,7 +1095,7 @@ Sdk::initiateContinousUsages()
 }
 
 bool
-Sdk::resumeWithoutLock(tString funcName)
+Sdk::resumeWithLock(tString funcName)
 {
     lockAccess.lock();
     if (running) {

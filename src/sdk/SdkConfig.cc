@@ -22,6 +22,8 @@
 namespace sdk
 {
 
+#define MAX_RECONNECTION_TRY 20
+
 struct HeaderMod : virtual public pinggy::SharedObject
 {
     enum class Action {
@@ -65,12 +67,13 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_CUSTOME_NEW_PTR1(UserPass,
 );
 
 SDKConfig::SDKConfig():
-    Force(false),
-    AdvancedParsing(true),
-    Ssl(true),
-    SniServerName("a.pinggy.io"),
-    Insecure(false),
-    AutoReconnect(false),
+    force(false),
+    advancedParsing(true),
+    ssl(true),
+    sniServerName("a.pinggy.io"),
+    insecure(false),
+    autoReconnect(false),
+    maxReconnectAttempts(MAX_RECONNECTION_TRY),
     reverseProxy(true),
     xForwarderFor(false),
     httpsOnly(false),
@@ -172,43 +175,43 @@ SDKConfig::resetArguments() {
 void
 SDKConfig::validate()
 {
-    if (!ServerAddress) {
-        ServerAddress = NewUrlPtr("a.pinggy.ip:443");
+    if (!serverAddress) {
+        serverAddress = NewUrlPtr("a.pinggy.ip:443");
     }
 
-    if (TcpForwardTo && Mode == "") {
-        Mode = "http";
+    if (tcpForwardTo && mode == "") {
+        mode = "http";
     }
 
-    if (UdpForwardTo && UdpMode == "") {
-        UdpMode = "udp";
+    if (udpForwardTo && udpMode == "") {
+        udpMode = "udp";
     }
 
-    if (Mode != "http" && Mode != "tcp" && Mode != "tls" && Mode != "tlstcp")
-        Mode = "";
-    if (UdpMode != "udp")
-        UdpMode = "";
-    if (Mode.empty() && UdpMode.empty())
-        Mode = "http";
+    if (mode != "http" && mode != "tcp" && mode != "tls" && mode != "tlstcp")
+        mode = "";
+    if (udpMode != "udp")
+        udpMode = "";
+    if (mode.empty() && udpMode.empty())
+        mode = "http";
 }
 
 tString
 SDKConfig::getUser()
 {
     tString user = "";
-    if (!Token.empty()) {
-        user += "+" + Token;
+    if (!token.empty()) {
+        user += "+" + token;
     }
 
-    if (!Mode.empty()) {
-        user += "+" + Mode;
+    if (!mode.empty()) {
+        user += "+" + mode;
     }
 
-    if (!UdpMode.empty()) {
-        user += "+" + UdpMode;
+    if (!udpMode.empty()) {
+        user += "+" + udpMode;
     }
 
-    if (Force) {
+    if (force) {
         user += "+force";
     }
 
