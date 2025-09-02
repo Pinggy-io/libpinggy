@@ -32,12 +32,10 @@ namespace sdk
 enum SdkState {
     SdkState_Invalid = 0,
     SdkState_AuthenticationFailed,
-    sdkState_PrimaryReverseForwardingFailed,
+    SdkState_PrimaryReverseForwardingFailed,
 
     SdkState_Initial,
-    SdkState_ReconnectWaiting,
     SdkState_Connecting,
-    SdkState_Reconnecting,
     SdkState_Connected,
     SdkState_SessionInitiating,
     SdkState_SessionInitiated,
@@ -46,6 +44,14 @@ enum SdkState {
     SdkState_PrimaryReverseForwardingInitiated,
     SdkState_PrimaryReverseForwardingAccepted,
     SdkState_PrimaryReverseForwardingSucceeded,
+
+    SdkState_Disconnected,
+
+    SdkState_Reconnect_Failed,
+    SdkState_Reconnect_Initiated,
+    SdkState_Reconnect_Connected,
+    SdkState_Reconnect_Forwarded,
+    SdkState_ReconnectWaiting,
 };
 
 abstract class SdkEventHandler: virtual public pinggy::SharedObject
@@ -312,7 +318,23 @@ private:
     setState(SdkState s)        { state = s; }
 
     void
+    setReconnectionState(SdkState s)
+                                { reconnectionState = s; }
+
+    void
     handlePrimaryForwardingFailed(tString reason);
+
+    bool
+    internalRequestPrimaryRemoteForwarding(bool block = false);
+
+    void
+    acquireAccessLock();
+
+    void
+    releaseAccessLock();
+
+    void
+    internalRequestAdditionalRemoteForwarding(UrlPtr bindAddress, UrlPtr forwardTo);
 
     net::NetworkConnectionPtr   baseConnection;
     common::PollControllerPtr   pollController;
@@ -346,6 +368,7 @@ private:
 
     tUint64                     lastKeepAliveTickReceived;
     SdkState                    state;
+    SdkState                    reconnectionState;
 
     std::map<protocol::tReqId, std::tuple<UrlPtr, UrlPtr>> // pendingReqId [remote binding address to localBinding address]
                                 pendingRemoteForwardingMap;
@@ -360,6 +383,11 @@ private:
     tString                     greetingMsgs;
     tString                     lastUsagesUpdate;
     common::PollableTaskPtr     primaryForwardingCheckTimeout;
+
+    std::vector<std::tuple<UrlPtr, UrlPtr>>
+                                additionalForwardings;
+
+    friend class ThreadLock;
 };
 DefineMakeSharedPtr(Sdk);
 
