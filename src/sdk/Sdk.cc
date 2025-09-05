@@ -139,7 +139,8 @@ Sdk::Sdk(SDKConfigPtr config, SdkEventHandlerPtr _eventHandler):
             state(SdkState_Initial),
             reconnectionState(SdkState_Initial),
             reconnectCounter(0),
-            usagesRunning(false)
+            usagesRunning(false),
+            appHandlesNewChannel(false)
 {
     if (!config) {
         sdkConfig = config = NewSDKConfigPtr();
@@ -159,7 +160,7 @@ Sdk::Connect(bool block)
     DEFER(releaseAccessLock(););
 
     if (state >= SdkState_Connecting)
-        ABORT_WITH_MSG("Tunnel is already started");
+        return true;
 
     state = SdkState_Connecting;
 
@@ -383,17 +384,17 @@ Sdk::RequestPrimaryRemoteForwarding(bool block)
 }
 
 void PINGGY_ATTRIBUTE_FUNC
-Sdk::RequestAdditionalRemoteForwarding(UrlPtr bindAddress, UrlPtr forwardTo)
+Sdk::RequestAdditionalRemoteForwarding(tString bindAddress, tString forwardTo)
 {
     if (state < SdkState_Authenticated) {
         WebDebuggerException("You are not logged in. How did you managed to come here?" );
     }
 
-    if (!bindAddress) {
+    if (bindAddress.empty()) {
         throw RemoteForwardingException("bindAddress cannot be empty");
     }
 
-    if (!forwardTo) {
+    if (forwardTo.empty()) {
         throw RemoteForwardingException("forwardTo cannot be empty");
     }
 
@@ -488,6 +489,8 @@ Sdk::HandleSessionRemoteForwardingSucceeded(protocol::tReqId reqId, std::vector<
         // Probably 5 second is not a lot. But, we want it to fail soon.
         LOGD("Primary forwarding done");
 
+        updateForwardMapWithPrimaryForwarding();
+
         return;
     }
 
@@ -496,11 +499,11 @@ Sdk::HandleSessionRemoteForwardingSucceeded(protocol::tReqId reqId, std::vector<
         return;
     }
 
-    auto [bindAddress, forwardTo] = pendingRemoteForwardingMap[reqId];
+    auto [bindAddressHost, bindAddressPort, forwardToHost, forwardToPort, bindAddress, forwardTo] = pendingRemoteForwardingMap[reqId];
     pendingRemoteForwardingMap.erase(reqId);
 
-    auto remoteBinding = std::tuple(bindAddress->GetRawHost(), bindAddress->GetPort());
-    auto localForwarding = std::tuple(forwardTo->GetRawHost(), forwardTo->GetPort());
+    auto remoteBinding = std::tuple(bindAddressHost, bindAddressPort);
+    auto localForwarding = std::tuple(forwardToHost, forwardToPort);
 
     if (remoteForwardings.find(remoteBinding) != remoteForwardings.end()) {
         LOGE("This not supposed to happen"); //cannot test it ever
@@ -509,8 +512,10 @@ Sdk::HandleSessionRemoteForwardingSucceeded(protocol::tReqId reqId, std::vector<
 
     remoteForwardings[remoteBinding] = localForwarding;
 
+    updateForwardMapWithAdditionalForwarding();
+
     if (eventHandler && !reconnectNow)
-        eventHandler->OnRemoteForwardingSuccess(bindAddress, forwardTo);
+        eventHandler->OnAdditionalForwardingSucceeded(bindAddress, forwardTo);
 }
 
 void
@@ -536,10 +541,11 @@ Sdk::HandleSessionRemoteForwardingFailed(protocol::tReqId reqId, tString error)
         return;
     }
 
-    auto [bindAddress, forwardTo] = pendingRemoteForwardingMap[reqId];
+    // auto [bindAddress, forwardTo] = pendingRemoteForwardingMap[reqId];
+    auto [bindAddressHost, bindAddressPort, forwardToHost, forwardToPort, bindAddress, forwardTo] = pendingRemoteForwardingMap[reqId];
     pendingRemoteForwardingMap.erase(reqId);
     if (eventHandler && !reconnectNow)
-        eventHandler->OnRemoteForwardingFailed(bindAddress, forwardTo, error);
+        eventHandler->OnAdditionalForwardingFailed(bindAddress, forwardTo, error);
 }
 
 void
@@ -574,7 +580,7 @@ Sdk::HandleSessionNewChannelRequest(protocol::ChannelPtr channel)
             }
         }
 
-        if (eventHandler) {
+        if (appHandlesNewChannel && eventHandler) {
             auto chan = NewSdkChannelWraperPtr(channel, thisPtr);
             eventHandler->OnNewVisitorConnectionReceived(chan);
             if (chan->IsResponeded())
@@ -1139,8 +1145,12 @@ Sdk::handlePrimaryForwardingFailed(tString reason)
 bool
 Sdk::internalRequestPrimaryRemoteForwarding(bool block)
 {
-    if (state != SdkState_Authenticated) {
-        ABORT_WITH_MSG("You are not logged in. How did you managed to come here?" );
+    if (state < SdkState_Authenticated) {
+        throw SdkException("Kindly login first");
+    }
+
+    if (state > SdkState_Authenticated) {
+        return true;
     }
 
     if (!sdkConfig->tcpForwardTo && !sdkConfig->udpForwardTo) {
@@ -1194,13 +1204,50 @@ Sdk::releaseAccessLock()
 }
 
 void
-Sdk::internalRequestAdditionalRemoteForwarding(UrlPtr bindAddress, UrlPtr forwardTo)
+Sdk::internalRequestAdditionalRemoteForwarding(tString bindAddress, tString forwardTo)
 {
-    auto reqId = session->SendRemoteForwardRequest(bindAddress->GetPort(), bindAddress->GetRawHost(),
-                                                    forwardTo->GetPort(), forwardTo->GetRawHost());
+    auto bindUrl = NewUrlPtrNoProto(bindAddress);
+    auto forwardUrl = NewUrlPtrNoProto(forwardTo);
+    auto reqId = session->SendRemoteForwardRequest(bindUrl->GetPort(), bindUrl->GetRawHost(),
+                                                    forwardUrl->GetPort(), forwardUrl->GetRawHost());
 
     if (reqId > 0) {
-        pendingRemoteForwardingMap[reqId] = {bindAddress, forwardTo};
+        pendingRemoteForwardingMap[reqId] = {   bindUrl->GetRawHost(), bindUrl->GetPort(),
+                                                forwardUrl->GetRawHost(), forwardUrl->GetPort(),
+                                                bindAddress, forwardTo
+                                            };
+    }
+}
+
+void
+Sdk::updateForwardMapWithPrimaryForwarding()
+{
+    if (eventHandler) {
+        tString changedUrls;
+        try {
+            std::map<tString, std::vector<tString>> changedUrlsMap {{"DEFAULT", urls}};
+            json j = changedUrlsMap;
+            changedUrls = j.dump();
+        } catch(...) {
+        }
+        eventHandler->OnForwardingChanged(changedUrls);
+    }
+}
+
+void
+Sdk::updateForwardMapWithAdditionalForwarding()
+{
+    // for the time being this two things are exactly same.
+    // however, this might change in the future.
+    if (eventHandler) {
+        tString changedUrls;
+        try {
+            std::map<tString, std::vector<tString>> changedUrlsMap {{"DEFAULT", urls}};
+            json j = changedUrlsMap;
+            changedUrls = j.dump();
+        } catch(...) {
+        }
+        eventHandler->OnForwardingChanged(changedUrls);
     }
 }
 

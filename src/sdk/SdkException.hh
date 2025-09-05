@@ -75,6 +75,19 @@ private:
     tString                     message;
 };
 
+class SdkConfigException: public std::exception, public virtual pinggy::SharedObject
+{
+public:
+    SdkConfigException(tString message) : message(message){}
+    virtual ~SdkConfigException() {};
+
+    virtual const char*
+    what() const noexcept override      { return message.c_str(); }
+
+private:
+    tString                     message;
+};
+
 
 } // namespace sdk
 

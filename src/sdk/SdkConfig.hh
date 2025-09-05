@@ -112,7 +112,6 @@ struct SDKConfig: virtual public pinggy::SharedObject
     GetLocalServerTls()
                                 { return localServerTls; }
 
-
     void
     SetToken(tString token)     { isAllowed(); this->token = token; }
 
@@ -206,6 +205,9 @@ struct SDKConfig: virtual public pinggy::SharedObject
 
     const tString
     GetArguments();
+
+    void
+    SetGlobalConfig(tString args);
 
 private:
     friend class Sdk;

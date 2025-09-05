@@ -18,6 +18,7 @@
 #include <utils/StringUtils.hh>
 #include <utils/Json.hh>
 #include <platform/Log.hh>
+#include "SdkException.hh"
 
 namespace sdk
 {
@@ -356,6 +357,18 @@ SDKConfig::GetArguments()
     auto cmds = ShlexJoinStrings(val);
 
     return cmds;
+}
+
+void
+SDKConfig::SetGlobalConfig(tString args)
+{
+    json jdata = json::parse(args);
+    tString version = "1.0";
+    PINGGY_NLOHMANN_JSON_TO_VAR2(jdata, (version, version));
+    if (version != "1.0") {
+        throw SdkConfigException("Only version 1.0 is supported");
+    }
+
 }
 
 } // namespace sdk

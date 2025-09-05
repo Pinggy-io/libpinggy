@@ -79,11 +79,15 @@ public:
                                 { }
 
     virtual void
-    OnRemoteForwardingSuccess(UrlPtr bindAddress, UrlPtr forwardTo)
+    OnAdditionalForwardingSucceeded(tString bindAddress, tString forwardTo)
                                 { }
 
     virtual void
-    OnRemoteForwardingFailed(UrlPtr bindAddress, UrlPtr forwardTo, tString error)
+    OnAdditionalForwardingFailed(tString bindAddress, tString forwardTo, tString error)
+                                { }
+
+    virtual void
+    OnForwardingChanged(tString changedJson)
                                 { }
 
     virtual void
@@ -102,7 +106,8 @@ public:
     OnReconnecting(tUint16)     { }
 
     virtual void
-    OnReconnectionCompleted(std::vector<tString> urls)   { }
+    OnReconnectionCompleted(std::vector<tString> urls)
+                                { }
 
     virtual void
     OnReconnectionFailed(tUint16)
@@ -112,11 +117,9 @@ public:
     OnUsageUpdate(tString)      { }
 
     //return false to let the sdk handle connection
-    virtual bool
+    virtual void
     OnNewVisitorConnectionReceived(SdkChannelWraperPtr channel)
-    {
-        return false;
-    }
+                                { }
 };
 DeclareSharedPtr(SdkEventHandler);
 
@@ -170,7 +173,7 @@ public:
     RequestPrimaryRemoteForwarding(bool block = false);
 
     void
-    RequestAdditionalRemoteForwarding(UrlPtr bindAddress, UrlPtr forwardTo);
+    RequestAdditionalRemoteForwarding(tString bindAddress, tString forwardTo);
 
     bool
     IsTunnelActive()            { return (state >= SdkState_Authenticating && (!stopped)); }
@@ -334,7 +337,13 @@ private:
     releaseAccessLock();
 
     void
-    internalRequestAdditionalRemoteForwarding(UrlPtr bindAddress, UrlPtr forwardTo);
+    internalRequestAdditionalRemoteForwarding(tString bindAddress, tString forwardTo);
+
+    void
+    updateForwardMapWithPrimaryForwarding();
+
+    void
+    updateForwardMapWithAdditionalForwarding();
 
     net::NetworkConnectionPtr   baseConnection;
     common::PollControllerPtr   pollController;
@@ -370,7 +379,7 @@ private:
     SdkState                    state;
     SdkState                    reconnectionState;
 
-    std::map<protocol::tReqId, std::tuple<UrlPtr, UrlPtr>> // pendingReqId [remote binding address to localBinding address]
+    std::map<protocol::tReqId, std::tuple<tString, port_t, tString, port_t, tString, tString>> // pendingReqId [remote binding address to localBinding address]
                                 pendingRemoteForwardingMap;
     std::map<std::tuple<tString, port_t>, std::tuple<tString, port_t>>
                                 remoteForwardings;
@@ -384,8 +393,12 @@ private:
     tString                     lastUsagesUpdate;
     common::PollableTaskPtr     primaryForwardingCheckTimeout;
 
-    std::vector<std::tuple<UrlPtr, UrlPtr>>
+    std::map<tString, tString>  forwardingMap;
+
+    std::vector<std::tuple<tString, tString>>
                                 additionalForwardings;
+
+    bool                        appHandlesNewChannel;
 
     friend class ThreadLock;
 };

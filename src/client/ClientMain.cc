@@ -50,6 +50,8 @@ struct ClientConfig: virtual public pinggy::SharedObject
 
     virtual ~ClientConfig()     {}
 
+    std::vector<std::pair<std::string, std::string>>
+                                forwardings;
     sdk::SDKConfigPtr           sdkConfig;
     port_t                      WebDebuggerPort;
     bool                        EnableWebDebugger;
@@ -103,7 +105,14 @@ parseReverseTunnel(ClientConfigPtr config, tString value)
     }
     auto url =  values[values.size() - 2] + ":" + values[values.size() - 1];
     try {
-        config->sdkConfig->SetTcpForwardTo(NewUrlPtr(url));
+        if (values.size() < 4) {
+            auto u = NewUrlPtr(url, 80, "");
+            // std::cout << u << std::endl;
+            config->sdkConfig->SetTcpForwardTo(u);
+        } else {
+            auto forwardingUrl = values[values.size() - 4] + ":" + values[values.size() - 3];
+            config->forwardings.push_back(std::pair(forwardingUrl, url));
+        }
     } catch(...) {
         return false;
     }
@@ -349,6 +358,12 @@ struct ClientSdkEventHandler: virtual public sdk::SdkEventHandler
     }
 
     virtual void
+    OnForwardingChanged(tString urlMap) override
+    {
+        std::cout << urlMap << std::endl;
+    }
+
+    virtual void
     OnReconnecting(tUint16 count) override
     {
         std::cout << "Trying.. " << count << std::endl;
@@ -397,6 +412,12 @@ main(int argc, char *argv[]) {
     sdkEventHandler->sdk = sdk;
 
     sdk->StartUsagesUpdate();
+
+    sdk->Connect(true);
+    sdk->RequestPrimaryRemoteForwarding(true);
+    for (auto x : config->forwardings) {
+        sdk->RequestAdditionalRemoteForwarding(x.first, x.second);
+    }
 
     sdk->Start();
 

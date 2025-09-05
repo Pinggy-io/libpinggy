@@ -198,6 +198,8 @@ public:
                                 onAdditionalForwardingSucceededCB;
     pinggy_on_additional_forwarding_failed_cb_t
                                 onAdditionalForwardingFailedCB;
+    pinggy_on_forwarding_changed_cb_t
+                                onForwardingChangedCB;
     pinggy_on_disconnected_cb_t onDisconnectedCB;
     pinggy_on_will_reconnect_cb_t
                                 onWillReconnectCB;
@@ -217,6 +219,7 @@ public:
     pinggy_void_p_t             onPrimaryForwardingFailedUserData;
     pinggy_void_p_t             onAdditionalForwardingSucceededUserData;
     pinggy_void_p_t             onAdditionalForwardingFailedUserData;
+    pinggy_void_p_t             onForwardingChangedUserData;
     pinggy_void_p_t             onDisconnectedUserData;
     pinggy_void_p_t             onWillReconnectUserData;
     pinggy_void_p_t             onReconnectingUserData;
@@ -236,6 +239,7 @@ public:
                         onPrimaryForwardingFailedCB(NULL),
                         onAdditionalForwardingSucceededCB(NULL),
                         onAdditionalForwardingFailedCB(NULL),
+                        onForwardingChangedCB(NULL),
                         onDisconnectedCB(NULL),
                         onWillReconnectCB(NULL),
                         onReconnectingCB(NULL),
@@ -250,6 +254,7 @@ public:
                         onPrimaryForwardingFailedUserData(NULL),
                         onAdditionalForwardingSucceededUserData(NULL),
                         onAdditionalForwardingFailedUserData(NULL),
+                        onForwardingChangedUserData(NULL),
                         onDisconnectedUserData(NULL),
                         onWillReconnectUserData(NULL),
                         onReconnectingUserData(NULL),
@@ -310,21 +315,27 @@ public:
         onPrimaryForwardingFailedCB(onPrimaryForwardingFailedUserData, sdk, message.c_str());
     }
     virtual pinggy_void_t
-    OnRemoteForwardingSuccess(UrlPtr bindAddress, UrlPtr forwardTo) override
+    OnAdditionalForwardingSucceeded(tString bindAddress, tString forwardTo) override
     {
         if (!onAdditionalForwardingSucceededCB) return;
-        auto cBindAddress = bindAddress->GetSockAddrString();
-        auto cForwardTo = forwardTo->GetSockAddrString();
-        onAdditionalForwardingSucceededCB(onAdditionalForwardingSucceededUserData, sdk, cBindAddress.c_str(), cForwardTo.c_str());
+        // auto cBindAddress = bindAddress->GetSockAddrString();
+        // auto cForwardTo = forwardTo->GetSockAddrString();
+        onAdditionalForwardingSucceededCB(onAdditionalForwardingSucceededUserData, sdk, bindAddress.c_str(), forwardTo.c_str());
     }
     virtual pinggy_void_t
-    OnRemoteForwardingFailed(UrlPtr bindAddress, UrlPtr forwardTo, tString error) override
+    OnAdditionalForwardingFailed(tString bindAddress, tString forwardTo, tString error) override
     {
         if (!onAdditionalForwardingFailedCB) return;
-        auto cBindAddress = bindAddress->GetSockAddrString();
-        auto cForwardTo = forwardTo->GetSockAddrString();
+        // auto cBindAddress = bindAddress->GetSockAddrString();
+        // auto cForwardTo = forwardTo->GetSockAddrString();
         auto cError = error;
-        onAdditionalForwardingFailedCB(onAdditionalForwardingFailedUserData, sdk, cBindAddress.c_str(), cForwardTo.c_str(), cError.c_str());
+        onAdditionalForwardingFailedCB(onAdditionalForwardingFailedUserData, sdk, bindAddress.c_str(), forwardTo.c_str(), cError.c_str());
+    }
+    virtual pinggy_void_t
+    OnForwardingChanged(tString changedMap) override
+    {
+        if (!onForwardingChangedCB) return;
+        onForwardingChangedCB(onForwardingChangedUserData, sdk, changedMap.c_str());
     }
     virtual pinggy_void_t
     OnDisconnected(tString error, std::vector<tString> messages) override
@@ -1305,7 +1316,7 @@ pinggy_tunnel_request_additional_forwarding(pinggy_ref_t ref, pinggy_const_char_
         return;
     }
     try {
-        return sdk->RequestAdditionalRemoteForwarding(NewUrlPtr(EmptyStringIfNull(bindingAddr)), NewUrlPtr(EmptyStringIfNull(forwardTo)));
+        return sdk->RequestAdditionalRemoteForwarding(EmptyStringIfNull(bindingAddr), EmptyStringIfNull(forwardTo));
     } catch (const std::exception &e) {
         if (exception_callback) {
             exception_callback("CPP exception:", e.what());
@@ -1468,6 +1479,15 @@ pinggy_tunnel_set_on_additional_forwarding_failed_callback(pinggy_ref_t sdkRef, 
     GetEventHandlerFromSdkRef(sdkRef, aev);
     aev->onAdditionalForwardingFailedCB = reverseForwardingFailed;
     aev->onAdditionalForwardingFailedUserData = user_data;
+    return pinggy_true;
+}
+
+PINGGY_EXPORT pinggy_bool_t
+pinggy_tunnel_set_on_forwarding_changed_callback(pinggy_ref_t sdkRef, pinggy_on_forwarding_changed_cb_t forwarding_changed, pinggy_void_p_t user_data)
+{
+    GetEventHandlerFromSdkRef(sdkRef, aev);
+    aev->onForwardingChangedCB = forwarding_changed;
+    aev->onForwardingChangedUserData = user_data;
     return pinggy_true;
 }
 

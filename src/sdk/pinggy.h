@@ -16,28 +16,44 @@
 
 /**
  * @file pinggy.h
- * @brief A brief overview of libpinggy.
+ * @brief Pinggy SDK C API Header
  *
- * `libpinggy` is a library that provides the Pinggy SDK for use with various
- * applications. It includes functionalities for tunnel creation and management.
- * Pinggy is a tunneling service provider that exposes local servers (HTTP, TLS, TCP, and UDP)
- * to the Internet. The SDK provides a simple yet powerful `C` interface, allowing
- * applications to set up tunnels directly within the application.
+ * This header provides the C API for the Pinggy SDK, enabling applications to create, configure, and manage tunnels for TCP, UDP, HTTP, and TLS forwarding.
+ * The API supports tunnel lifecycle management, configuration, event callbacks, channel data transfer, and querying library/build information.
  *
- * ## Key Points
- * - **Reference**:
- *   The SDK uses the concept of references to manage internal objects. References are
- *   randomized unsigned 32-bit integers that refer to objects within the library.
- *   Applications must free a reference using the `pinggy_free_ref` function. All
- *   interfaces use references to identify objects.
+ * @mainpage Pinggy SDK C API
  *
- * - **Thread Safety**:
- *   The Pinggy SDK does not use threads for internal tasks on any platform. It is a
- *   single-threaded library. However, an application can run one tunnel per thread.
- *   Tunnels are completely isolated. Operations on tunnels are also thread-safe
- *   when performed via the provided interfaces.
+ * @section intro_sec Introduction
+ * The Pinggy SDK allows applications to expose local servers to the internet via secure tunnels. This API provides functions to configure tunnels, manage their lifecycle, handle events via callbacks, and transfer data through channels.
  *
+ * @section usage_sec Usage
+ * - Create a tunnel configuration using @ref pinggy_create_config.
+ * - Set configuration parameters (server address, token, forwarding addresses, etc.).
+ * - Initiate a tunnel with @ref pinggy_tunnel_initiate.
+ * - Start or connect the tunnel using @ref pinggy_tunnel_start, @ref pinggy_tunnel_connect, or @ref pinggy_tunnel_connect_blocking.
+ * - Register event callbacks for tunnel and channel events.
+ * - Use channel APIs for data transfer.
+ * - Query tunnel and library information as needed.
  *
+ * @section callback_sec Callbacks
+ * The API supports registering callbacks for tunnel events (connected, authenticated, forwarding succeeded/failed, disconnected, etc.) and channel events (data received, ready to send, error, cleanup).
+ *
+ * @section thread_sec Thread Safety
+ * Some functions may be called from different threads or from within callbacks. Refer to individual function documentation for thread safety guarantees.
+ *
+ * @section error_sec Error Handling
+ * Most functions return a boolean or integer status. Error details may be provided via callbacks or output parameters.
+ *
+ * @section version_sec Versioning
+ * Use @ref pinggy_version and related functions to query the library version, commit, build timestamp, and build OS.
+ *
+ * @section copyright_sec Copyright
+ * Copyright (c) Pinggy.io. All rights reserved.
+ *
+ * @note This file is intended for use with C and C++ applications. C++ linkage is supported via extern "C".
+ */
+
+/*
  * @version 1.0
  * @author
  * @date 2024-12-06
@@ -162,51 +178,216 @@ PINGGY_EXPORT pinggy_bool_t
 pinggy_is_interrupted();
 
 //================
+/**
+ * @typedef pinggy_on_connected_cb_t
+ * @brief Callback for when the tunnel is successfully connected to the server.
+ * This is a inromational callback only and most of the app do not need this to implement.
+ * @param user_data  User-defined pointer passed during callback registration.
+ * @param tunnel_ref Reference to the tunnel object.
+ */
 typedef pinggy_void_t (*pinggy_on_connected_cb_t)                               \
                             (pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref);
 
+/**
+ * @typedef pinggy_on_authenticated_cb_t
+ * @brief Callback for when the tunnel is authenticated.
+ * Here authentication means it is allowed to setup tunnel.
+ *
+ * This callback can arrive only when the tunnel is being connected, i.e.
+ * `pinggy_tunnel_connect_blocking` is working or `pinggy_tunnel_connect` is
+ * called and app is waiting for event by calling `pinggy_tunnel_resume`.
+ *
+ * @param user_data  User-defined pointer passed during callback registration.
+ * @param tunnel_ref Reference to the tunnel object.
+ */
 typedef pinggy_void_t (*pinggy_on_authenticated_cb_t)                           \
                             (pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref);
 
+/**
+ * @typedef pinggy_on_authentication_failed_cb_t
+ * @brief Callback for when tunnel authentication fails. It similar to `pinggy_on_authenticated_cb_t`.
+ * @param user_data  User-defined pointer passed during callback registration.
+ * @param tunnel_ref Reference to the tunnel object.
+ * @param num_reasons Size of the `reasons` array.
+ * @param reasons Array of strings describing reasons for failure.
+ */
 typedef pinggy_void_t (*pinggy_on_authentication_failed_cb_t)                   \
                             (pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_len_t num_reasons, pinggy_char_p_p_t reasons);
 
+/**
+ * @typedef pinggy_on_primary_forwarding_succeeded_cb_t
+ * @brief Callback for when primary forwarding is successfully established.
+ *
+ * This callback can arrive only when the app has requested primary forwarding using
+ * `pinggy_tunnel_request_primary_forwarding_blocking` or called `pinggy_tunnel_request_primary_forwarding`
+ * and waiting for event by calling `pinggy_tunnel_resume`.
+ *
+ * @param user_data  User-defined pointer passed during callback registration.
+ * @param tunnel_ref Reference to the tunnel object.
+ * @param num_urls Size of the `urls` array.
+ * @param urls Array of URLs as strings.
+ */
 typedef pinggy_void_t (*pinggy_on_primary_forwarding_succeeded_cb_t)            \
                             (pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_len_t num_urls, pinggy_char_p_p_t urls);
 
+/**
+ * @typedef pinggy_on_primary_forwarding_failed_cb_t
+ * @brief Callback for when primary forwarding fails. The context is same as
+ * `pinggy_on_primary_forwarding_succeeded_cb_t`.
+ * @param user_data  User-defined pointer passed during callback registration.
+ * @param tunnel_ref Reference to the tunnel object.
+ * @param msg Error message string.
+ */
 typedef pinggy_void_t (*pinggy_on_primary_forwarding_failed_cb_t)               \
                             (pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_const_char_p_t msg);
 
+/**
+ * @typedef pinggy_on_additional_forwarding_succeeded_cb_t
+ * @brief Callback for when additional forwarding is successfully established.
+ * App can expect this callback when app called `pinggy_tunnel_request_additional_forwarding`.
+ * @param user_data  User-defined pointer passed during callback registration.
+ * @param tunnel_ref Reference to the tunnel object.
+ * @param bind_addr  The remote bind address as a string.
+ * @param forward_to_addr The local forwarding address as a string.
+ */
 typedef pinggy_void_t (*pinggy_on_additional_forwarding_succeeded_cb_t)         \
                             (pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_const_char_p_t bind_addr, pinggy_const_char_p_t forward_to_addr);
 
+/**
+ * @typedef pinggy_on_additional_forwarding_failed_cb_t
+ * @brief Callback for when additional forwarding fails.
+ * App can expect this callback when app called `pinggy_tunnel_request_additional_forwarding`.
+ * @param user_data  User-defined pointer passed during callback registration.
+ * @param tunnel_ref Reference to the tunnel object.
+ * @param bind_addr  The remote bind address as a string.
+ * @param forward_to_addr The local forwarding address as a string.
+ * @param error Error message string.
+ */
 typedef pinggy_void_t (*pinggy_on_additional_forwarding_failed_cb_t)            \
                             (pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_const_char_p_t bind_addr, pinggy_const_char_p_t forward_to_addr, pinggy_const_char_p_t error);
 
+/**
+ * @typedef pinggy_on_forwarding_changed_cb_t
+ * @brief Callback for when the forwarding map changes.
+ *
+ * App should expect this call anytime as long the tunnel running. Even when
+ * the tunnel is running. The `url_map` is a json string and the format is not
+ * decided.
+ *
+ * **Do not use this call now**
+ *
+ * @param user_data  User-defined pointer passed during callback registration.
+ * @param tunnel_ref Reference to the tunnel object.
+ * @param url_map JSON string describing the new forwarding map.
+ */
+typedef pinggy_void_t (*pinggy_on_forwarding_changed_cb_t)                      \
+                            (pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_const_char_p_t url_map);
+
+/**
+ * @typedef pinggy_on_disconnected_cb_t
+ * @brief Callback for when the tunnel is disconnected.
+ * @param user_data  User-defined pointer passed during callback registration.
+ * @param tunnel_ref Reference to the tunnel object.
+ * @param error Error message string.
+ * @param msgs_size Size of msgs array.
+ * @param msgs Array of message strings.
+ */
 typedef pinggy_void_t (*pinggy_on_disconnected_cb_t)                            \
                             (pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_const_char_p_t error, pinggy_len_t msg_size, pinggy_char_p_p_t msg);
 
+/**
+ * @typedef pinggy_on_will_reconnect_cb_t
+ * @brief Callback for when the tunnel is disconnected and it will try to reconnect now..
+ * @param user_data  User-defined pointer passed during callback registration.
+ * @param tunnel_ref Reference to the tunnel object.
+ * @param error Error message string.
+ * @param num_msgs Size of messages array.
+ * @param messages Array of message strings.
+ */
 typedef pinggy_void_t (*pinggy_on_will_reconnect_cb_t)                          \
                             (pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_const_char_p_t error, pinggy_len_t num_msgs, pinggy_char_p_p_t messages);
 
+/**
+ * @typedef pinggy_on_reconnecting_cb_t
+ * @brief Callback for each reconnection attempt.
+ * @param user_data  User-defined pointer passed during callback registration.
+ * @param tunnel_ref Reference to the tunnel object.
+ * @param retry_cnt  The current retry count.
+ */
 typedef pinggy_void_t (*pinggy_on_reconnecting_cb_t)                            \
                             (pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_uint16_t retry_cnt);
 
+/**
+ * @typedef pinggy_on_reconnection_completed_cb_t
+ * @brief Callback for when reconnection is completed.
+ * @param user_data  User-defined pointer passed during callback registration.
+ * @param tunnel_ref Reference to the tunnel object.
+ * @param num_urls Size of urls array.
+ * @param urls Array of URLs as strings.
+ */
 typedef pinggy_void_t (*pinggy_on_reconnection_completed_cb_t)                  \
                             (pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_len_t num_urls, pinggy_char_p_p_t urls);
 
+/**
+ * @typedef pinggy_on_reconnection_failed_cb_t
+ * @brief Callback for when reconnection fails after all attempts.
+ * @param user_data  User-defined pointer passed during callback registration.
+ * @param tunnel_ref Reference to the tunnel object.
+ * @param retry_cnt  The number of retries attempted.
+ */
 typedef pinggy_void_t (*pinggy_on_reconnection_failed_cb_t)                     \
                             (pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_uint16_t retry_cnt);
 
+/**
+ * @typedef pinggy_on_usage_update_cb_t
+ * @brief Callback for when usage information is updated.
+ * @param user_data  User-defined pointer passed during callback registration.
+ * @param tunnel_ref Reference to the tunnel object.
+ * @param usages JSON string describing usage information. The format of the usages
+ * string is `{"elaspedTime":7,"numLiveConnections":6,"numTotalConnections":6,"numTotalReqBytes":16075,"numTotalResBytes":815760,"numTotalTxBytes":831835}`
+ */
 typedef pinggy_void_t (*pinggy_on_usage_update_cb_t)                            \
                             (pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_const_char_p_t usages);
 
+/**
+ * @typedef pinggy_on_tunnel_error_cb_t
+ * @brief Callback for when a tunnel error occurs.
+ * @param user_data  User-defined pointer passed during callback registration.
+ * @param tunnel_ref Reference to the tunnel object.
+ * @param error_no   Error number. (Future proofing. No use now.)
+ * @param error      Error message string.
+ * @param recoverable Whether the error is recoverable.
+ */
 typedef pinggy_void_t (*pinggy_on_tunnel_error_cb_t)                            \
                             (pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_uint32_t error_no, pinggy_const_char_p_t error, pinggy_bool_t recoverable);
 
-typedef pinggy_bool_t (*pinggy_on_new_channel_cb_t)                             \
+/**
+ * @typedef pinggy_on_new_channel_cb_t
+ * @brief Callback for when a new channel is created. To handle the channel manually,
+ * kindly accept or reject the new channel before returning this call. Otherwise, SDK
+ * would assume that the app want the SDK to handle this new channel.
+ *
+ * NOTE: This callback currently disabled. It will be enable in future versions.
+ *
+ * @param user_data  User-defined pointer passed during callback registration.
+ * @param tunnel_ref Reference to the tunnel object.
+ * @param channel_ref Reference to the new channel object.
+ */
+typedef pinggy_void_t (*pinggy_on_new_channel_cb_t)                             \
                             (pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_ref_t channel_ref);
 
+/**
+ * @typedef pinggy_on_raise_exception_cb_t
+ * @brief Callback for when an exception is raised inside the library.
+ *
+ * App is supposed received cpp exceptions through this call. This call is not any
+ * specific tunnel or channel. It is global callback. App can and should assume that
+ * it would get different exception for different thread and app should throw this
+ * exception original pinggy_* call returns. Check python implementation for an idea.
+ *
+ * @param where String describing where the exception occurred.
+ * @param what  String describing what the exception was.
+ */
 typedef pinggy_void_t (*pinggy_on_raise_exception_cb_t)                         \
                             (pinggy_const_char_p_t where, pinggy_const_char_p_t what);
 //================
@@ -1058,6 +1239,16 @@ pinggy_tunnel_set_on_additional_forwarding_succeeded_callback(pinggy_ref_t tunne
  */
 PINGGY_EXPORT pinggy_bool_t
 pinggy_tunnel_set_on_additional_forwarding_failed_callback(pinggy_ref_t tunnel, pinggy_on_additional_forwarding_failed_cb_t additional_forwarding_failed, pinggy_void_p_t user_data);
+
+/**
+ * @brief Set additional_forwarding_failed callback
+ * @param tunnel
+ * @param additional_forwarding_failed
+ * @param user_data user data that will pass when library call this call back
+ * @return
+ */
+PINGGY_EXPORT pinggy_bool_t
+pinggy_tunnel_set_on_forwarding_changed_callback(pinggy_ref_t tunnel, pinggy_on_forwarding_changed_cb_t forwarding_changed, pinggy_void_p_t user_data);
 
 /**
  * @brief tunnel disconnected callback
