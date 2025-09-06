@@ -122,12 +122,12 @@ GetObjFuncs(SdkChannelWraper);
 
 struct ApiChannelEventHandler: public virtual sdk::SdkChannelEventHandler
 {
-    pinggy_channel_data_received_cb_t
+    pinggy_channel_on_data_received_cb_t
                                 channelDataReceivedCB;
-    pinggy_channel_readyto_send_cb_t
+    pinggy_channel_on_readyto_send_cb_t
                                 channelReadyToSendCB;
-    pinggy_channel_error_cb_t   channelErrorCB;
-    pinggy_channel_cleanup_cb_t channelCleanupCB;
+    pinggy_channel_on_error_cb_t   channelErrorCB;
+    pinggy_channel_on_cleanup_cb_t channelCleanupCB;
 
     pinggy_void_p_t             channelDataReceivedUserData;
     pinggy_void_p_t             channelReadyToSendUserData;
@@ -639,6 +639,18 @@ pinggy_config_set_max_reconnect_attempts(pinggy_ref_t ref, pinggy_uint16_t attem
         sdkConf->SetMaxReconnectAttempts(attempts);
     );
 }
+PINGGY_EXPORT pinggy_void_t
+pinggy_config_set_reconnect_interval(pinggy_ref_t ref, pinggy_uint16_t interval)
+{
+    auto sdkConf = getSDKConfig(ref);
+    if (!sdkConf) {
+        LOGE("No sdkConf found for the ref:", ref);
+        return;
+    }
+    ExpectException(
+        sdkConf->SetAutoReconnectInterval(interval);
+    );
+}
 //======
 
 PINGGY_EXPORT pinggy_void_t
@@ -975,6 +987,17 @@ pinggy_config_get_max_reconnect_attempts(pinggy_ref_t ref)
         return pinggy_false;
     }
     return sdkConf->GetMaxReconnectAttempts();
+}
+
+PINGGY_EXPORT pinggy_uint16_t
+pinggy_config_get_reconnect_interval(pinggy_ref_t ref)
+{
+    auto sdkConf = getSDKConfig(ref);
+    if (!sdkConf) {
+        LOGE("No sdkConf found for the ref:", ref);
+        return pinggy_false;
+    }
+    return sdkConf->GetAutoReconnectInterval();
 }
 
 //====
@@ -1577,7 +1600,7 @@ pinggy_tunnel_set_on_usage_update_callback(pinggy_ref_t sdkRef, pinggy_on_usage_
     }
 
 PINGGY_EXPORT pinggy_bool_t
-pinggy_tunnel_channel_set_data_received_callback(pinggy_ref_t channelRef, pinggy_channel_data_received_cb_t cb, pinggy_void_p_t user_data)
+pinggy_tunnel_channel_set_on_data_received_callback(pinggy_ref_t channelRef, pinggy_channel_on_data_received_cb_t cb, pinggy_void_p_t user_data)
 {
     GetEventHandlerFromChannelRef(channelRef, cev);
     cev->channelDataReceivedCB = cb;
@@ -1586,7 +1609,7 @@ pinggy_tunnel_channel_set_data_received_callback(pinggy_ref_t channelRef, pinggy
 }
 
 PINGGY_EXPORT pinggy_bool_t
-pinggy_tunnel_channel_set_ready_to_send_callback(pinggy_ref_t channelRef, pinggy_channel_readyto_send_cb_t cb, pinggy_void_p_t user_data)
+pinggy_tunnel_channel_set_on_ready_to_send_callback(pinggy_ref_t channelRef, pinggy_channel_on_readyto_send_cb_t cb, pinggy_void_p_t user_data)
 {
     GetEventHandlerFromChannelRef(channelRef, cev);
     cev->channelReadyToSendCB = cb;
@@ -1595,7 +1618,7 @@ pinggy_tunnel_channel_set_ready_to_send_callback(pinggy_ref_t channelRef, pinggy
 }
 
 PINGGY_EXPORT pinggy_bool_t
-pinggy_tunnel_channel_set_error_callback(pinggy_ref_t channelRef, pinggy_channel_error_cb_t cb, pinggy_void_p_t user_data)
+pinggy_tunnel_channel_set_on_error_callback(pinggy_ref_t channelRef, pinggy_channel_on_error_cb_t cb, pinggy_void_p_t user_data)
 {
     GetEventHandlerFromChannelRef(channelRef, cev);
     cev->channelErrorCB = cb;
@@ -1604,7 +1627,7 @@ pinggy_tunnel_channel_set_error_callback(pinggy_ref_t channelRef, pinggy_channel
 }
 
 PINGGY_EXPORT pinggy_bool_t
-pinggy_tunnel_channel_set_cleanup_callback(pinggy_ref_t channelRef, pinggy_channel_cleanup_cb_t cb, pinggy_void_p_t user_data)
+pinggy_tunnel_channel_set_on_cleanup_callback(pinggy_ref_t channelRef, pinggy_channel_on_cleanup_cb_t cb, pinggy_void_p_t user_data)
 {
     GetEventHandlerFromChannelRef(channelRef, cev);
     cev->channelCleanupCB = cb;
