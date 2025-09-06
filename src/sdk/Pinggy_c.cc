@@ -270,7 +270,7 @@ public:
 #define GetCStringArray(cVec,vec)                               \
         auto cVec = new pinggy_char_p_t[vec.size()+2];          \
         for (size_t i = 0; i < vec.size(); ++i) {               \
-            cVec[i] = new char[vec[i].length() + 3];            \
+            cVec[i] = new pinggy_char_t[vec[i].length() + 3];   \
             strncpy(cVec[i], vec[i].c_str(), vec[i].length());  \
             cVec[i][vec[i].length()] = 0;                       \
         }
@@ -318,16 +318,12 @@ public:
     OnAdditionalForwardingSucceeded(tString bindAddress, tString forwardTo) override
     {
         if (!onAdditionalForwardingSucceededCB) return;
-        // auto cBindAddress = bindAddress->GetSockAddrString();
-        // auto cForwardTo = forwardTo->GetSockAddrString();
         onAdditionalForwardingSucceededCB(onAdditionalForwardingSucceededUserData, sdk, bindAddress.c_str(), forwardTo.c_str());
     }
     virtual pinggy_void_t
     OnAdditionalForwardingFailed(tString bindAddress, tString forwardTo, tString error) override
     {
         if (!onAdditionalForwardingFailedCB) return;
-        // auto cBindAddress = bindAddress->GetSockAddrString();
-        // auto cForwardTo = forwardTo->GetSockAddrString();
         auto cError = error;
         onAdditionalForwardingFailedCB(onAdditionalForwardingFailedUserData, sdk, bindAddress.c_str(), forwardTo.c_str(), cError.c_str());
     }
@@ -523,7 +519,7 @@ pinggy_config_set_tcp_forward_to(pinggy_ref_t ref, pinggy_char_p_t tcp_forward_t
         return;
     }
     ExpectException(
-        sdkConf->SetTcpForwardTo(NewUrlPtr(EmptyStringIfNull(tcp_forward_to)));
+        sdkConf->SetTcpForwardTo(EmptyStringIfNull(tcp_forward_to));
     );
 }
 
@@ -536,7 +532,7 @@ pinggy_config_set_udp_forward_to(pinggy_ref_t ref, pinggy_char_p_t udp_forward_t
         return;
     }
     ExpectException(
-        sdkConf->SetUdpForwardTo(NewUrlPtr(EmptyStringIfNull(udp_forward_to), 80, "udp"));
+        sdkConf->SetUdpForwardTo(EmptyStringIfNull(udp_forward_to));
     );
 }
 
@@ -841,7 +837,7 @@ pinggy_config_get_server_address(pinggy_ref_t ref, pinggy_capa_t capa, pinggy_ch
 PINGGY_EXPORT pinggy_const_int_t
 pinggy_config_get_server_address_len(pinggy_ref_t ref, pinggy_capa_t capa, pinggy_char_p_t val, pinggy_capa_p_t max_len)
 {
-    SdkConfigCopyUrlToOutputLen(capa, val, GetServerAddress(), max_len);
+    SdkConfigCopyStringToOutputLen(capa, val, GetServerAddress(), max_len);
 }
 
 PINGGY_EXPORT pinggy_const_int_t
@@ -889,7 +885,7 @@ pinggy_config_get_tcp_forward_to(pinggy_ref_t ref, pinggy_capa_t capa, pinggy_ch
 PINGGY_EXPORT pinggy_const_int_t
 pinggy_config_get_tcp_forward_to_len(pinggy_ref_t ref, pinggy_capa_t capa, pinggy_char_p_t val, pinggy_capa_p_t max_len)
 {
-    SdkConfigCopyUrlToOutputLen(capa, val, GetTcpForwardTo(), max_len);
+    SdkConfigCopyStringToOutputLen(capa, val, GetTcpForwardTo(), max_len);
 }
 
 PINGGY_EXPORT pinggy_const_int_t
@@ -901,7 +897,7 @@ pinggy_config_get_udp_forward_to(pinggy_ref_t ref, pinggy_capa_t capa, pinggy_ch
 PINGGY_EXPORT pinggy_const_int_t
 pinggy_config_get_udp_forward_to_len(pinggy_ref_t ref, pinggy_capa_t capa, pinggy_char_p_t val, pinggy_capa_p_t max_len)
 {
-    SdkConfigCopyUrlToOutputLen(capa, val, GetUdpForwardTo(), max_len);
+    SdkConfigCopyStringToOutputLen(capa, val, GetUdpForwardTo(), max_len);
 }
 
 PINGGY_EXPORT pinggy_const_bool_t

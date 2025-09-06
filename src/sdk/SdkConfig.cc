@@ -67,6 +67,13 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_CUSTOME_NEW_PTR1(UserPass,
     password
 );
 
+#define TunnelType_None     ""
+#define TunnelType_HTTP     "http"
+#define TunnelType_TCP      "tcp"
+#define TunnelType_TLS      "tls"
+#define TunnelType_TLSTCP   "tlstcp"
+#define TunnelType_UDP      "udp"
+
 SDKConfig::SDKConfig():
     force(false),
     advancedParsing(true),
@@ -75,12 +82,23 @@ SDKConfig::SDKConfig():
     insecure(false),
     autoReconnect(false),
     maxReconnectAttempts(MAX_RECONNECTION_TRY),
+    autoReconnectInterval(5),
     reverseProxy(true),
     xForwarderFor(false),
     httpsOnly(false),
     originalRequestUrl(false),
     allowPreflight(false)
 {
+}
+
+tString SDKConfig::GetMode()
+{
+    return mode;
+}
+
+tString SDKConfig::GetUdpMode()
+{
+    return udpMode;
 }
 
 
@@ -177,23 +195,28 @@ void
 SDKConfig::validate()
 {
     if (!serverAddress) {
-        serverAddress = NewUrlPtr("a.pinggy.ip:443");
+        serverAddress = NewUrlPtr("a.pinggy.io:443");
     }
 
-    if (tcpForwardTo && mode == "") {
-        mode = "http";
+    if (tcpForwardTo && mode.empty()) {
+        mode = TunnelType_HTTP;
     }
 
-    if (udpForwardTo && udpMode == "") {
-        udpMode = "udp";
+    if (udpForwardTo && udpMode.empty()) {
+        udpMode = TunnelType_UDP;
     }
 
-    if (mode != "http" && mode != "tcp" && mode != "tls" && mode != "tlstcp")
-        mode = "";
-    if (udpMode != "udp")
-        udpMode = "";
+    if (    mode != TunnelType_HTTP
+         && mode != TunnelType_TCP
+         && mode != TunnelType_TLS
+         && mode != TunnelType_TLSTCP)
+        mode = TunnelType_None;
+
+    if (udpMode != TunnelType_UDP)
+        udpMode = TunnelType_None;
+
     if (mode.empty() && udpMode.empty())
-        mode = "http";
+        mode = TunnelType_HTTP;
 }
 
 tString

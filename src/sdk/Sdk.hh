@@ -117,9 +117,9 @@ public:
     OnUsageUpdate(tString)      { }
 
     //return false to let the sdk handle connection
-    virtual void
+    virtual bool
     OnNewVisitorConnectionReceived(SdkChannelWraperPtr channel)
-                                { }
+                                { return false; }
 };
 DeclareSharedPtr(SdkEventHandler);
 
@@ -399,6 +399,9 @@ private:
                                 additionalForwardings;
 
     bool                        appHandlesNewChannel;
+
+    UrlPtr                      tcpForwardTo; //default
+    UrlPtr                      udpForwardTo; //default
 
     friend class ThreadLock;
 };

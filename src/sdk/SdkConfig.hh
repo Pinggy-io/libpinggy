@@ -37,19 +37,19 @@ struct SDKConfig: virtual public pinggy::SharedObject
     GetToken()                  { return token; }
 
     tString
-    GetMode()                   { return mode; }
+    GetMode();
 
     tString
-    GetUdpMode()                { return udpMode; }
+    GetUdpMode();
 
-    UrlPtr
-    GetServerAddress()          { return serverAddress; }
+    tString
+    GetServerAddress()          { return serverAddress ? serverAddress->GetSockAddrString(): ""; }
 
-    UrlPtr
-    GetTcpForwardTo()           { return tcpForwardTo; }
+    tString
+    GetTcpForwardTo()           { return tcpForwardTo ? tcpForwardTo->ToString() : ""; }
 
-    UrlPtr
-    GetUdpForwardTo()           { return udpForwardTo; }
+    tString
+    GetUdpForwardTo()           { return udpForwardTo ? udpForwardTo->ToString() : ""; }
 
     bool
     IsForce()                   { return force; }
@@ -71,6 +71,9 @@ struct SDKConfig: virtual public pinggy::SharedObject
 
     tUint16
     GetMaxReconnectAttempts()   { return maxReconnectAttempts; }
+
+    tUint16
+    GetAutoReconnectInterval()  { return autoReconnectInterval; }
 
     const tString
     GetHeaderManipulations();
@@ -126,12 +129,12 @@ struct SDKConfig: virtual public pinggy::SharedObject
                                 { isAllowed(); this->serverAddress = serverAddress; }
 
     void
-    SetTcpForwardTo(UrlPtr tcpForwardTo)
-                                { isAllowed(); this->tcpForwardTo = tcpForwardTo; }
+    SetTcpForwardTo(tString tcpForwardTo)
+                                { isAllowed(); this->tcpForwardTo = NewUrlPtr(tcpForwardTo); }
 
     void
-    SetUdpForwardTo(UrlPtr udpForwardTo)
-                                { isAllowed(); this->udpForwardTo = udpForwardTo; }
+    SetUdpForwardTo(tString udpForwardTo)
+                                { isAllowed(); this->udpForwardTo = NewUrlPtr(udpForwardTo, 80, "udp"); }
 
     void
     SetForce(bool force)        { isAllowed(); this->force = force; }
@@ -157,6 +160,10 @@ struct SDKConfig: virtual public pinggy::SharedObject
     void
     SetMaxReconnectAttempts(tUint16 maxReconnectAttempts)
                                 { isAllowed(); this->maxReconnectAttempts = maxReconnectAttempts; }
+
+    void
+    SetAutoReconnectInterval(tUint16 autoReconnectInterval)
+                                { isAllowed(); this->autoReconnectInterval = autoReconnectInterval > 1 ? autoReconnectInterval : 1; }
 
     void
     SetHeaderManipulations(tString val);
@@ -252,8 +259,8 @@ private:
     bool                        insecure;
 
     bool                        autoReconnect;
-
     tUint16                     maxReconnectAttempts;
+    tUint16                     autoReconnectInterval;
 
     //Other argument options
     std::vector<HeaderModPtr>   headerManipulations;

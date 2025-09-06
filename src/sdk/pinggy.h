@@ -124,40 +124,46 @@
 extern "C" {
 #endif //__cplusplus
 
-typedef uint8_t       pinggy_bool_t;
-typedef uint32_t      pinggy_ref_t;
-typedef char         *pinggy_char_p_t;
-typedef char        **pinggy_char_p_p_t;
-typedef void          pinggy_void_t;
-typedef void         *pinggy_void_p_t;
-typedef const char   *pinggy_const_char_p_t;
-typedef const int     pinggy_const_int_t;
-typedef const         pinggy_bool_t pinggy_const_bool_t;
-typedef int           pinggy_int_t;
-typedef int16_t       pinggy_len_t;
-typedef uint32_t      pinggy_capa_t;
-typedef uint32_t     *pinggy_capa_p_t;
-typedef uint32_t      pinggy_uint32_t;
-typedef uint16_t      pinggy_uint16_t;
-typedef int32_t       pinggy_raw_len_t;
+typedef uint8_t                 pinggy_bool_t;
+typedef uint32_t                pinggy_ref_t;
+typedef char                    pinggy_char_t;
+typedef char                   *pinggy_char_p_t;
+typedef char                  **pinggy_char_p_p_t;
+typedef void                    pinggy_void_t;
+typedef void                   *pinggy_void_p_t;
+typedef const char             *pinggy_const_char_p_t;
+typedef const int               pinggy_const_int_t;
+typedef const pinggy_bool_t     pinggy_const_bool_t;
+typedef int                     pinggy_int_t;
+typedef unsigned int            pinggy_uint_t;
+typedef int16_t                 pinggy_len_t;
+typedef uint32_t                pinggy_capa_t;
+typedef uint32_t               *pinggy_capa_p_t;
+typedef uint32_t                pinggy_uint32_t;
+typedef uint16_t                pinggy_uint16_t;
+typedef int32_t                 pinggy_raw_len_t;
 
 #define pinggy_true 1
 #define pinggy_false 0
 
-
+/**
+ * PINGGY_TYPETEST_ENABLED is a type enforcer for code. It make sure that all the code
+ * Implementation used exactly same data as the declaration function.
+ */
 #ifdef PINGGY_TYPETEST_ENABLED
+#define void            Error
+#define char            Error
+#define int             Error
+#define uint8_t         Error
+#define int16_t         Error
+#define uint16_t        Error
+#define uint32_t        Error
 #define int             Error
 #define bool_t          Error
-#define char_p_t        Error
-#define char_p_p_t      Error
 #define void_t          Error
-#define const_char_p_t  Error
-#define const_int_t     Error
-#define const_bool_t    Error
 #define int_t           Error
-#define void            Error
 #define len_t           Error
-#endif //PINGGY_NO_TYPETEST
+#endif //PINGGY_TYPETEST_ENABLED
 
 #define INVALID_PINGGY_REF 0
 
@@ -181,7 +187,7 @@ pinggy_is_interrupted();
 /**
  * @typedef pinggy_on_connected_cb_t
  * @brief Callback for when the tunnel is successfully connected to the server.
- * This is a inromational callback only and most of the app do not need this to implement.
+ * This is an informational callback only and most apps do not need to implement this.
  * @param user_data  User-defined pointer passed during callback registration.
  * @param tunnel_ref Reference to the tunnel object.
  */
@@ -191,11 +197,11 @@ typedef pinggy_void_t (*pinggy_on_connected_cb_t)                               
 /**
  * @typedef pinggy_on_authenticated_cb_t
  * @brief Callback for when the tunnel is authenticated.
- * Here authentication means it is allowed to setup tunnel.
+ * Here, authentication means the tunnel is allowed to be set up.
  *
- * This callback can arrive only when the tunnel is being connected, i.e.
+ * This callback can arrive only when the tunnel is being connected, i.e.,
  * `pinggy_tunnel_connect_blocking` is working or `pinggy_tunnel_connect` is
- * called and app is waiting for event by calling `pinggy_tunnel_resume`.
+ * called and the app is waiting for an event by calling `pinggy_tunnel_resume`.
  *
  * @param user_data  User-defined pointer passed during callback registration.
  * @param tunnel_ref Reference to the tunnel object.
@@ -205,7 +211,7 @@ typedef pinggy_void_t (*pinggy_on_authenticated_cb_t)                           
 
 /**
  * @typedef pinggy_on_authentication_failed_cb_t
- * @brief Callback for when tunnel authentication fails. It similar to `pinggy_on_authenticated_cb_t`.
+ * @brief Callback for when tunnel authentication fails. It is similar to `pinggy_on_authenticated_cb_t`.
  * @param user_data  User-defined pointer passed during callback registration.
  * @param tunnel_ref Reference to the tunnel object.
  * @param num_reasons Size of the `reasons` array.
@@ -219,8 +225,8 @@ typedef pinggy_void_t (*pinggy_on_authentication_failed_cb_t)                   
  * @brief Callback for when primary forwarding is successfully established.
  *
  * This callback can arrive only when the app has requested primary forwarding using
- * `pinggy_tunnel_request_primary_forwarding_blocking` or called `pinggy_tunnel_request_primary_forwarding`
- * and waiting for event by calling `pinggy_tunnel_resume`.
+ * `pinggy_tunnel_request_primary_forwarding_blocking` or has called `pinggy_tunnel_request_primary_forwarding`
+ * and is waiting for an event by calling `pinggy_tunnel_resume`.
  *
  * @param user_data  User-defined pointer passed during callback registration.
  * @param tunnel_ref Reference to the tunnel object.
@@ -232,7 +238,7 @@ typedef pinggy_void_t (*pinggy_on_primary_forwarding_succeeded_cb_t)            
 
 /**
  * @typedef pinggy_on_primary_forwarding_failed_cb_t
- * @brief Callback for when primary forwarding fails. The context is same as
+ * @brief Callback for when primary forwarding fails. The context is the same as
  * `pinggy_on_primary_forwarding_succeeded_cb_t`.
  * @param user_data  User-defined pointer passed during callback registration.
  * @param tunnel_ref Reference to the tunnel object.
@@ -244,7 +250,7 @@ typedef pinggy_void_t (*pinggy_on_primary_forwarding_failed_cb_t)               
 /**
  * @typedef pinggy_on_additional_forwarding_succeeded_cb_t
  * @brief Callback for when additional forwarding is successfully established.
- * App can expect this callback when app called `pinggy_tunnel_request_additional_forwarding`.
+ * The app can expect this callback when it has called `pinggy_tunnel_request_additional_forwarding`.
  * @param user_data  User-defined pointer passed during callback registration.
  * @param tunnel_ref Reference to the tunnel object.
  * @param bind_addr  The remote bind address as a string.
@@ -256,7 +262,7 @@ typedef pinggy_void_t (*pinggy_on_additional_forwarding_succeeded_cb_t)         
 /**
  * @typedef pinggy_on_additional_forwarding_failed_cb_t
  * @brief Callback for when additional forwarding fails.
- * App can expect this callback when app called `pinggy_tunnel_request_additional_forwarding`.
+ * The app can expect this callback when it has called `pinggy_tunnel_request_additional_forwarding`.
  * @param user_data  User-defined pointer passed during callback registration.
  * @param tunnel_ref Reference to the tunnel object.
  * @param bind_addr  The remote bind address as a string.
@@ -270,11 +276,10 @@ typedef pinggy_void_t (*pinggy_on_additional_forwarding_failed_cb_t)            
  * @typedef pinggy_on_forwarding_changed_cb_t
  * @brief Callback for when the forwarding map changes.
  *
- * App should expect this call anytime as long the tunnel running. Even when
- * the tunnel is running. The `url_map` is a json string and the format is not
- * decided.
+ * The app should expect this call at any time as long as the tunnel is running.
+ * The `url_map` is a JSON string and the format is not finalized.
  *
- * **Do not use this call now**
+ * **Do not use this callback for now.**
  *
  * @param user_data  User-defined pointer passed during callback registration.
  * @param tunnel_ref Reference to the tunnel object.
@@ -289,19 +294,19 @@ typedef pinggy_void_t (*pinggy_on_forwarding_changed_cb_t)                      
  * @param user_data  User-defined pointer passed during callback registration.
  * @param tunnel_ref Reference to the tunnel object.
  * @param error Error message string.
- * @param msgs_size Size of msgs array.
- * @param msgs Array of message strings.
+ * @param msg_size Size of the msg array.
+ * @param msg Array of message strings.
  */
 typedef pinggy_void_t (*pinggy_on_disconnected_cb_t)                            \
                             (pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_const_char_p_t error, pinggy_len_t msg_size, pinggy_char_p_p_t msg);
 
 /**
  * @typedef pinggy_on_will_reconnect_cb_t
- * @brief Callback for when the tunnel is disconnected and it will try to reconnect now..
+ * @brief Callback for when the tunnel is disconnected and will try to reconnect now.
  * @param user_data  User-defined pointer passed during callback registration.
  * @param tunnel_ref Reference to the tunnel object.
  * @param error Error message string.
- * @param num_msgs Size of messages array.
+ * @param num_msgs Number of messages.
  * @param messages Array of message strings.
  */
 typedef pinggy_void_t (*pinggy_on_will_reconnect_cb_t)                          \
@@ -344,7 +349,7 @@ typedef pinggy_void_t (*pinggy_on_reconnection_failed_cb_t)                     
  * @param user_data  User-defined pointer passed during callback registration.
  * @param tunnel_ref Reference to the tunnel object.
  * @param usages JSON string describing usage information. The format of the usages
- * string is `{"elaspedTime":7,"numLiveConnections":6,"numTotalConnections":6,"numTotalReqBytes":16075,"numTotalResBytes":815760,"numTotalTxBytes":831835}`
+ * string is `{"elapsedTime":7,"numLiveConnections":6,"numTotalConnections":6,"numTotalReqBytes":16075,"numTotalResBytes":815760,"numTotalTxBytes":831835}`
  */
 typedef pinggy_void_t (*pinggy_on_usage_update_cb_t)                            \
                             (pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_const_char_p_t usages);
@@ -354,7 +359,7 @@ typedef pinggy_void_t (*pinggy_on_usage_update_cb_t)                            
  * @brief Callback for when a tunnel error occurs.
  * @param user_data  User-defined pointer passed during callback registration.
  * @param tunnel_ref Reference to the tunnel object.
- * @param error_no   Error number. (Future proofing. No use now.)
+ * @param error_no   Error number. (For future use. Not used now.)
  * @param error      Error message string.
  * @param recoverable Whether the error is recoverable.
  */
@@ -364,26 +369,28 @@ typedef pinggy_void_t (*pinggy_on_tunnel_error_cb_t)                            
 /**
  * @typedef pinggy_on_new_channel_cb_t
  * @brief Callback for when a new channel is created. To handle the channel manually,
- * kindly accept or reject the new channel before returning this call. Otherwise, SDK
- * would assume that the app want the SDK to handle this new channel.
+ * return true. Otherwise, the SDK will assume that the app wants the SDK to handle
+ * this new channel.
  *
- * NOTE: This callback currently disabled. It will be enable in future versions.
+ * If app decides to handle a channel, it has to accept or reject the channel as soon
+ * as possible. Also, it is responsible to free up the channel reference by calling
+ * `pinggy_free_ref`.
+ *
+ * NOTE: This callback is currently disabled. It will be enabled in future versions.
  *
  * @param user_data  User-defined pointer passed during callback registration.
  * @param tunnel_ref Reference to the tunnel object.
  * @param channel_ref Reference to the new channel object.
+ * @return Return pinggy_true to specify that app wants to handle it, otherwise false.
  */
-typedef pinggy_void_t (*pinggy_on_new_channel_cb_t)                             \
+typedef pinggy_bool_t (*pinggy_on_new_channel_cb_t)                             \
                             (pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_ref_t channel_ref);
 
 /**
  * @typedef pinggy_on_raise_exception_cb_t
  * @brief Callback for when an exception is raised inside the library.
  *
- * App is supposed received cpp exceptions through this call. This call is not any
- * specific tunnel or channel. It is global callback. App can and should assume that
- * it would get different exception for different thread and app should throw this
- * exception original pinggy_* call returns. Check python implementation for an idea.
+ * The app is supposed to receive C++ exceptions through this callback. This callback is not specific to any tunnel or channel; it is a global callback. The app can and should assume that it may get different exceptions for different threads, and should throw this exception when the original pinggy_* call returns. Check the Python implementation for an example.
  *
  * @param where String describing where the exception occurred.
  * @param what  String describing what the exception was.
@@ -395,7 +402,36 @@ typedef pinggy_void_t (*pinggy_on_raise_exception_cb_t)                         
 /**
  * @brief  Set a function pointer which would handle exception occured inside the library
  * @param  pointer to function with type pinggy_on_raise_exception_cb_t
- * @return
+ *
+ * @Example
+ * The exception callback function can looklike following
+ * ```
+ * _Thread_local const char *global_where;
+ * _Thread_local const char *global_what;
+ *
+ * void
+ * setChars(pinggy_const_char_p_t where, pinggy_const_char_p_t what)
+ * {
+ *      if (global_where) {
+ *          free(global_where);
+ *          global_where = NULL;
+ *      }
+ *      if (global_what) {
+ *          free(global_what);
+ *          global_what = NULL;
+ *      }
+ *      if (where) {
+ *          global_where = (pinggy_const_char_p_t)malloc(strlen(where)+1);
+ *          strcpy(global_where, where);
+ *      }
+ *      if (what) {
+ *          global_what = (pinggy_const_char_p_t)malloc(strlen(where)+1);
+ *          strcpy(global_what, what);
+ *      }
+ * }
+ * ```
+ * Above code is just an example. User have to decide exactly they want to keep
+ * the exception for them
  */
 PINGGY_EXPORT pinggy_void_t
 pinggy_set_on_exception_callback(pinggy_on_raise_exception_cb_t);
@@ -422,8 +458,8 @@ pinggy_create_config();
 /**
  * @brief Set the pinggy server address. by default it is set to `a.pinggy.io:443`
  * @param config  reference to tunnel config
- * @param server_address  a null terminated string in the format `<server>:<port>`
- * @return
+ * @param server_address  a null terminated string in the format `<server>:<port>` or
+ * just the `<server>`
  */
 PINGGY_EXPORT pinggy_void_t
 pinggy_config_set_server_address(pinggy_ref_t config, pinggy_char_p_t server_address);
@@ -432,22 +468,26 @@ pinggy_config_set_server_address(pinggy_ref_t config, pinggy_char_p_t server_add
  * @brief Set the secrete token. sdk does not verify the token locally. It directly send it the server.
  * @param config  reference to tunnel config
  * @param token  a null terminated string
- * @return
+ *
+ * While user is allowed to pass `token`, `virtual_token` and `token+method`, it is discouraged. Sdk do
+ * allow this now. However, it might gives an exception in future. So, `extendedSdk` only have to extend
+ * those exceptions.
+ *
  */
 PINGGY_EXPORT pinggy_void_t
 pinggy_config_set_token(pinggy_ref_t config, pinggy_char_p_t token);
 
 /**
- * @brief Set the tunnel type. the value must be among `tcp`, `http` or `tls`
+ * @brief Set the tunnel type. the value must be among `tcp`, `http`, `tls` or `tlstcp`
  * @param config  reference to tunnel config
- * @param type
+ * @param type    the basic tunnel types.
  * @return
  */
 PINGGY_EXPORT pinggy_void_t
 pinggy_config_set_type(pinggy_ref_t config, pinggy_char_p_t type);
 
 /**
- * @brief Set the tunnel udp type
+ * @brief Set the tunnel udp type. currently it can be `url` or empty.
  * @param config  reference to tunnel config
  * @param udp_type
  * @return
@@ -456,8 +496,8 @@ PINGGY_EXPORT pinggy_void_t
 pinggy_config_set_udp_type(pinggy_ref_t config, pinggy_char_p_t udp_type);
 
 /**
- * @brief Set the local server address. It is required even if the
- * application handles forwading by it self.
+ * @brief Set the local tcp server address. It is requires incase when tunnel type is one of
+ * `tcp`, `http`, `tls` or `tlstcp`.
  * @param config  reference to tunnel config
  * @param tcp_forward_to  a null terminated string containing local tcp server address in the format `<server>:<port>`
  * @return
@@ -466,7 +506,7 @@ PINGGY_EXPORT pinggy_void_t
 pinggy_config_set_tcp_forward_to(pinggy_ref_t config, pinggy_char_p_t tcp_forward_to);
 
 /**
- * @brief Similar to `pinggy_config_set_tcp_forward_to`
+ * @brief Similar to `pinggy_config_set_tcp_forward_to`. However, it is require when udp type is set to `udp`.
  * @param config  reference to tunnel config
  * @param udp_forward_to  a null terminated string containing local udp server address in the format `<server>:<port>`
  * @return
@@ -475,7 +515,7 @@ PINGGY_EXPORT pinggy_void_t
 pinggy_config_set_udp_forward_to(pinggy_ref_t config, pinggy_char_p_t udp_forward_to);
 
 /**
- * @brief Set or reset force login enable. More detail at pinggy.io
+ * @brief Set or reset force mode. More detail at https://pinggy.io/docs/usages/#4-force
  * @param config  reference to tunnel config
  * @param force
  * @return
@@ -484,7 +524,10 @@ PINGGY_EXPORT pinggy_void_t
 pinggy_config_set_force(pinggy_ref_t config, pinggy_bool_t force);
 
 /**
- * @brief Set the command line argument for other setting. It is similar ssh command.
+ * @brief Set the command line argument for other setting.
+ *
+ * NOTE: This is only for banckward compatibility. Kindly used individual parameter setting functions.
+ *
  * @param config  reference to tunnel config
  * @param argument
  * @return
@@ -493,7 +536,10 @@ PINGGY_EXPORT pinggy_void_t
 pinggy_config_set_argument(pinggy_ref_t config, pinggy_char_p_t argument);
 
 /**
- * @brief Set avdance parsing for http tunnel. It is enabled by default. free http tunnel does not work without advanced parsing
+ * @brief Set avdance parsing for http tunnel. It is enabled by default. free http tunnel does not work without advanced parsing.
+ *
+ * NOTE: Normal user should not use this function. It is only required by the developer.
+ *
  * @param config  reference to tunnel config
  * @param advanced_parsing
  * @return
@@ -503,6 +549,9 @@ pinggy_config_set_advanced_parsing(pinggy_ref_t config, pinggy_bool_t advanced_p
 
 /**
  * @brief Set whether to use ssl connection for tunnel setup or. It is by default enabled. This is feature for pinggy developer.
+ *
+ * NOTE: No pinggy production or test server support non-ssl connection to tunnel establishment. So, there is no reason to expose it.
+ *
  * @param config  reference to tunnel config
  * @param ssl
  * @return
@@ -511,7 +560,9 @@ PINGGY_EXPORT pinggy_void_t
 pinggy_config_set_ssl(pinggy_ref_t config, pinggy_bool_t ssl);
 
 /**
- * @brief Another developer only config
+ * @brief To set SNI for the connection. By default it is not required to set. However,
+ * it is required to set when working with test server. Developer may need it. Our test
+ * environment definitely need it.
  * @param config  reference to tunnel config
  * @param sni_server_name
  * @return
@@ -520,7 +571,7 @@ PINGGY_EXPORT pinggy_void_t
 pinggy_config_set_sni_server_name(pinggy_ref_t config, pinggy_char_p_t sni_server_name);
 
 /**
- * @brief Another developer only config
+ * @brief This is not used yet.
  * @param config  reference to tunnel config
  * @param insecure
  * @return
@@ -540,34 +591,68 @@ pinggy_config_set_auto_reconnect(pinggy_ref_t config, pinggy_bool_t enable);
 /**
  * @brief Set max number of reconnection attempts before giving up. Default it 20.
  * @param config  reference to tunnel config
- * @param enable
+ * @param num_tries
  * @return
  */
 PINGGY_EXPORT pinggy_void_t
-pinggy_config_set_max_reconnect_attempts(pinggy_ref_t config, pinggy_uint16_t enable);
+pinggy_config_set_max_reconnect_attempts(pinggy_ref_t config, pinggy_uint16_t num_tries);
+
+/**
+ * @brief Set reconnection retry interval in seconds. The default interval is 5 seconds.
+ * Minimum interval can be 1 sec only. However, it is highly discouraged to set interval
+ * lower that 5sec.
+ * @param config  reference to tunnel config
+ * @param interval
+ * @return
+ */
+PINGGY_EXPORT pinggy_void_t
+pinggy_config_set_reconnect_interval(pinggy_ref_t config, pinggy_uint16_t interval);
 
 //====
 
 /**
- * @brief
+ * @brief Set header manipulation config json. A config looks like:
+ * [
+ *    {
+ *      "type": "add",
+ *      "key": "X-NewHeader",
+ *      "value": ["This is comming from pinggy", "2nd value"]
+ *    },
+ *    {
+ *      "type": "remove",
+ *      "key": "Date"
+ *    },
+ *    {
+ *      "type": "update",
+ *      "key": "X-Proxy",
+ *      "value": ["pinggy"]
+ *    }
+ * ]
+ * Above json would remove `Date` header from every request. Adds two `X-NewHeader` fields and remove `X-Proxy` if exists and add `X-Proxy` with value "pinggy".
  * @param config  reference to tunnel config
- * @param header_manipulations json array of header modifications. https://github.com/Pinggy-io/Wiki/blob/f8fe49883a5277a43e7606618bccd2a04d8ac0dc/TunnelConfigSpec/README.md?plain=1#L58
+ * @param header_manipulations header manipulation config. https://github.com/Pinggy-io/Wiki/blob/f8fe49883a5277a43e7606618bccd2a04d8ac0dc/TunnelConfigSpec/README.md?plain=1#L58
  * @return
  */
 PINGGY_EXPORT pinggy_void_t
 pinggy_config_set_header_manipulations(pinggy_ref_t config, pinggy_const_char_p_t header_manipulations);
 
 /**
- * @brief
+ * @brief Set basic auth config for the tunnel. The config looks like:
+ * [
+ *    { "username": "user1", "password": "password1" },
+ *    { "username": "user2", "password": "password2" }
+ * ]
+ * NOTE: The password is in plaintext primarily becuase basic authentication itself is not encrypted.
  * @param config  reference to tunnel config
- * @param basic_auths json array of basic authentications. https://github.com/Pinggy-io/Wiki/blob/f8fe49883a5277a43e7606618bccd2a04d8ac0dc/TunnelConfigSpec/README.md?plain=1#L51
+ * @param basic_auths basic authentications config. https://github.com/Pinggy-io/Wiki/blob/f8fe49883a5277a43e7606618bccd2a04d8ac0dc/TunnelConfigSpec/README.md?plain=1#L51
  * @return
  */
 PINGGY_EXPORT pinggy_void_t
 pinggy_config_set_basic_auths(pinggy_ref_t config, pinggy_const_char_p_t basic_auths);
 
 /**
- * @brief
+ * @brief Set a list of bearer keys or token for authentication. It is just a just of keys like following
+ * ["Key1", "Key2"]
  * @param config  reference to tunnel config
  * @param bearer_token_auths Json array of strings. https://github.com/Pinggy-io/Wiki/blob/f8fe49883a5277a43e7606618bccd2a04d8ac0dc/TunnelConfigSpec/README.md?plain=1#L55
  * @return
@@ -576,7 +661,8 @@ PINGGY_EXPORT pinggy_void_t
 pinggy_config_set_bearer_token_auths(pinggy_ref_t config, pinggy_const_char_p_t bearer_token_auths);
 
 /**
- * @brief
+ * @brief The list of IP addresses/networks from which visitors are allowed to connect to this server. The list looks like:
+ * ["10.0.0.1/32", "19.2.4.5", "::1/1"]
  * @param config  reference to tunnel config
  * @param ip_white_list json array of strings. https://github.com/Pinggy-io/Wiki/blob/f8fe49883a5277a43e7606618bccd2a04d8ac0dc/TunnelConfigSpec/README.md?plain=1#L48
  * @return
@@ -585,7 +671,10 @@ PINGGY_EXPORT pinggy_void_t
 pinggy_config_set_ip_white_list(pinggy_ref_t config, pinggy_const_char_p_t ip_white_list);
 
 /**
- * @brief
+ * @brief Set or unset reverse-proxy-mode. It is by-default enabled. Set false to disable it.
+ * In reverse-proxy-mode, pinggy server set `Forwarded`, `X-Forwarded-For`, `X-Forwarded-Host`,
+ * and `X-Forwarded-Proto` header as per specified at
+ * https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Proxy_servers_and_tunneling
  * @param config  reference to tunnel config
  * @param reverse_proxy
  * @return
@@ -594,7 +683,9 @@ PINGGY_EXPORT pinggy_void_t
 pinggy_config_set_reverse_proxy(pinggy_ref_t config, pinggy_bool_t reverse_proxy);
 
 /**
- * @brief
+ * @brief Set or unset x_forward_for flag. If enabled, pinggy server would add X-Forwarded-For header to
+ * the request containing original souce address. However, it is by default provided in reverse-proxy-mode
+ * and it cannot be disabled by this flag in reverse-proxy-mode.
  * @param config  reference to tunnel config
  * @param x_forwarder_for
  * @return
@@ -603,7 +694,9 @@ PINGGY_EXPORT pinggy_void_t
 pinggy_config_set_x_forwarder_for(pinggy_ref_t config, pinggy_bool_t x_forwarder_for);
 
 /**
- * @brief
+ * @brief Set or unset https-only mode. The default is unset.
+ * In https-only mode, pinggy server would redirect any http
+ * request to https url via 301 Moved Permanently response.
  * @param config  reference to tunnel config
  * @param https_only
  * @return
@@ -612,7 +705,11 @@ PINGGY_EXPORT pinggy_void_t
 pinggy_config_set_https_only(pinggy_ref_t config, pinggy_bool_t https_only);
 
 /**
- * @brief
+ * @brief/**
+ * @brief Set or unset original-request-url mode. The default is unset.
+ * In original-request-url mode, pinggy server would add X-Pinggy-Url header to
+ * the request containing the original URL requested by the client.
+
  * @param config  reference to tunnel config
  * @param original_request_url
  * @return
@@ -621,7 +718,9 @@ PINGGY_EXPORT pinggy_void_t
 pinggy_config_set_original_request_url(pinggy_ref_t config, pinggy_bool_t original_request_url);
 
 /**
- * @brief
+ * @brief Set or unset allow-preflight mode. The default is unset.
+ * In allow-preflight mode, pinggy server would respond to CORS preflight requests
+ * (OPTIONS method) with appropriate headers, allowing cross-origin requests.
  * @param config  reference to tunnel config
  * @param allow_preflight
  * @return
@@ -630,7 +729,9 @@ PINGGY_EXPORT pinggy_void_t
 pinggy_config_set_allow_preflight(pinggy_ref_t config, pinggy_bool_t allow_preflight);
 
 /**
- * @brief
+ * @brief Set or unset no-reverse-proxy mode. The default is unset.
+ * It is exactly opposite of `pinggy_config_set_reverse_proxy` and internally changes the same parameter.
+ * It is provided for convenience only.
  * @param config  reference to tunnel config
  * @param no_reverse_proxy
  * @return
@@ -639,7 +740,9 @@ PINGGY_EXPORT pinggy_void_t
 pinggy_config_set_no_reverse_proxy(pinggy_ref_t config, pinggy_bool_t no_reverse_proxy);
 
 /**
- * @brief
+ * @brief Set or unset local-server-tls mode. The default is unset.
+ * In local-server-tls mode, pinggy server would connect to the local server using TLS.
+ * This is useful when the local server is configured with HTTPS.
  * @param config  reference to tunnel config
  * @param local_server_tls
  * @return
@@ -858,12 +961,20 @@ PINGGY_EXPORT pinggy_const_bool_t
 pinggy_config_get_auto_reconnect(pinggy_ref_t config);
 
 /**
- * @brief Get whether auto reconnect is enabled or not
+ * @brief Get number of reconnection tries before giving up.
  * @param config  reference to tunnel config
- * @return return whether auto reconnect is enabled or not
+ * @return number of reconnection tried
  */
 PINGGY_EXPORT pinggy_uint16_t
 pinggy_config_get_max_reconnect_attempts(pinggy_ref_t config);
+
+/**
+ * @brief Get reconnection retry intervals
+ * @param config  reference to tunnel config
+ * @return reconnection retry interval
+ */
+PINGGY_EXPORT pinggy_uint16_t
+pinggy_config_get_reconnect_interval(pinggy_ref_t config);
 
 //========
 

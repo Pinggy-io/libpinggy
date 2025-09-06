@@ -231,7 +231,8 @@ Sdk::ResumeTunnel()
                     reconnectionState = SdkState_ReconnectWaiting;
                     if (!ret) { //initiating  // it needs to be non-blocking
                         LOGD("Not connected or authenticated");
-                        pollController->SetTimeout(3*SECOND, thisPtr, &Sdk::setReconnectionState, SdkState_Reconnect_Failed);
+                        pollController->SetTimeout(sdkConfig->GetAutoReconnectInterval() * SECOND, thisPtr,
+                                                    &Sdk::setReconnectionState, SdkState_Reconnect_Failed);
                     }
                 }
                 break;
@@ -242,7 +243,8 @@ Sdk::ResumeTunnel()
                     reconnectionState = SdkState_ReconnectWaiting;
                     if (!ret) { // it needs to be non-blocking
                         LOGD("Primary forwarding failed");
-                        pollController->SetTimeout(3*SECOND, thisPtr, &Sdk::setReconnectionState, SdkState_Reconnect_Failed);
+                        pollController->SetTimeout(sdkConfig->GetAutoReconnectInterval() * SECOND, thisPtr,
+                                                    &Sdk::setReconnectionState, SdkState_Reconnect_Failed);
                     }
                 }
                 break;
@@ -581,9 +583,8 @@ Sdk::HandleSessionNewChannelRequest(protocol::ChannelPtr channel)
         }
 
         if (appHandlesNewChannel && eventHandler) {
-            auto chan = NewSdkChannelWraperPtr(channel, thisPtr);
-            eventHandler->OnNewVisitorConnectionReceived(chan);
-            if (chan->IsResponeded())
+            auto done = eventHandler->OnNewVisitorConnectionReceived(NewSdkChannelWraperPtr(channel, thisPtr));
+            if (done)
                 return;
         }
 
@@ -783,6 +784,13 @@ Sdk::ChannelDataReceived(protocol::ChannelPtr channel)
         if (len > 0) {
             if (eventHandler && usagesRunning) {
                 lastUsagesUpdate = data->ToString();
+                try {
+                    json jd = json::parse(lastUsagesUpdate);
+                    if (jd.contains("elaspedTime") && !jd.contains("elapsedTime"))
+                        jd["elapsedTime"] = jd["elaspedTime"];
+                    lastUsagesUpdate = jd.dump();
+                } catch(...) {
+                }
                 eventHandler->OnUsageUpdate(lastUsagesUpdate);
             }
         }
@@ -934,7 +942,7 @@ bool Sdk::internalConnect(bool block)
     session->Start(thisPtr);
     LOGT("Session Started");
 
-    keepAliveTask = pollController->SetInterval(5*SECOND, thisPtr, &Sdk::sendKeepAlive);
+    keepAliveTask = pollController->SetInterval(5 * SECOND, thisPtr, &Sdk::sendKeepAlive);
 
     initiateNotificationChannel();
 

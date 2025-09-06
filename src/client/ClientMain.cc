@@ -106,9 +106,7 @@ parseReverseTunnel(ClientConfigPtr config, tString value)
     auto url =  values[values.size() - 2] + ":" + values[values.size() - 1];
     try {
         if (values.size() < 4) {
-            auto u = NewUrlPtr(url, 80, "");
-            // std::cout << u << std::endl;
-            config->sdkConfig->SetTcpForwardTo(u);
+            config->sdkConfig->SetTcpForwardTo(url);
         } else {
             auto forwardingUrl = values[values.size() - 4] + ":" + values[values.size() - 3];
             config->forwardings.push_back(std::pair(forwardingUrl, url));
@@ -145,7 +143,7 @@ parseUser(ClientConfigPtr config, tString user)
     auto sdkConfig = config->sdkConfig;
 
     auto forwardingAddress = sdkConfig->GetTcpForwardTo();
-    sdkConfig->SetTcpForwardTo(nullptr);
+    sdkConfig->SetTcpForwardTo("");
 
     for(auto s : values) {
         auto sl = StringToLower(s);
@@ -161,7 +159,7 @@ parseUser(ClientConfigPtr config, tString user)
         }
     }
 
-    if (!sdkConfig->GetTcpForwardTo() && !sdkConfig->GetUdpForwardTo()) {
+    if (sdkConfig->GetTcpForwardTo().empty() && sdkConfig->GetUdpForwardTo().empty()) {
         sdkConfig->SetTcpForwardTo(forwardingAddress);
         sdkConfig->SetMode(ConnMode_HTTP);
     }
