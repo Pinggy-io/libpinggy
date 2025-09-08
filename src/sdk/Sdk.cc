@@ -202,7 +202,11 @@ Sdk::Stop()
     auto lock = LockIfDifferentThread();
     if (stopped)
         return false;
-    session->End("Connection close");
+    if (session) {
+        session->End("Connection close");
+        session = nullptr;
+    }
+
     stopWebDebugger();
     stopped = true;
     return true;
