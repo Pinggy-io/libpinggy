@@ -22,13 +22,18 @@ namespace common {
 
 
 template<typename T>
-class Defer
+class [[nodiscard]] Defer
 {
 public:
-    Defer(T Arg);
+    explicit Defer(T Arg);
     virtual ~Defer();
+
+    Defer(const Defer&) = delete;
+    Defer& operator=(const Defer&) = delete;
+    Defer(Defer&&) = delete;
+    Defer& operator=(Defer&&) = delete;
 private:
-    T func;
+    T                           func;
 };
 
 
@@ -48,7 +53,8 @@ inline Defer<T>::~Defer()
 
 #define ___DeferCat(a, b) ____DeferCat(a, b)
 #define ____DeferCat(a, b) a ## b
+#define __DeferCount(x, y) common::Defer ___DeferCat(__pop,y)([&]{x}); (void)___DeferCat(__pop,y);
 
-#define DEFER(x) common::Defer ___DeferCat(__pop,__LINE__)([&]{x}); (void)___DeferCat(__pop,__LINE__);
+#define DEFER(x) __DeferCount(x, __COUNTER__)
 
 #endif /* CPP_COMMON_DEFER_HH_ */

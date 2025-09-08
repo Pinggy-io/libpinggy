@@ -70,9 +70,17 @@ tString PORT_CONF = "PORT_CONF";
 tString NOTIFICATION_FD = "NOTIFICATION_FD";
 tString GREETING_MSG_TAG = "GREETING_MSG_TAG";
 
-#define MAX_RECONNECTION_TRY 20
+#define PINGGY_LIFE_CYCLE_FUNC
+#define PINGGY_LIFE_CYCLE_WRAPPER_FUNC
+#define PINGGY_ATTRIBUTE_FUNC
 
-struct PortConfig: virtual public pinggy::SharedObject
+//Rules:
+// 1. no private function should lock the lockAccess
+// 2. Every life cycle function should lock the lockAccess even before starting
+// 3. Every non-life cycle functions that needs to access session (direct or undirect)
+//    needs lockAccess (unless same thread and running)
+
+struct [[nodiscard]] PortConfig: virtual public pinggy::SharedObject
 {
     PortConfig():
             ConfigTcp(0),
@@ -100,20 +108,20 @@ DefineMakeSharedPtr(PortConfig);
 class ThreadLock : public pinggy::SharedObject
 {
 public:
-    ThreadLock(std::mutex &accessLock):
-            accessLock(accessLock)
+    ThreadLock(SdkPtr sdk):
+            sdk(sdk)
     {
-        accessLock.lock();
+        sdk->acquireAccessLock();
     }
 
     virtual
     ~ThreadLock()
     {
-        accessLock.unlock();
+        sdk->releaseAccessLock();
     }
 
 private:
-    std::mutex                  &accessLock;
+    SdkPtr                  sdk;
 };
 DefineMakeSharedPtr(ThreadLock);
 
@@ -129,8 +137,10 @@ Sdk::Sdk(SDKConfigPtr config, SdkEventHandlerPtr _eventHandler):
             cleanupNow(false),
             lastKeepAliveTickReceived(0),
             state(SdkState_Initial),
+            reconnectionState(SdkState_Initial),
             reconnectCounter(0),
-            usagesRunning(false)
+            usagesRunning(false),
+            appHandlesNewChannel(false)
 {
     if (!config) {
         sdkConfig = config = NewSDKConfigPtr();
@@ -142,20 +152,19 @@ Sdk::~Sdk()
     cleanup();
 }
 
-bool
+bool PINGGY_LIFE_CYCLE_FUNC
 Sdk::Connect(bool block)
 {
     //==== Setup =========
+    acquireAccessLock();
+    DEFER(releaseAccessLock(););
 
     if (state >= SdkState_Connecting)
-        ABORT_WITH_MSG("Tunnel is already started");
+        return true;
 
     state = SdkState_Connecting;
 
     sdkConfig->validate();
-
-    // started = true;
-    runningThreadId = std::this_thread::get_id();
 
     initPollController();
 
@@ -164,16 +173,19 @@ Sdk::Connect(bool block)
     return internalConnect(block);
 }
 
-bool
+bool PINGGY_LIFE_CYCLE_WRAPPER_FUNC
 Sdk::Start()
 {
-    if (!Connect(true)) { //entry point
-        LOGD("Not connected or authenticated");
-        return false;
-    }
-    if (!RequestPrimaryRemoteForwarding(true)) {
-        LOGD("Primary forwarding failed");
-        return false;
+    // No lockAccess required as it is not calling any private function
+    if(!reconnectNow) {
+        if (!Connect(true)) { //entry point
+            LOGD("Not connected or authenticated");
+            return false;
+        }
+        if (!RequestPrimaryRemoteForwarding(true)) {
+            LOGD("Primary forwarding failed");
+            return false;
+        }
     }
 
     while(true) {
@@ -184,56 +196,99 @@ Sdk::Start()
     return true;
 }
 
-bool Sdk::Stop()
+bool PINGGY_ATTRIBUTE_FUNC
+Sdk::Stop()
 {
     auto lock = LockIfDifferentThread();
     if (stopped)
         return false;
-    session->End("Connection close");
+    if (session) {
+        session->End("Connection close");
+        session = nullptr;
+    }
+
     stopWebDebugger();
     stopped = true;
     return true;
 }
 
-bool
+bool PINGGY_LIFE_CYCLE_FUNC
 Sdk::ResumeTunnel()
 {
+    if (stopped)
+        return false;
+    acquireAccessLock();
+    DEFER({releaseAccessLock();});
     if (reconnectNow) {
         reconnectLock.lock();
         DEFER({reconnectLock.unlock();});
-        if (state == SdkState_ReconnectWaiting) { //Ongoing reconnection
-            auto ret = pollController->PollOnce();
-            LOGI("Poll returned", ret);
-            auto success = (ret < 0 && app_get_errno() != EINTR ? false : true);
-            return success;
+        switch (reconnectionState) {
+            case SdkState_ReconnectWaiting:
+                { //Ongoing reconnection
+                    return resumeWithLock(__func__);
+                }
+                break;
+
+            case SdkState_Reconnect_Initiated:
+                {
+                    auto ret = internalConnect(false);
+                    reconnectionState = SdkState_ReconnectWaiting;
+                    if (!ret) { //initiating  // it needs to be non-blocking
+                        LOGD("Not connected or authenticated");
+                        pollController->SetTimeout(sdkConfig->GetAutoReconnectInterval() * SECOND, thisPtr,
+                                                    &Sdk::setReconnectionState, SdkState_Reconnect_Failed);
+                    }
+                }
+                break;
+
+            case SdkState_Reconnect_Connected:
+                {
+                    auto ret = internalRequestPrimaryRemoteForwarding(false);
+                    reconnectionState = SdkState_ReconnectWaiting;
+                    if (!ret) { // it needs to be non-blocking
+                        LOGD("Primary forwarding failed");
+                        pollController->SetTimeout(sdkConfig->GetAutoReconnectInterval() * SECOND, thisPtr,
+                                                    &Sdk::setReconnectionState, SdkState_Reconnect_Failed);
+                    }
+                }
+                break;
+
+            case SdkState_Reconnect_Forwarded: //it should not come here
+                {
+                    if (webDebugListener && webDebugListener->IsListening()) {
+                        webDebugListener->RegisterListenerHandler(pollController, thisPtr, 1);
+                    }
+                    reconnectCounter = 0;
+                    reconnectNow = false;
+                    if (eventHandler)
+                        eventHandler->OnReconnectionCompleted(this->urls);
+
+                    if (additionalForwardings.size() > 0) {
+                        for (auto ele : additionalForwardings) {
+                            auto [a, b] = ele;
+                            internalRequestAdditionalRemoteForwarding(a, b);
+                        }
+                    }
+                }
+                break;
+
+            case SdkState_Reconnect_Failed:
+            default:
+                {
+                    cleanupForReconnection(); //cleaning up last connection
+                    if (reconnectCounter >= sdkConfig->maxReconnectAttempts) {
+                        reconnectionState = SdkState_Reconnect_Failed;
+                        lastError = "Maximum reconnection attempts reached. Exiting.";
+                        reconnectNow = false;
+                        cleanupNow = true;
+                        if (eventHandler)
+                            eventHandler->OnReconnectionFailed(reconnectCounter);
+                    }
+                    reconnectionState = SdkState_Reconnect_Initiated;
+                    reconnectCounter += 1;
+                }
         }
-        cleanupForReconnection(); //cleaning up last connection
-        state = SdkState_Reconnecting;
-        if (reconnectCounter >= MAX_RECONNECTION_TRY) {
-            if (eventHandler)
-                eventHandler->OnReconnectionFailed(reconnectCounter);
-            return false;
-        }
-        reconnectCounter += 1;
-        if (!internalConnect(true)) { //initiating connection
-            LOGD("Not connected or authenticated");
-            state = SdkState_ReconnectWaiting;
-            pollController->SetTimeout(3*SECOND, thisPtr, &Sdk::setState, SdkState_Reconnecting);
-            return true;
-        }
-        if (!RequestPrimaryRemoteForwarding(true)) {
-            LOGD("Primary forwarding failed");
-            state = SdkState_ReconnectWaiting;
-            pollController->SetTimeout(3*SECOND, thisPtr, &Sdk::setState, SdkState_Reconnecting);
-            return true;
-        }
-        if (webDebugListener && webDebugListener->IsListening()) {
-            webDebugListener->RegisterListenerHandler(pollController, thisPtr, 1);
-        }
-        reconnectCounter = 0;
-        reconnectNow = false;
-        if (eventHandler)
-            eventHandler->OnReconnectionCompleted(this->urls);
+        return true;
     }
 
     if (cleanupNow) {
@@ -247,11 +302,11 @@ Sdk::ResumeTunnel()
     if (stopped)
         return false;
 
-    auto success = resumeWithoutLock(__func__);
+    auto success = resumeWithLock(__func__);
     return success;
 }
 
-std::vector<tString>
+std::vector<tString> PINGGY_ATTRIBUTE_FUNC
 Sdk::GetUrls()
 {
     if (state < SdkState_PrimaryReverseForwardingSucceeded) {
@@ -260,26 +315,25 @@ Sdk::GetUrls()
     }
     if (stopped)
         return {};
-    auto var = LockIfDifferentThread();
     LOGD("Returning urls");
     return urls;
 }
 
-const tString&
+const tString& PINGGY_ATTRIBUTE_FUNC
 Sdk::GetEndMessage()
 {
-    auto var = LockIfDifferentThread();
     return lastError;
 }
 
-SdkEventHandlerPtr
+SdkEventHandlerPtr PINGGY_ATTRIBUTE_FUNC
 Sdk::GetSdkEventHandler()
 {
     return eventHandler;
 }
 
 // This function wait until running thread blocks
-ThreadLockPtr Sdk::LockIfDifferentThread()
+ThreadLockPtr
+Sdk::LockIfDifferentThread()
 {
     auto curThreadId = std::this_thread::get_id();
     if (curThreadId == runningThreadId) { //it will never be same unless they are really same. We do not change running thread without lock
@@ -290,17 +344,17 @@ ThreadLockPtr Sdk::LockIfDifferentThread()
     sdk::ThreadLockPtr threadLock = nullptr;
     if (notificationConn) {
         notificationConn->Write(NewRawDataPtr(tString("a")));
-        threadLock = NewThreadLockPtr(new ThreadLock(lockAccess));
+        threadLock = NewThreadLockPtr(new ThreadLock(thisPtr));
     }
     semaphore->Notify();
     return threadLock;
 }
 
-port_t
+port_t PINGGY_ATTRIBUTE_FUNC
 Sdk::StartWebDebugging(port_t port)
 {
     if (state < SdkState_Authenticated) {
-        ABORT_WITH_MSG("You are not logged in. How did you managed to come here?" );
+        throw WebDebuggerException("You are not logged in. How did you managed to come here?" );
     }
 
     auto lock = LockIfDifferentThread();
@@ -326,58 +380,27 @@ Sdk::StartWebDebugging(port_t port)
 #define PRIMARY_REMOTE_FORWARDING_HOST "LOCALHOST"
 #define PRIMARY_REMOTE_FORWARDING_PORT 0
 
-bool
+bool PINGGY_LIFE_CYCLE_FUNC
 Sdk::RequestPrimaryRemoteForwarding(bool block)
 {
-    if (state != SdkState_Authenticated) {
-        ABORT_WITH_MSG("You are not logged in. How did you managed to come here?" );
-    }
+    acquireAccessLock();
+    DEFER({releaseAccessLock();});
 
-    throwWrongThreadException(__func__);
-
-    if (!sdkConfig->TcpForwardTo && !sdkConfig->UdpForwardTo) {
-        ABORT_WITH_MSG("Atleast one of the forwarding is required");
-    }
-
-    // primaryReverseForwardingInitiated = true;
-    state = SdkState_PrimaryReverseForwardingInitiated;
-
-    tString host = "";
-    port_t hostPort = 0;
-    if (sdkConfig->TcpForwardTo) {
-        host = sdkConfig->TcpForwardTo->GetRawHost();
-        hostPort = sdkConfig->TcpForwardTo->GetPort();
-    } else {
-        host = sdkConfig->UdpForwardTo->GetRawHost();
-        hostPort = sdkConfig->UdpForwardTo->GetPort();
-    }
-
-    primaryForwardingReqId = session->SendRemoteForwardRequest(PRIMARY_REMOTE_FORWARDING_PORT,
-                                                                PRIMARY_REMOTE_FORWARDING_HOST,
-                                                                hostPort, host);
-    if (!block)
-        return true;
-
-    pollController->StartPolling();
-
-    if (cleanupNow)
-        cleanup();
-
-    return state == SdkState_PrimaryReverseForwardingSucceeded ;
+    return internalRequestPrimaryRemoteForwarding(block);
 }
 
-void
-Sdk::RequestAdditionalRemoteForwarding(UrlPtr bindAddress, UrlPtr forwardTo)
+void PINGGY_ATTRIBUTE_FUNC
+Sdk::RequestAdditionalRemoteForwarding(tString bindAddress, tString forwardTo)
 {
     if (state < SdkState_Authenticated) {
-        ABORT_WITH_MSG("You are not logged in. How did you managed to come here?" );
+        WebDebuggerException("You are not logged in. How did you managed to come here?" );
     }
 
-    if (!bindAddress) {
+    if (bindAddress.empty()) {
         throw RemoteForwardingException("bindAddress cannot be empty");
     }
 
-    if (!forwardTo) {
+    if (forwardTo.empty()) {
         throw RemoteForwardingException("forwardTo cannot be empty");
     }
 
@@ -390,12 +413,9 @@ Sdk::RequestAdditionalRemoteForwarding(UrlPtr bindAddress, UrlPtr forwardTo)
         throw RemoteForwardingException("primary reverse forwarding for this tunnel");
     }
 
-    auto reqId = session->SendRemoteForwardRequest(bindAddress->GetPort(), bindAddress->GetRawHost(),
-                                                    forwardTo->GetPort(), forwardTo->GetRawHost());
+    additionalForwardings.push_back({bindAddress, forwardTo});
 
-    if (reqId > 0) {
-        pendingRemoteForwardingMap[reqId] = {bindAddress, forwardTo};
-    }
+    internalRequestAdditionalRemoteForwarding(bindAddress, forwardTo);
 }
 
 //==============
@@ -418,6 +438,7 @@ Sdk::HandleSessionAuthenticatedAsClient(std::vector<tString> messages)
 {
     authenticationMsg = messages;
     state = SdkState_Authenticated;
+    reconnectionState = SdkState_Reconnect_Connected;
     LOGD("OnAuthenticated");
     if (eventHandler && !reconnectNow)
         eventHandler->OnAuthenticated();
@@ -431,6 +452,7 @@ Sdk::HandleSessionAuthenticationFailed(tString error, std::vector<tString> authe
     // authenticated = false;
     authenticationMsg = authenticationFailed;
     state = SdkState_AuthenticationFailed;
+    reconnectionState = SdkState_Reconnect_Failed;
     lastError = JoinString(authenticationFailed, "\r\n");
     LOGE("Authentication Failed");
 
@@ -457,9 +479,8 @@ Sdk::HandleSessionRemoteForwardingSucceeded(protocol::tReqId reqId, std::vector<
     LOGT("Remote Fowarding succeeded");
 
     if (primaryForwardingReqId == reqId) {
-        DEFER({pollController->StopPolling();});
-
-        if (state >= SdkState_PrimaryReverseForwardingSucceeded) {
+        if (state >= SdkState_PrimaryReverseForwardingAccepted) {
+            pollController->StopPolling();
             ABORT_WITH_MSG("Received multiple primary forwarding");
             return;
         }
@@ -467,14 +488,14 @@ Sdk::HandleSessionRemoteForwardingSucceeded(protocol::tReqId reqId, std::vector<
         if (urls.size() > 0) //it would come with the primary forwarding only
             this->urls = urls;
 
-        state = SdkState_PrimaryReverseForwardingSucceeded;
+        state = SdkState_PrimaryReverseForwardingAccepted;
 
         tunnelInitiated();
+        primaryForwardingCheckTimeout = pollController->SetTimeout(5 * SECOND, thisPtr, &Sdk::handlePrimaryForwardingFailed, tString("could not fetch greetingmsg"));
+        // Probably 5 second is not a lot. But, we want it to fail soon.
+        LOGD("Primary forwarding done");
 
-        if (eventHandler && !reconnectNow)
-            eventHandler->OnPrimaryForwardingSucceeded(urls);
-
-        LOGD("Primary forwarding done", urls);
+        updateForwardMapWithPrimaryForwarding();
 
         return;
     }
@@ -484,11 +505,11 @@ Sdk::HandleSessionRemoteForwardingSucceeded(protocol::tReqId reqId, std::vector<
         return;
     }
 
-    auto [bindAddress, forwardTo] = pendingRemoteForwardingMap[reqId];
+    auto [bindAddressHost, bindAddressPort, forwardToHost, forwardToPort, bindAddress, forwardTo] = pendingRemoteForwardingMap[reqId];
     pendingRemoteForwardingMap.erase(reqId);
 
-    auto remoteBinding = std::tuple(bindAddress->GetRawHost(), bindAddress->GetPort());
-    auto localForwarding = std::tuple(forwardTo->GetRawHost(), forwardTo->GetPort());
+    auto remoteBinding = std::tuple(bindAddressHost, bindAddressPort);
+    auto localForwarding = std::tuple(forwardToHost, forwardToPort);
 
     if (remoteForwardings.find(remoteBinding) != remoteForwardings.end()) {
         LOGE("This not supposed to happen"); //cannot test it ever
@@ -497,8 +518,10 @@ Sdk::HandleSessionRemoteForwardingSucceeded(protocol::tReqId reqId, std::vector<
 
     remoteForwardings[remoteBinding] = localForwarding;
 
+    updateForwardMapWithAdditionalForwarding();
+
     if (eventHandler && !reconnectNow)
-        eventHandler->OnRemoteForwardingSuccess(bindAddress, forwardTo);
+        eventHandler->OnAdditionalForwardingSucceeded(bindAddress, forwardTo);
 }
 
 void
@@ -510,29 +533,12 @@ Sdk::HandleSessionRemoteForwardingFailed(protocol::tReqId reqId, tString error)
 
     if (primaryForwardingReqId == reqId) {
         DEFER({pollController->StopPolling();});
-        if (state >= SdkState_PrimaryReverseForwardingSucceeded) {
+        if (state >= SdkState_PrimaryReverseForwardingAccepted) {
             ABORT_WITH_MSG("Received multiple primary forwarding");
             return;
         }
 
-        state = sdkState_PrimaryReverseForwardingFailed;
-
-        if (notificationConn && notificationConn->IsValid()) {
-            notificationConn->CloseConn();
-            notificationConn = nullptr;
-            _notificateMonitorConn = nullptr;
-        }
-
-        if (eventHandler && !reconnectNow)
-            eventHandler->OnPrimaryForwardingFailed(error);
-
-        if (baseConnection->IsValid()) {
-            baseConnection->DeregisterFDEvenHandler();
-            baseConnection->CloseConn();
-        }
-
-        LOGD("Primary forwarding failed");
-
+        handlePrimaryForwardingFailed(error);
         return;
     }
 
@@ -541,10 +547,11 @@ Sdk::HandleSessionRemoteForwardingFailed(protocol::tReqId reqId, tString error)
         return;
     }
 
-    auto [bindAddress, forwardTo] = pendingRemoteForwardingMap[reqId];
+    // auto [bindAddress, forwardTo] = pendingRemoteForwardingMap[reqId];
+    auto [bindAddressHost, bindAddressPort, forwardToHost, forwardToPort, bindAddress, forwardTo] = pendingRemoteForwardingMap[reqId];
     pendingRemoteForwardingMap.erase(reqId);
     if (eventHandler && !reconnectNow)
-        eventHandler->OnRemoteForwardingFailed(bindAddress, forwardTo, error);
+        eventHandler->OnAdditionalForwardingFailed(bindAddress, forwardTo, error);
 }
 
 void
@@ -564,9 +571,9 @@ Sdk::HandleSessionNewChannelRequest(protocol::ChannelPtr channel)
         { //just to ignore some variable
             auto remoteBinding = std::tuple(toHost, toPort);
             if (remoteForwardings.find(remoteBinding) == remoteForwardings.end()) {
-                if (sdkConfig->TcpForwardTo) {
-                    toHost = sdkConfig->TcpForwardTo->GetRawHost();
-                    toPort = sdkConfig->TcpForwardTo->GetPort();
+                if (sdkConfig->tcpForwardTo) {
+                    toHost = sdkConfig->tcpForwardTo->GetRawHost();
+                    toPort = sdkConfig->tcpForwardTo->GetPort();
                 } else {
                     channel->Reject("Tcp forwarding not enabled");
                     LOGE("Rejecting tcp forwarding");
@@ -579,10 +586,9 @@ Sdk::HandleSessionNewChannelRequest(protocol::ChannelPtr channel)
             }
         }
 
-        if (eventHandler) {
-            auto chan = NewSdkChannelWraperPtr(channel, thisPtr);
-            eventHandler->OnNewVisitorConnectionReceived(chan);
-            if (chan->IsResponeded())
+        if (appHandlesNewChannel && eventHandler) {
+            auto done = eventHandler->OnNewVisitorConnectionReceived(NewSdkChannelWraperPtr(channel, thisPtr));
+            if (done)
                 return;
         }
 
@@ -592,12 +598,12 @@ Sdk::HandleSessionNewChannelRequest(protocol::ChannelPtr channel)
             netConnImpl->Connect(thisPtr, channel);
             return; //we will handle this in different place
         } catch(...) {
-            LOGE("Could not connect to", sdkConfig->TcpForwardTo->ToString());
+            LOGE("Could not connect to", sdkConfig->tcpForwardTo->ToString());
             channel->Reject("Could not connect to provided address");
             return;
         }
     } else if (chanType == protocol::ChannelType_DataGram) {
-        if (!sdkConfig->UdpForwardTo) {
+        if (!sdkConfig->udpForwardTo) {
             channel->Reject("Udp forwarding not enabled");
             return;
         }
@@ -609,13 +615,13 @@ Sdk::HandleSessionNewChannelRequest(protocol::ChannelPtr channel)
         }
 
         try {
-            netConn = net::NewUdpConnectionImplPtr(sdkConfig->UdpForwardTo->GetRawHost(), sdkConfig->UdpForwardTo->GetPortStr());
+            netConn = net::NewUdpConnectionImplPtr(sdkConfig->udpForwardTo->GetRawHost(), sdkConfig->udpForwardTo->GetPortStr());
         } catch(const std::exception& e) {
-            LOGE("Could not connect to", sdkConfig->UdpForwardTo->ToString(), " due to ", e.what());
+            LOGE("Could not connect to", sdkConfig->udpForwardTo->ToString(), " due to ", e.what());
             channel->Reject("Could not connect to provided address");
             return;
         } catch(...) {
-            LOGE("Could not connect to", sdkConfig->UdpForwardTo->ToString());
+            LOGE("Could not connect to", sdkConfig->udpForwardTo->ToString());
             channel->Reject("Could not connect to provided address");
             return;
         }
@@ -717,9 +723,9 @@ Sdk::HandleFDReadWTag(PollableFDPtr pfd, tString tag)
             netConn->CloseConn();
             return len;
         }
-        lockAccess.unlock();
+        releaseAccessLock();
         semaphore->Wait();
-        lockAccess.lock();
+        acquireAccessLock();
         semaphore->Notify();
         return len;
     }
@@ -781,7 +787,14 @@ Sdk::ChannelDataReceived(protocol::ChannelPtr channel)
         auto [len, data] = usageChannel->Recv(4096);
         if (len > 0) {
             if (eventHandler && usagesRunning) {
-                auto lastUsagesUpdate = data->ToString();
+                lastUsagesUpdate = data->ToString();
+                try {
+                    json jd = json::parse(lastUsagesUpdate);
+                    if (jd.contains("elaspedTime") && !jd.contains("elapsedTime"))
+                        jd["elapsedTime"] = jd["elaspedTime"];
+                    lastUsagesUpdate = jd.dump();
+                } catch(...) {
+                }
                 eventHandler->OnUsageUpdate(lastUsagesUpdate);
             }
         }
@@ -835,6 +848,16 @@ Sdk::ChannelDataReceived(protocol::ChannelPtr channel)
                 if (jdata.contains("Msgs")) {
                     greetingMsgs = jdata["Msgs"].dump();
                 }
+                if (primaryForwardingCheckTimeout){
+                    primaryForwardingCheckTimeout->DisArm();
+                    primaryForwardingCheckTimeout = nullptr;
+                }
+                LOGD("greeting received");
+                if (eventHandler && !reconnectNow)
+                    eventHandler->OnPrimaryForwardingSucceeded(urls);
+                state = SdkState_PrimaryReverseForwardingSucceeded;
+                reconnectionState = SdkState_Reconnect_Forwarded;
+                pollController->StopPolling();
             } catch(...) {
                 LOGE("Some error while parsing greeting msg");
             }
@@ -882,7 +905,7 @@ Sdk::authenticate()
 
     state = SdkState_Authenticating;
 
-    session->AuthenticateAsClient(sdkConfig->getUser(), sdkConfig->Argument, sdkConfig->AdvancedParsing);
+    session->AuthenticateAsClient(sdkConfig->getUser(), sdkConfig->GetArguments(), sdkConfig->advancedParsing);
     LOGT("Authentication sent");
 }
 
@@ -898,11 +921,11 @@ Sdk::tunnelInitiated()
 bool Sdk::internalConnect(bool block)
 {
     try {
-        auto serverAddress = sdkConfig->ServerAddress;
+        auto serverAddress = sdkConfig->serverAddress;
         baseConnection = net::NewNetworkConnectionImplPtr(serverAddress->GetRawHost(), serverAddress->GetPortStr());
 
-        if (sdkConfig->Ssl){
-            auto sslConnection = net::NewSslNetworkConnectionPtr(baseConnection, sdkConfig->SniServerName);
+        if (sdkConfig->ssl){
+            auto sslConnection = net::NewSslNetworkConnectionPtr(baseConnection, sdkConfig->sniServerName);
             sslConnection->SetBaseCertificate(BASE_CERTIFICATE);
             sslConnection->Connect();
             baseConnection = sslConnection;
@@ -923,7 +946,7 @@ bool Sdk::internalConnect(bool block)
     session->Start(thisPtr);
     LOGT("Session Started");
 
-    keepAliveTask = pollController->SetInterval(5*SECOND, thisPtr, &Sdk::sendKeepAlive);
+    keepAliveTask = pollController->SetInterval(5 * SECOND, thisPtr, &Sdk::sendKeepAlive);
 
     initiateNotificationChannel();
 
@@ -940,13 +963,8 @@ bool Sdk::internalConnect(bool block)
 bool
 Sdk::startPollingInCurrentThread()
 {
-    lockAccess.lock();
-    running = true;
-
     pollController->StartPolling();
 
-    running = false;
-    lockAccess.unlock();
     return true;
 }
 
@@ -1025,8 +1043,10 @@ Sdk::keepAliveTimeout(tUint64 tick)
             keepAliveTask->DisArm();
             keepAliveTask = nullptr;
         }
-        if (sdkConfig->AutoReconnect) {
+        if (sdkConfig->autoReconnect) {
             reconnectNow = true;
+            reconnectionState = SdkState_Reconnect_Failed;
+            lastError = "Tunnel seems unresponsive. Reconnecting";
             if (eventHandler)
                 eventHandler->OnWillReconnect("Connection Reset", {"Reconnecting"});
         } else {
@@ -1067,7 +1087,6 @@ void Sdk::cleanupForReconnection()
 
 void Sdk::initPollController()
 {
-
 #ifdef __WINDOWS_OS__
     auto pollController = common::NewPollControllerGenericPtr();
 #else
@@ -1075,7 +1094,6 @@ void Sdk::initPollController()
 #endif
 
     this->pollController = pollController;
-
 }
 
 void
@@ -1097,19 +1115,9 @@ Sdk::initiateContinousUsages()
 }
 
 bool
-Sdk::resumeWithoutLock(tString funcName)
-{
-    lockAccess.lock();
-    if (running) {
-        lockAccess.unlock();
-        throw SdkNestCallException("You have called `" + funcName + "` from a callback in same thread");
-    }
-    running = true;
-    runningThreadId = std::this_thread::get_id();
-    auto ret = pollController->PollOnce();
-    running = false;
+Sdk::resumeWithLock(tString funcName)
+{   auto ret = pollController->PollOnce();
     auto success = (ret < 0 && app_get_errno() != EINTR ? false : true);
-    lockAccess.unlock();
     return success;
 }
 
@@ -1122,64 +1130,137 @@ Sdk::setupLocalChannelNGetData(port_t port, tString tag)
     channel->Connect();
 }
 
-//===============================================
-//===============================================
-//===============================================
-
-SDKConfig::SDKConfig():
-    Force(false),
-    AdvancedParsing(true),
-    Ssl(true),
-    SniServerName("a.pinggy.io"),
-    Insecure(false),
-    AutoReconnect(false)
+void
+Sdk::handlePrimaryForwardingFailed(tString reason)
 {
+    DEFER({pollController->StopPolling();});
+    state = SdkState_PrimaryReverseForwardingFailed;
+    reconnectionState = SdkState_Reconnect_Failed;
+
+    if (notificationConn && notificationConn->IsValid()) {
+        notificationConn->CloseConn();
+        notificationConn = nullptr;
+        _notificateMonitorConn = nullptr;
+    }
+
+    if (eventHandler && !reconnectNow)
+        eventHandler->OnPrimaryForwardingFailed(reason);
+
+    if (baseConnection->IsValid()) {
+        baseConnection->DeregisterFDEvenHandler();
+        baseConnection->CloseConn();
+    }
+
+    LOGD("Primary forwarding failed");
+}
+
+bool
+Sdk::internalRequestPrimaryRemoteForwarding(bool block)
+{
+    if (state < SdkState_Authenticated) {
+        throw SdkException("Kindly login first");
+    }
+
+    if (state > SdkState_Authenticated) {
+        return true;
+    }
+
+    if (!sdkConfig->tcpForwardTo && !sdkConfig->udpForwardTo) {
+        ABORT_WITH_MSG("Atleast one of the forwarding is required");
+    }
+
+    // primaryReverseForwardingInitiated = true;
+    state = SdkState_PrimaryReverseForwardingInitiated;
+
+    tString host = "";
+    port_t hostPort = 0;
+    if (sdkConfig->tcpForwardTo) {
+        host = sdkConfig->tcpForwardTo->GetRawHost();
+        hostPort = sdkConfig->tcpForwardTo->GetPort();
+    } else {
+        host = sdkConfig->udpForwardTo->GetRawHost();
+        hostPort = sdkConfig->udpForwardTo->GetPort();
+    }
+
+    primaryForwardingReqId = session->SendRemoteForwardRequest(PRIMARY_REMOTE_FORWARDING_PORT,
+                                                                PRIMARY_REMOTE_FORWARDING_HOST,
+                                                                hostPort, host);
+    if (!block)
+        return true;
+
+    startPollingInCurrentThread();
+
+    if (cleanupNow)
+        cleanup();
+
+    return state == SdkState_PrimaryReverseForwardingSucceeded ;
 }
 
 void
-SDKConfig::validate()
+Sdk::acquireAccessLock()
 {
-    if (!ServerAddress) {
-        ServerAddress = NewUrlPtr("a.pinggy.ip:443");
-    }
-
-    if (TcpForwardTo && Mode == "") {
-        Mode = "http";
-    }
-
-    if (UdpForwardTo && UdpMode == "") {
-        UdpMode = "udp";
-    }
-
-    if (Mode != "http" && Mode != "tcp" && Mode != "tls" && Mode != "tlstcp")
-        Mode = "";
-    if (UdpMode != "udp")
-        UdpMode = "";
-    if (Mode.empty() && UdpMode.empty())
-        Mode = "http";
+    lockAccess.lock();
+    running = true;
+    runningThreadId = std::this_thread::get_id();
 }
 
-tString
-SDKConfig::getUser()
+
+void
+Sdk::releaseAccessLock()
 {
-    tString user = "";
-    if (!Token.empty()) {
-        user += "+" + Token;
-    }
+    if (!running)
+        throw SdkException(tString(__func__) + tString(" no one accessing lockAccess"));
 
-    if (!Mode.empty()) {
-        user += "+" + Mode;
-    }
+    running = false;
+    lockAccess.unlock();
+}
 
-    if (!UdpMode.empty()) {
-        user += "+" + UdpMode;
-    }
+void
+Sdk::internalRequestAdditionalRemoteForwarding(tString bindAddress, tString forwardTo)
+{
+    auto bindUrl = NewUrlPtrNoProto(bindAddress);
+    auto forwardUrl = NewUrlPtrNoProto(forwardTo);
+    auto reqId = session->SendRemoteForwardRequest(bindUrl->GetPort(), bindUrl->GetRawHost(),
+                                                    forwardUrl->GetPort(), forwardUrl->GetRawHost());
 
-    if (Force) {
-        user += "+force";
+    if (reqId > 0) {
+        pendingRemoteForwardingMap[reqId] = {   bindUrl->GetRawHost(), bindUrl->GetPort(),
+                                                forwardUrl->GetRawHost(), forwardUrl->GetPort(),
+                                                bindAddress, forwardTo
+                                            };
     }
+}
 
-    return user.substr(1);
+void
+Sdk::updateForwardMapWithPrimaryForwarding()
+{
+    if (eventHandler) {
+        tString changedUrls;
+        try {
+            std::map<tString, std::vector<tString>> changedUrlsMap {{"DEFAULT", urls}};
+            json j = changedUrlsMap;
+            changedUrls = j.dump();
+        } catch(...) {
+        }
+        eventHandler->OnForwardingChanged(changedUrls);
+    }
+}
+
+void
+Sdk::updateForwardMapWithAdditionalForwarding()
+{
+    // for the time being this two things are exactly same.
+    // however, this might change in the future.
+    if (eventHandler) {
+        tString changedUrls;
+        try {
+            std::map<tString, std::vector<tString>> changedUrlsMap {{"DEFAULT", urls}};
+            json j = changedUrlsMap;
+            changedUrls = j.dump();
+        } catch(...) {
+        }
+        eventHandler->OnForwardingChanged(changedUrls);
+    }
 }
 
 

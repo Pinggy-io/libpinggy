@@ -42,3 +42,8 @@ $ cmake --build . releaselib //releasing libpinggy and
 $ cmake --build . releasessl //releasing ssl
 $ cmake --build . distribute //creating libpinggy.tgz/zip
 ```
+
+# Tunnel life cycle
+![alt text](sdk_life_cycle.excalidraw.png)
+
+

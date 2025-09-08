@@ -24,6 +24,7 @@
 #include <thread>
 #include <utils/Semaphore.hh>
 #include "SdkChannelWraper.hh"
+#include "SdkConfig.hh"
 
 namespace sdk
 {
@@ -31,76 +32,27 @@ namespace sdk
 enum SdkState {
     SdkState_Invalid = 0,
     SdkState_AuthenticationFailed,
-    sdkState_PrimaryReverseForwardingFailed,
+    SdkState_PrimaryReverseForwardingFailed,
 
     SdkState_Initial,
-    SdkState_ReconnectWaiting,
     SdkState_Connecting,
-    SdkState_Reconnecting,
     SdkState_Connected,
     SdkState_SessionInitiating,
     SdkState_SessionInitiated,
     SdkState_Authenticating,
     SdkState_Authenticated,
     SdkState_PrimaryReverseForwardingInitiated,
+    SdkState_PrimaryReverseForwardingAccepted,
     SdkState_PrimaryReverseForwardingSucceeded,
+
+    SdkState_Disconnected,
+
+    SdkState_Reconnect_Failed,
+    SdkState_Reconnect_Initiated,
+    SdkState_Reconnect_Connected,
+    SdkState_Reconnect_Forwarded,
+    SdkState_ReconnectWaiting,
 };
-
-struct SDKConfig: virtual public pinggy::SharedObject
-{
-    SDKConfig();
-
-    //The token and any other parameters as well.
-    tString                     Token;
-
-    //The tcp tunnel type tcp, tls, tlstcp or http
-    tString                     Mode;
-
-    //The udp tunnel type i.e. udp
-    tString                     UdpMode;
-
-    //sshOverSsl does not exists here as it use ssl only, no ssh
-
-    // Pinggy server address. It is supposed to be a.pinggy.io or regional server as well.
-    UrlPtr                      ServerAddress;
-
-    //this TcpForwarding address
-    UrlPtr                      TcpForwardTo;
-
-    //this UdpForwarding address
-    UrlPtr                      UdpForwardTo;
-
-    //force login. It add `force` as user name
-    bool                        Force;
-
-    //rest of the arguments that we passed to ssh
-    tString                     Argument;
-
-    //Whether if we want to run advancedparsing for http.
-    // disabling this would disable webdebugger as well.
-    bool                        AdvancedParsing;
-
-    //Enable it if you wants to connect with server using
-    // encrypted ssl channel or not. Most of the production
-    // production server does not support plaintext connection.
-    // enable it all the times.
-    bool                        Ssl;
-
-    //this needs to set to a.pinggy.io. Some test server may
-    // accept values different than a.pinggy.io.
-    tString                     SniServerName;
-
-    bool                        Insecure;
-
-    bool                        AutoReconnect;
-
-private:
-    friend class Sdk;
-
-    void                        validate();
-    tString                     getUser();
-};
-DefineMakeSharedPtr(SDKConfig);
 
 abstract class SdkEventHandler: virtual public pinggy::SharedObject
 {
@@ -127,11 +79,15 @@ public:
                                 { }
 
     virtual void
-    OnRemoteForwardingSuccess(UrlPtr bindAddress, UrlPtr forwardTo)
+    OnAdditionalForwardingSucceeded(tString bindAddress, tString forwardTo)
                                 { }
 
     virtual void
-    OnRemoteForwardingFailed(UrlPtr bindAddress, UrlPtr forwardTo, tString error)
+    OnAdditionalForwardingFailed(tString bindAddress, tString forwardTo, tString error)
+                                { }
+
+    virtual void
+    OnForwardingChanged(tString changedJson)
                                 { }
 
     virtual void
@@ -150,7 +106,8 @@ public:
     OnReconnecting(tUint16)     { }
 
     virtual void
-    OnReconnectionCompleted(std::vector<tString> urls)   { }
+    OnReconnectionCompleted(std::vector<tString> urls)
+                                { }
 
     virtual void
     OnReconnectionFailed(tUint16)
@@ -162,9 +119,7 @@ public:
     //return false to let the sdk handle connection
     virtual bool
     OnNewVisitorConnectionReceived(SdkChannelWraperPtr channel)
-    {
-        return false;
-    }
+                                { return false; }
 };
 DeclareSharedPtr(SdkEventHandler);
 
@@ -218,7 +173,7 @@ public:
     RequestPrimaryRemoteForwarding(bool block = false);
 
     void
-    RequestAdditionalRemoteForwarding(UrlPtr bindAddress, UrlPtr forwardTo);
+    RequestAdditionalRemoteForwarding(tString bindAddress, tString forwardTo);
 
     bool
     IsTunnelActive()            { return (state >= SdkState_Authenticating && (!stopped)); }
@@ -357,13 +312,38 @@ private:
     initiateContinousUsages();
 
     bool
-    resumeWithoutLock(tString funcName);
+    resumeWithLock(tString funcName);
 
     void
     setupLocalChannelNGetData(port_t port, tString tag);
 
     void
     setState(SdkState s)        { state = s; }
+
+    void
+    setReconnectionState(SdkState s)
+                                { reconnectionState = s; }
+
+    void
+    handlePrimaryForwardingFailed(tString reason);
+
+    bool
+    internalRequestPrimaryRemoteForwarding(bool block = false);
+
+    void
+    acquireAccessLock();
+
+    void
+    releaseAccessLock();
+
+    void
+    internalRequestAdditionalRemoteForwarding(tString bindAddress, tString forwardTo);
+
+    void
+    updateForwardMapWithPrimaryForwarding();
+
+    void
+    updateForwardMapWithAdditionalForwarding();
 
     net::NetworkConnectionPtr   baseConnection;
     common::PollControllerPtr   pollController;
@@ -397,8 +377,9 @@ private:
 
     tUint64                     lastKeepAliveTickReceived;
     SdkState                    state;
+    SdkState                    reconnectionState;
 
-    std::map<protocol::tReqId, std::tuple<UrlPtr, UrlPtr>> // pendingReqId [remote binding address to localBinding address]
+    std::map<protocol::tReqId, std::tuple<tString, port_t, tString, port_t, tString, tString>> // pendingReqId [remote binding address to localBinding address]
                                 pendingRemoteForwardingMap;
     std::map<std::tuple<tString, port_t>, std::tuple<tString, port_t>>
                                 remoteForwardings;
@@ -410,6 +391,19 @@ private:
     bool                        usagesRunning;
     tString                     greetingMsgs;
     tString                     lastUsagesUpdate;
+    common::PollableTaskPtr     primaryForwardingCheckTimeout;
+
+    std::map<tString, tString>  forwardingMap;
+
+    std::vector<std::tuple<tString, tString>>
+                                additionalForwardings;
+
+    bool                        appHandlesNewChannel;
+
+    UrlPtr                      tcpForwardTo; //default
+    UrlPtr                      udpForwardTo; //default
+
+    friend class ThreadLock;
 };
 DefineMakeSharedPtr(Sdk);
 

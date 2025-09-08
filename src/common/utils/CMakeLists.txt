@@ -2,6 +2,7 @@
 AddLibrary(utils
             STATIC
             Utils.cc
+            UtilsJson.cc
             CertificateFileDetail.cc
             RawData.cc
             StringUtils.cc

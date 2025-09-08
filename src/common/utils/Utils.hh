@@ -36,19 +36,19 @@ enum ENDIAN_NESS {
 template< typename T >
 struct ArrayDeleter
 {
-  void operator ()( T const * p)
-  {
-    delete[] p;
-  }
+    void operator ()( T const * p)
+    {
+        delete[] p;
+    }
 };
 
 template< typename T >
 struct NoDeleter
 {
-  void operator ()( T const * p)
-  {
-      (void)p;
-  }
+    void operator ()( T const * p)
+    {
+        (void)p;
+    }
 };
 
 class Url {
@@ -115,6 +115,12 @@ private:
 
 DefineMakeSharedPtr(Url);
 
+inline static UrlPtr
+NewUrlPtrNoProto(tString url, int defaultPort = 80, tString defaultProto = "")
+{
+    return NewUrlPtr(url, defaultPort, defaultProto);
+}
+
 std::ostream&
 operator<<(std::ostream& os, const UrlPtr& url);
 
@@ -128,32 +134,32 @@ template<typename T>
 std::ostream&
 operator<<(std::ostream& os, const std::vector<T>& vect)
 {
-  os << "[";
-  bool comma = false;
-  for (auto ele : vect) {
-      if (comma)
-        os << ",";
-      comma = true;
-      os << ele;
-  }
-  os << "]";
-  return os;
+    os << "[";
+    bool comma = false;
+    for (auto ele : vect) {
+        if (comma)
+            os << ", ";
+        comma = true;
+        os << ele;
+    }
+    os << "]";
+    return os;
 }
 
 template<typename K, typename V>
 std::ostream&
 operator<<(std::ostream& os, const std::map<K, V>& map)
 {
-  os << "{";
-  bool comma = false;
-  for (auto ele : map) {
-      if (comma)
-        os << ",";
-      comma = true;
-      os << ele.first << ":" << ele.second;
-  }
-  os << "}";
-  return os;
+    os << "{";
+    bool comma = false;
+    for (auto ele : map) {
+        if (comma)
+            os << ", ";
+        comma = true;
+        os << ele.first << ": " << ele.second;
+    }
+    os << "}";
+    return os;
 
 }
 

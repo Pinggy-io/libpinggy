@@ -55,14 +55,45 @@ using json = nlohmann::json;
 #define _PINGGY_NLOHMANN_JSON_TO_EXISTS_PTR_(v2) _PINGGY_NLOHMANN_JSON_TO_EXISTS_PTR v2
 #define _PINGGY_NLOHMANN_JSON_TO_EXISTS_PTR1_(v2) _PINGGY_NLOHMANN_JSON_TO_EXISTS_PTR (v2,v2)
 
+#define _PINGGY_CREATE_PTR_IF_REQUIRED(Type, ele, args) \
+    if (!ele) { \
+        ele = New##Type##Ptr args; \
+    } \
+
 #define NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_CUSTOME_PTR(Type, ...)  \
-    void to_json(nlohmann::json& nlohmann_json_j, const Type##Ptr nlohmann_json_t) { NLOHMANN_JSON_EXPAND(NLOHMANN_JSON_PASTE(_PINGGY_NLOHMANN_JSON_TO_EXISTS_PTR_, __VA_ARGS__)) } \
-    void from_json(const nlohmann::json& nlohmann_json_j, Type##Ptr nlohmann_json_t) { NLOHMANN_JSON_EXPAND(NLOHMANN_JSON_PASTE(_PINGGY_NLOHMANN_JSON_FROM_EXISTS_PTR_, __VA_ARGS__)) }
+    void to_json(nlohmann::json& nlohmann_json_j, const Type##Ptr &nlohmann_json_t) { NLOHMANN_JSON_EXPAND(NLOHMANN_JSON_PASTE(_PINGGY_NLOHMANN_JSON_TO_EXISTS_PTR_, __VA_ARGS__)) } \
+    void from_json(const nlohmann::json& nlohmann_json_j, Type##Ptr &nlohmann_json_t) { NLOHMANN_JSON_EXPAND(NLOHMANN_JSON_PASTE(_PINGGY_NLOHMANN_JSON_FROM_EXISTS_PTR_, __VA_ARGS__)) }
 
 
 #define NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_CUSTOME_PTR1(Type, ...)  \
-    void to_json(nlohmann::json& nlohmann_json_j, const Type##Ptr nlohmann_json_t) { NLOHMANN_JSON_EXPAND(NLOHMANN_JSON_PASTE(_PINGGY_NLOHMANN_JSON_TO_EXISTS_PTR1_, __VA_ARGS__)) } \
-    void from_json(const nlohmann::json& nlohmann_json_j, Type##Ptr nlohmann_json_t) { NLOHMANN_JSON_EXPAND(NLOHMANN_JSON_PASTE(_PINGGY_NLOHMANN_JSON_FROM_EXISTS_PTR1_, __VA_ARGS__)) }
+    void to_json(nlohmann::json& nlohmann_json_j, const Type##Ptr &nlohmann_json_t) { NLOHMANN_JSON_EXPAND(NLOHMANN_JSON_PASTE(_PINGGY_NLOHMANN_JSON_TO_EXISTS_PTR1_, __VA_ARGS__)) } \
+    void from_json(const nlohmann::json& nlohmann_json_j, Type##Ptr &nlohmann_json_t) { NLOHMANN_JSON_EXPAND(NLOHMANN_JSON_PASTE(_PINGGY_NLOHMANN_JSON_FROM_EXISTS_PTR1_, __VA_ARGS__)) }
+
+
+#define NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_CUSTOME_NEW_PTR(Type, argsToCreateNewObject, ...) \
+    void to_json(nlohmann::json& nlohmann_json_j, const Type##Ptr &nlohmann_json_t) \
+    { \
+        if (!nlohmann_json_t) return; \
+        NLOHMANN_JSON_EXPAND(NLOHMANN_JSON_PASTE(_PINGGY_NLOHMANN_JSON_TO_EXISTS_PTR_, __VA_ARGS__)) \
+    } \
+    void from_json(const nlohmann::json& nlohmann_json_j, Type##Ptr &nlohmann_json_t) \
+    { \
+        _PINGGY_CREATE_PTR_IF_REQUIRED(Type, nlohmann_json_t, argsToCreateNewObject); \
+        NLOHMANN_JSON_EXPAND(NLOHMANN_JSON_PASTE(_PINGGY_NLOHMANN_JSON_FROM_EXISTS_PTR_, __VA_ARGS__)) \
+    }
+
+
+#define NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_CUSTOME_NEW_PTR1(Type, argsToCreateNewObject, ...) \
+    void to_json(nlohmann::json& nlohmann_json_j, const Type##Ptr &nlohmann_json_t) \
+    { \
+        if (!nlohmann_json_t) return; \
+        NLOHMANN_JSON_EXPAND(NLOHMANN_JSON_PASTE(_PINGGY_NLOHMANN_JSON_TO_EXISTS_PTR1_, __VA_ARGS__)) \
+    } \
+    void from_json(const nlohmann::json& nlohmann_json_j, Type##Ptr &nlohmann_json_t) \
+    { \
+        _PINGGY_CREATE_PTR_IF_REQUIRED(Type, nlohmann_json_t, argsToCreateNewObject); \
+        NLOHMANN_JSON_EXPAND(NLOHMANN_JSON_PASTE(_PINGGY_NLOHMANN_JSON_FROM_EXISTS_PTR1_, __VA_ARGS__)) \
+    }
 
 
 
