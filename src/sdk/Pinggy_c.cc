@@ -719,7 +719,7 @@ pinggy_config_set_reverse_proxy(pinggy_ref_t ref, pinggy_bool_t reverse_proxy)
 }
 
 PINGGY_EXPORT pinggy_void_t
-pinggy_config_set_x_forwarder_for(pinggy_ref_t ref, pinggy_bool_t x_forwarder_for)
+pinggy_config_set_x_forwarded_for(pinggy_ref_t ref, pinggy_bool_t x_forwarded_for)
 {
     auto sdkConf = getSDKConfig(ref);
     if (!sdkConf) {
@@ -727,7 +727,7 @@ pinggy_config_set_x_forwarder_for(pinggy_ref_t ref, pinggy_bool_t x_forwarder_fo
         return;
     }
     ExpectException(
-        sdkConf->SetXForwarderFor(x_forwarder_for == pinggy_true ? true : false);
+        sdkConf->SetXForwardedFor(x_forwarded_for == pinggy_true ? true : false);
     );
 }
 
@@ -1062,14 +1062,14 @@ pinggy_config_get_reverse_proxy(pinggy_ref_t ref)
 }
 
 PINGGY_EXPORT pinggy_bool_t
-pinggy_config_get_x_forwarder_for(pinggy_ref_t ref)
+pinggy_config_get_x_forwarded_for(pinggy_ref_t ref)
 {
     auto sdkConf = getSDKConfig(ref);
     if (!sdkConf) {
         LOGE("No sdkConf found for the ref:", ref);
         return pinggy_false;
     }
-    return sdkConf->IsXForwarderFor() ? pinggy_true : pinggy_false;
+    return sdkConf->IsXForwardedFor() ? pinggy_true : pinggy_false;
 }
 
 PINGGY_EXPORT pinggy_bool_t

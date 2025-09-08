@@ -92,8 +92,8 @@ struct SDKConfig: virtual public pinggy::SharedObject
                                 { return reverseProxy; }
 
     bool
-    IsXForwarderFor()
-                                { return xForwarderFor; }
+    IsXForwardedFor()
+                                { return xForwardedFor; }
 
     bool
     IsHttpsOnly()
@@ -182,8 +182,8 @@ struct SDKConfig: virtual public pinggy::SharedObject
                                 { reverseProxy = val; }
 
     void
-    SetXForwarderFor(bool val)
-                                { xForwarderFor = val; }
+    SetXForwardedFor(bool val)
+                                { xForwardedFor = val; }
 
     void
     SetHttpsOnly(bool val)
@@ -268,7 +268,7 @@ private:
     std::vector<tString>        bearerTokenAuths;
     std::vector<tString>        ipWhiteList;
     bool                        reverseProxy;
-    bool                        xForwarderFor;
+    bool                        xForwardedFor;
     bool                        httpsOnly;
     bool                        originalRequestUrl;
     bool                        allowPreflight;

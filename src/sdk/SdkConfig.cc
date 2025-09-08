@@ -84,7 +84,7 @@ SDKConfig::SDKConfig():
     maxReconnectAttempts(MAX_RECONNECTION_TRY),
     autoReconnectInterval(5),
     reverseProxy(true),
-    xForwarderFor(false),
+    xForwardedFor(false),
     httpsOnly(false),
     originalRequestUrl(false),
     allowPreflight(false)
@@ -184,7 +184,7 @@ SDKConfig::resetArguments() {
     bearerTokenAuths.clear();
     ipWhiteList.clear();
     reverseProxy        = true;
-    xForwarderFor       = false;
+    xForwardedFor       = false;
     httpsOnly           = false;
     originalRequestUrl  = false;
     allowPreflight      = false;
@@ -299,7 +299,7 @@ SDKConfig::SetArguments(tString args)
                     if (keyType == "https") {
                         httpsOnly = true;
                     } else if (keyType == "xff") {
-                        xForwarderFor = true;
+                        xForwardedFor = true;
                     } else if (keyType == "fullurl") {
                         originalRequestUrl = true;
                     } else if (keyType == "localservertls") {
@@ -359,7 +359,7 @@ SDKConfig::GetArguments()
         }
     }
 
-    if (xForwarderFor)
+    if (xForwardedFor)
         val.push_back("x:xff");
 
     if (httpsOnly)

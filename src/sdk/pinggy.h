@@ -691,10 +691,10 @@ pinggy_config_set_reverse_proxy(pinggy_ref_t config, pinggy_bool_t reverse_proxy
  * If enabled, the server adds the X-Forwarded-For header with the original source address. In reverse proxy mode, this is always enabled and cannot be disabled by this flag.
  *
  * @param config           Reference to the tunnel config object.
- * @param x_forwarder_for  Set to pinggy_true to enable, or pinggy_false to disable X-Forwarded-For.
+ * @param x_forwarded_for  Set to pinggy_true to enable, or pinggy_false to disable X-Forwarded-For.
  */
 PINGGY_EXPORT pinggy_void_t
-pinggy_config_set_x_forwarder_for(pinggy_ref_t config, pinggy_bool_t x_forwarder_for);
+pinggy_config_set_x_forwarded_for(pinggy_ref_t config, pinggy_bool_t x_forwarded_for);
 
 /**
  * @brief Enables or disables HTTPS-only mode for the tunnel.
@@ -728,17 +728,6 @@ pinggy_config_set_original_request_url(pinggy_ref_t config, pinggy_bool_t origin
  */
 PINGGY_EXPORT pinggy_void_t
 pinggy_config_set_allow_preflight(pinggy_ref_t config, pinggy_bool_t allow_preflight);
-
-/**
- * @brief Enables or disables no-reverse-proxy mode for the tunnel.
- *
- * This is the opposite of reverse proxy mode and is provided for convenience.
- *
- * @param config           Reference to the tunnel config object.
- * @param no_reverse_proxy Set to pinggy_true to enable, or pinggy_false to disable no-reverse-proxy mode.
- */
-PINGGY_EXPORT pinggy_void_t
-pinggy_config_set_no_reverse_proxy(pinggy_ref_t config, pinggy_bool_t no_reverse_proxy);
 
 /**
  * @brief Sets the local server TLS configuration for the tunnel.
@@ -1077,7 +1066,7 @@ pinggy_config_get_reverse_proxy(pinggy_ref_t config);
  * @return        pinggy_true if X-Forwarded-For is enabled, otherwise pinggy_false.
  */
 PINGGY_EXPORT pinggy_bool_t
-pinggy_config_get_x_forwarder_for(pinggy_ref_t config);
+pinggy_config_get_x_forwarded_for(pinggy_ref_t config);
 
 /**
  * @brief Checks whether HTTPS-only mode is enabled in the tunnel config.
@@ -1102,14 +1091,6 @@ pinggy_config_get_original_request_url(pinggy_ref_t config);
  */
 PINGGY_EXPORT pinggy_bool_t
 pinggy_config_get_allow_preflight(pinggy_ref_t config);
-
-/**
- * @brief Checks whether no-reverse-proxy mode is enabled in the tunnel config.
- * @param config  Reference to the tunnel config object.
- * @return        pinggy_true if no-reverse-proxy is enabled, otherwise pinggy_false.
- */
-PINGGY_EXPORT pinggy_bool_t
-pinggy_config_get_no_reverse_proxy(pinggy_ref_t config);
 
 /**
  * @brief Retrieves the local server TLS configuration (as a string) from the tunnel config.
