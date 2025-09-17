@@ -34,13 +34,13 @@ Run the script `crossbuilding/windows/opensslbuild.bat`
 
 # Manual building
 Once OpenSSL is installed, manual build can be done using following commands
-```
-$ mkdir build
-$ cmake ..
-$ cmake --build . -j --config Release //building the code
-$ cmake --build . releaselib //releasing libpinggy and
-$ cmake --build . releasessl //releasing ssl
-$ cmake --build . distribute //creating libpinggy.tgz/zip
+```bash
+mkdir build
+cmake ..
+cmake --build . -j --config Release //building the code
+cmake --build . releaselib //releasing libpinggy and
+cmake --build . releasessl //releasing ssl
+cmake --build . distribute //creating libpinggy.tgz/zip
 ```
 
 # Tunnel life cycle

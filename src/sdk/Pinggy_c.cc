@@ -955,6 +955,17 @@ pinggy_config_get_ssl(pinggy_ref_t ref)
     return sdkConf->IsSsl() ? pinggy_true : pinggy_false;
 }
 
+PINGGY_EXPORT pinggy_const_bool_t
+pinggy_config_get_auto_reconnect(pinggy_ref_t ref)
+{
+    auto sdkConf = getSDKConfig(ref);
+    if (!sdkConf) {
+        LOGE("No sdkConf found for the ref:", ref);
+        return pinggy_false;
+    }
+    return sdkConf->IsAutoReconnect() ? pinggy_true : pinggy_false;
+}
+
 PINGGY_EXPORT pinggy_const_int_t
 pinggy_config_get_sni_server_name(pinggy_ref_t ref, pinggy_capa_t capa, pinggy_char_p_t val)
 {
