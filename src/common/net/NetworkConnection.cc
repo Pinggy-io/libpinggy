@@ -371,9 +371,92 @@ NetworkConnectionImpl::SslError(int ret)
     return SSL_ERROR_NONE;
 }
 
+SocketAddress::SocketAddress(tString addr): valid(false), uds(false), ipv6(false), port(0)
+{
+    socklen_t sockaddrlen = sizeof(sockAddr);
+    if (ip_port_to_sockaddr(addr.c_str(), &sockAddr, &sockaddrlen) < 0) {
+        throw std::runtime_error("failed to extract sockaddr");
+    }
+    parseSockaddr();
+}
 
-SocketAddress::SocketAddress(const sockaddr_ip sockAddr):
-        sockAddr(sockAddr), valid(false), uds(false), ipv6(false), port(0)
+SocketAddress::SocketAddress(const sockaddr_ip sockAddr) : sockAddr(sockAddr), valid(false), uds(false), ipv6(false), port(0)
+{
+    parseSockaddr();
+}
+
+SocketAddress::SocketAddress(const ip_addr addr, tUint16 port): port(port), addr(addr)
+{
+    if (port == 0)
+        valid = false;
+    else
+        valid = true;
+
+    uds = false;
+
+
+    if ( isIpv6EncodedIpv4(&addr.v6) ) {
+        char buf[INET_ADDRSTRLEN];
+        if(app_inet_ntop(AF_INET, &addr.v4, buf, INET_ADDRSTRLEN) == NULL) {
+            LOGEE("inet_ntop");
+            return;
+        }
+        ip = tString(buf);
+        ipv6 = false;
+        sockAddr.inaddr.sin_port = app_htons(port);
+        sockAddr.inaddr.sin_family = AF_INET;
+        sockAddr.inaddr.sin_addr = addr.v4;
+    } else {
+        char buf[INET6_ADDRSTRLEN];
+        if(app_inet_ntop(AF_INET6, &addr.v6, buf, INET6_ADDRSTRLEN) == NULL) {
+            LOGEE("inet_ntop");
+            return;
+        }
+        ip = tString(buf);
+        ipv6 = true;
+        sockAddr.in6addr.sin6_port = app_htons(port);
+        sockAddr.in6addr.sin6_family = AF_INET6;
+        sockAddr.in6addr.sin6_addr = addr.v6;
+    }
+}
+
+port_t
+SocketAddress::GetPort()
+{
+    if(!valid || uds)
+        return 0;
+    return port;
+}
+
+tString
+SocketAddress::GetIp()
+{
+    if(!valid || uds)
+        return "";
+    return ip;
+}
+
+tString
+SocketAddress::GetPath()
+{
+    if(!valid || !uds)
+        return "";
+    return path;
+}
+
+tString
+SocketAddress::ToString()
+{
+    if(!valid)
+        return "InValid"; //TODO thow exception
+    if (uds)
+        return path;
+    if (ipv6)
+        return "["+ip+"]:" + std::to_string(port);
+    return ip + ":" + std::to_string(port);
+}
+
+void SocketAddress::parseSockaddr()
 {
     switch(sockAddr.addr.sa_family) {
         case AF_INET: {
@@ -429,77 +512,6 @@ SocketAddress::SocketAddress(const sockaddr_ip sockAddr):
         }
 #endif //__WINDOWS_OS__
     }
-}
-
-SocketAddress::SocketAddress(const ip_addr addr, tUint16 port): port(port), addr(addr)
-{
-    if (port == 0)
-        valid = false;
-    else
-        valid = true;
-
-    uds = false;
-
-
-    if ( isIpv6EncodedIpv4(&addr.v6) ) {
-        char buf[INET_ADDRSTRLEN];
-        if(app_inet_ntop(AF_INET, &addr.v4, buf, INET_ADDRSTRLEN) == NULL) {
-            LOGEE("inet_ntop");
-            return;
-        }
-        ip = tString(buf);
-        ipv6 = false;
-        sockAddr.inaddr.sin_port = app_htons(port);
-        sockAddr.inaddr.sin_family = AF_INET;
-        sockAddr.inaddr.sin_addr = addr.v4;
-    } else {
-        char buf[INET6_ADDRSTRLEN];
-        if(app_inet_ntop(AF_INET6, &addr.v6, buf, INET6_ADDRSTRLEN) == NULL) {
-            LOGEE("inet_ntop");
-            return;
-        }
-        ip = tString(buf);
-        ipv6 = true;
-        sockAddr.in6addr.sin6_port = app_htons(port);
-        sockAddr.in6addr.sin6_family = AF_INET6;
-        sockAddr.in6addr.sin6_addr = addr.v6;
-    }
-}
-
-port_t
-SocketAddress::GetPort()
-{
-    if(!valid || uds)
-        return 0; //TODO throw exception
-    return port;
-}
-
-tString
-SocketAddress::GetIp()
-{
-    if(!valid || uds)
-        return "invalid"; //TODO throw exception
-    return ip;
-}
-
-tString
-SocketAddress::GetPath()
-{
-    if(!valid || !uds)
-        return "";
-    return path;
-}
-
-tString
-SocketAddress::ToString()
-{
-    if(!valid)
-        return "InValid"; //TODO thow exception
-    if (uds)
-        return path;
-    if (ipv6)
-        return "["+ip+"]:" + std::to_string(port);
-    return ip + ":" + std::to_string(port);
 }
 
 bool

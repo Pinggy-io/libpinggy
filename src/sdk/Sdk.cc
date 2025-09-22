@@ -276,7 +276,7 @@ Sdk::ResumeTunnel()
             default:
                 {
                     cleanupForReconnection(); //cleaning up last connection
-                    if (reconnectCounter >= sdkConfig->maxReconnectAttempts) {
+                    if (reconnectCounter >= sdkConfig->maxReconnectAttempts && sdkConfig->maxReconnectAttempts != 0) {
                         reconnectionState = SdkState_Reconnect_Failed;
                         lastError = "Maximum reconnection attempts reached. Exiting.";
                         reconnectNow = false;
@@ -725,7 +725,7 @@ Sdk::HandleFDReadWTag(PollableFDPtr pfd, tString tag)
         }
         releaseAccessLock();
         semaphore->Wait();
-        acquireAccessLock();
+        acquireAccessLock(true);
         semaphore->Notify();
         return len;
     }
@@ -1197,9 +1197,16 @@ Sdk::internalRequestPrimaryRemoteForwarding(bool block)
 }
 
 void
-Sdk::acquireAccessLock()
+Sdk::acquireAccessLock(bool block)
 {
-    lockAccess.lock();
+    auto curThreadId = std::this_thread::get_id();
+    if (block || curThreadId != runningThreadId) {
+        lockAccess.lock();
+    } else {
+        if (!lockAccess.try_lock()) {
+            throw SdkException("Unable to grab mutex.");
+        }
+    }
     running = true;
     runningThreadId = std::this_thread::get_id();
 }

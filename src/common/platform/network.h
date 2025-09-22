@@ -260,6 +260,8 @@ int is_blocking(sock_t fd);
 
 int is_ip_address(const char *hostname);
 
+int ip_port_to_sockaddr(const char *ip_port, union sockaddr_ip *out, socklen_t *outlen);
+
 #ifdef __cplusplus
 }
 #endif

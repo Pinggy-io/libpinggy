@@ -971,5 +971,51 @@ is_ip_address(const char *hostname)
     return 0;
 }
 
+int
+ip_port_to_sockaddr(const char *ip_port, union sockaddr_ip *out, socklen_t *outlen)
+{
+    char ip[INET6_ADDRSTRLEN];
+    char *colon = strrchr(ip_port, ':');
+    if (!colon) return -1;
+
+    if (!out || !outlen)
+        return -1;
+    if (*outlen == 0)
+        return -1;
+
+    size_t ip_len = colon - ip_port;
+    if (ip_len >= sizeof(ip)) return -1;
+    strncpy(ip, ip_port, ip_len);
+    ip[ip_len] = '\0';
+
+    int port = atoi(colon + 1);
+    if (port <= 0 || port > 65535) return -1;
+
+    // Try IPv4 first
+    if (*outlen >= sizeof(struct sockaddr_in)) {
+        struct sockaddr_in *sin = (struct sockaddr_in *)out;
+        memset(out, 0, *outlen);
+        sin->sin_family = AF_INET;
+        sin->sin_port = htons(port);
+        if (inet_pton(AF_INET, ip, &sin->sin_addr) == 1) {
+            *outlen = sizeof(struct sockaddr_in);
+            return 0;
+        }
+    }
+
+    // Try IPv6
+    if (*outlen >= sizeof(struct sockaddr_in6)) {
+        struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)out;
+        sin6->sin6_family = AF_INET6;
+        sin6->sin6_port = htons(port);
+        if (inet_pton(AF_INET6, ip, &sin6->sin6_addr) == 1) {
+            *outlen = sizeof(struct sockaddr_in6);
+            return 0;
+        }
+    }
+
+    return -1;
+}
+
 #undef MAXLINE //2048
 #undef CONTROL_LEN //1024
