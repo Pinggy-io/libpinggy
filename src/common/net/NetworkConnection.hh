@@ -251,6 +251,8 @@ DeclareSharedPtr(NetworkSocket);
 
 class SocketAddress final : public virtual pinggy::SharedObject {
 public:
+    SocketAddress(tString addr);
+
     SocketAddress(const sockaddr_ip addr);
 
     SocketAddress(const ip_addr, tUint16 port);
@@ -283,6 +285,9 @@ public:
     GetSockAddr() const         { return sockAddr; }
 
 private:
+    void
+    parseSockaddr();
+
     sockaddr_ip                 sockAddr;
     bool                        valid;
     bool                        uds;

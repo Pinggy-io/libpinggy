@@ -331,7 +331,7 @@ private:
     internalRequestPrimaryRemoteForwarding(bool block = false);
 
     void
-    acquireAccessLock();
+    acquireAccessLock(bool block = false);
 
     void
     releaseAccessLock();
