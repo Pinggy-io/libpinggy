@@ -52,7 +52,9 @@ struct NoDeleter
     }
 };
 
-class Url {
+DeclareClassWithSharedPtr(Url);
+
+class Url : public pinggy::SharedObject {
 public:
     Url(tString url, int defaultPort = 80, tString defaultProto = "http");
 
@@ -102,9 +104,13 @@ public:
     void
     SetQuery(tString query)     { this->query = query; }
 
+    UrlPtr
+    Clone();
 
 
 private:
+    Url();
+
     tString                     protocol;
     tString                     host;
     port_t                      port;

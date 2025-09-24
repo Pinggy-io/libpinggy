@@ -118,7 +118,7 @@ Sdk::Sdk(SDKConfigPtr config, SdkEventHandlerPtr _eventHandler):
             appHandlesNewChannel(false)
 {
     if (!config) {
-        sdkConfig = config = NewSDKConfigPtr();
+        throw SdkException("Config not provided.");
     }
 }
 
@@ -138,6 +138,8 @@ Sdk::Connect(bool block)
         return true;
 
     state = SdkState_Connecting;
+
+    sdkConfig = sdkConfig->clone();
 
     sdkConfig->validate();
 
