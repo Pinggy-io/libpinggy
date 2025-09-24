@@ -80,31 +80,6 @@ tString GREETING_MSG_TAG = "GREETING_MSG_TAG";
 // 3. Every non-life cycle functions that needs to access session (direct or undirect)
 //    needs lockAccess (unless same thread and running)
 
-struct [[nodiscard]] PortConfig: virtual public pinggy::SharedObject
-{
-    PortConfig():
-            ConfigTcp(0),
-            StatusPort(0),
-            UrlTcp(0),
-            UsageContinuousTcp(0),
-            UsageOnceLongPollTcp(0),
-            UsageTcp(0),
-            GreetingMsgTCP(0)
-                                { }
-
-    virtual
-    ~PortConfig()               { }
-
-    port_t                      ConfigTcp;
-    port_t                      StatusPort;
-    port_t                      UrlTcp;
-    port_t                      UsageContinuousTcp;
-    port_t                      UsageOnceLongPollTcp;
-    port_t                      UsageTcp;
-    port_t                      GreetingMsgTCP;
-};
-DefineMakeSharedPtr(PortConfig);
-
 class ThreadLock : public pinggy::SharedObject
 {
 public:
@@ -434,12 +409,17 @@ Sdk::HandleSessionInitiated()
 }
 
 void
-Sdk::HandleSessionAuthenticatedAsClient(std::vector<tString> messages)
+Sdk::HandleSessionAuthenticatedAsClient(std::vector<tString> messages, TunnelInfoPtr info)
 {
     authenticationMsg = messages;
     state = SdkState_Authenticated;
     reconnectionState = SdkState_Reconnect_Connected;
     LOGD("OnAuthenticated");
+    if (info) {
+        json j = info->GreetingMsg;
+        greetingMsgs = j.dump();
+        portConfig = info->PortConfig;
+    }
     if (eventHandler && !reconnectNow)
         eventHandler->OnAuthenticated();
 
@@ -491,7 +471,6 @@ Sdk::HandleSessionRemoteForwardingSucceeded(protocol::tReqId reqId, std::vector<
         state = SdkState_PrimaryReverseForwardingAccepted;
 
         tunnelInitiated();
-        primaryForwardingCheckTimeout = pollController->SetTimeout(5 * SECOND, thisPtr, &Sdk::handlePrimaryForwardingFailed, tString("could not fetch greetingmsg"));
         // Probably 5 second is not a lot. But, we want it to fail soon.
         LOGD("Primary forwarding done");
 
@@ -684,6 +663,18 @@ Sdk::HandleSessionError(tUint32 errorNo, tString what, tBool recoverable)
 }
 
 void
+Sdk::HandleSessionUsages(ClientSpecificUsagesPtr usages)
+{
+    json jdata;
+    PINGGY_NLOHMANN_JSON_FROM_PTR_VAR2(jdata, usages, \
+                                            CLIENT_SPECIFIC_USAGES_JSON_FIELDS_MAP \
+                                    );
+    lastUsagesUpdate = jdata.dump();
+    if (eventHandler)
+        eventHandler->OnUsageUpdate(lastUsagesUpdate);
+}
+
+void
 Sdk::NewVisitor(net::NetworkConnectionPtr netConn) //Webdebugges
 {
     auto addr = netConn->GetPeerAddress();
@@ -814,16 +805,10 @@ Sdk::ChannelDataReceived(protocol::ChannelPtr channel)
         }
         try {
             json jdata = json::parse(data->ToString());
-            auto portConfigPtr = NewPortConfigPtr();
+            auto portConfigPtr = NewSpecialPortConfigPtr();
             PINGGY_NLOHMANN_JSON_TO_PTR_VAR1(jdata, portConfigPtr,
-                                ConfigTcp,
-                                StatusPort,
-                                UrlTcp,
-                                UsageContinuousTcp,
-                                UsageOnceLongPollTcp,
-                                UsageTcp,
-                                GreetingMsgTCP
-                            )
+                                            SPECIAL_PORT_BASIC_FIELDS
+                                        )
             thisPtr->portConfig = portConfigPtr;
 
             if (!usageChannel) {
@@ -849,16 +834,8 @@ Sdk::ChannelDataReceived(protocol::ChannelPtr channel)
                 if (jdata.contains("Msgs")) {
                     greetingMsgs = jdata["Msgs"].dump();
                 }
-                if (primaryForwardingCheckTimeout){
-                    primaryForwardingCheckTimeout->DisArm();
-                    primaryForwardingCheckTimeout = nullptr;
-                }
                 LOGD("greeting received");
-                if (eventHandler && !reconnectNow)
-                    eventHandler->OnPrimaryForwardingSucceeded(urls);
-                state = SdkState_PrimaryReverseForwardingSucceeded;
-                reconnectionState = SdkState_Reconnect_Forwarded;
-                pollController->StopPolling();
+                primaryForwardingCompleted();
             } catch(...) {
                 LOGE("Some error while parsing greeting msg");
             }
@@ -913,6 +890,14 @@ Sdk::authenticate()
 void
 Sdk::tunnelInitiated()
 {
+    if (session->IsImplicitGreeting()){
+        initiateContinousUsages();
+        return;
+    }
+
+    if (!primaryForwardingCheckTimeout)
+        primaryForwardingCheckTimeout = pollController->SetTimeout(5 * SECOND, thisPtr, &Sdk::handlePrimaryForwardingFailed, tString("could not fetch greetingmsg"));
+
     auto channel = session->CreateChannel(4, "localhost", 4300, "localhost");
     channel->RegisterEventHandler(thisPtr);
     channel->SetUserTag(PORT_CONF);
@@ -944,6 +929,7 @@ bool Sdk::internalConnect(bool block)
     baseConnection->SetPollController(pollController);
 
     session = protocol::NewSessionPtr(baseConnection);
+    session->SetSessionVersion(PINGGY_SESSION_VERSION_1_01);
     session->Start(thisPtr);
     LOGT("Session Started");
 
@@ -1100,6 +1086,10 @@ void Sdk::initPollController()
 void
 Sdk::initiateContinousUsages()
 {
+    if (session->IsImplicitUsages()) {
+        primaryForwardingCompleted();
+        return;
+    }
     if (usageChannel) {
         return; //No point in raising exception
     }
@@ -1109,6 +1099,9 @@ Sdk::initiateContinousUsages()
 
     if (!portConfig)
         return;
+
+    if (!primaryForwardingCheckTimeout)
+        primaryForwardingCheckTimeout = pollController->SetTimeout(5 * SECOND, thisPtr, &Sdk::handlePrimaryForwardingFailed, tString("could not fetch greetingmsg"));
 
     usageChannel = session->CreateChannel(portConfig->UsageContinuousTcp, "localhost", 0, "localhost");
     usageChannel->RegisterEventHandler(thisPtr);
@@ -1137,6 +1130,7 @@ Sdk::handlePrimaryForwardingFailed(tString reason)
     DEFER({pollController->StopPolling();});
     state = SdkState_PrimaryReverseForwardingFailed;
     reconnectionState = SdkState_Reconnect_Failed;
+    primaryForwardingCheckTimeout = nullptr;
 
     if (notificationConn && notificationConn->IsValid()) {
         notificationConn->CloseConn();
@@ -1152,7 +1146,21 @@ Sdk::handlePrimaryForwardingFailed(tString reason)
         baseConnection->CloseConn();
     }
 
-    LOGD("Primary forwarding failed");
+    LOGD("Primary forwarding timed out");
+}
+
+void
+Sdk::primaryForwardingCompleted()
+{
+    if (primaryForwardingCheckTimeout){
+        primaryForwardingCheckTimeout->DisArm();
+        primaryForwardingCheckTimeout = nullptr;
+    }
+    if (eventHandler && !reconnectNow)
+        eventHandler->OnPrimaryForwardingSucceeded(urls);
+    state = SdkState_PrimaryReverseForwardingSucceeded;
+    reconnectionState = SdkState_Reconnect_Forwarded;
+    pollController->StopPolling();
 }
 
 bool

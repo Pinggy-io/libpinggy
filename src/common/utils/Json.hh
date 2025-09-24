@@ -17,6 +17,7 @@
 #ifndef SRC_CPP_COMMON_JSON_HH_
 #define SRC_CPP_COMMON_JSON_HH_
 #include <json/nlohmann_json.hh>
+#include <platform/Log.hh>
 
 
 using json = nlohmann::json;
