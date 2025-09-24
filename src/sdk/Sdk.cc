@@ -337,7 +337,7 @@ Sdk::LockIfDifferentThread()
 {
     auto curThreadId = std::this_thread::get_id();
     if (curThreadId == runningThreadId) { //it will never be same unless they are really same. We do not change running thread without lock
-        LOGD("Same thread. not locking.");
+        LOGD("Same thread. not locking.", curThreadId, runningThreadId);
         return nullptr;
     }
     semaphore->Wait();
@@ -666,6 +666,7 @@ Sdk::HandleSessionConnectionReset()
 
     // cleanup();
     cleanupNow = true;
+    stopped = true;
     pollController->StopPolling();
 }
 
