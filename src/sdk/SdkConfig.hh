@@ -27,6 +27,7 @@ class Sdk;
 
 DeclareStructWithSharedPtr(HeaderMod);
 DeclareStructWithSharedPtr(UserPass);
+DeclareStructWithSharedPtr(SDKConfig);
 
 struct SDKConfig: virtual public pinggy::SharedObject
 {
@@ -285,6 +286,9 @@ private:
 
     void
     resetArguments();
+
+    SDKConfigPtr
+    clone();
 };
 DefineMakeSharedPtr(SDKConfig);
 
