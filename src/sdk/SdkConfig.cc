@@ -37,6 +37,9 @@ struct HeaderMod : virtual public pinggy::SharedObject
     Action                      action;
     tString                     header;
     std::vector<tString>        values;
+
+    HeaderModPtr
+    clone();
 };
 DefineMakeSharedPtr(HeaderMod);
 
@@ -59,6 +62,9 @@ struct UserPass : virtual public pinggy::SharedObject
 {
     tString                     username;
     tString                     password;
+
+    UserPassPtr
+    clone();
 };
 DefineMakeSharedPtr(UserPass);
 
@@ -183,6 +189,56 @@ SDKConfig::resetArguments() {
     originalRequestUrl  = false;
     allowPreflight      = false;
     localServerTls      = "";
+}
+
+SDKConfigPtr SDKConfig::clone()
+{
+    auto newConfig = NewSDKConfigPtr();
+
+#define PLAIN_COPY(x) newConfig->x = x
+    PLAIN_COPY(token);
+    PLAIN_COPY(mode);
+    PLAIN_COPY(udpMode);
+    PLAIN_COPY(force);
+    PLAIN_COPY(advancedParsing);
+    PLAIN_COPY(ssl);
+    PLAIN_COPY(sniServerName);
+    PLAIN_COPY(insecure);
+    PLAIN_COPY(autoReconnect);
+    PLAIN_COPY(maxReconnectAttempts);
+    PLAIN_COPY(autoReconnectInterval);
+    PLAIN_COPY(reverseProxy);
+    PLAIN_COPY(xForwardedFor);
+    PLAIN_COPY(httpsOnly);
+    PLAIN_COPY(originalRequestUrl);
+    PLAIN_COPY(allowPreflight);
+    PLAIN_COPY(localServerTls);
+
+#define URLPTR_COPY(x) newConfig->x = x->Clone()
+
+    URLPTR_COPY(serverAddress);
+    URLPTR_COPY(tcpForwardTo);
+    URLPTR_COPY(udpForwardTo);
+
+
+    //Other argument options
+    for (auto x : headerManipulations){
+        newConfig->headerManipulations.push_back(x->clone());
+    }
+    for (auto x : basicAuths){
+        newConfig->basicAuths.push_back(x->clone());
+    }
+    for (tString x : bearerTokenAuths){
+        newConfig->bearerTokenAuths.push_back(x);
+    }
+    for (tString x : ipWhiteList){
+        newConfig->ipWhiteList.push_back(x);
+    }
+
+#undef PLAIN_COPY
+#undef URLPTR_COPY
+
+    return newConfig;
 }
 
 void
@@ -386,6 +442,25 @@ SDKConfig::SetGlobalConfig(tString args)
         throw SdkConfigException("Only version 1.0 is supported");
     }
 
+}
+
+HeaderModPtr HeaderMod::clone()
+{
+    auto newMode = NewHeaderModPtr();
+    newMode->action     = action;
+    newMode->header     = header;
+    for (tString x : values)
+        newMode->values.push_back(x);
+
+    return newMode;
+}
+
+UserPassPtr UserPass::clone()
+{
+    auto up = NewUserPassPtr();
+    up->username = username;
+    up->password = password;
+    return up;
 }
 
 } // namespace sdk
