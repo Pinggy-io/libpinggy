@@ -18,6 +18,20 @@
 #include "transport/SchemaHeaderGenerator.hh"
 #include "transport/SchemaBodyGenerator.hh"
 
+
+DEFINE_TRANSPORT_SERIALIZER_DESERIALIZER_PTR_V2(ClientSpecificUsages,
+        CLIENT_SPECIFIC_USAGES_JSON_FIELDS_MAP
+)
+
+DEFINE_TRANSPORT_SERIALIZER_DESERIALIZER_PTR_V1(SpecialPortConfig,
+        SPECIAL_PORT_BASIC_FIELDS
+)
+
+DEFINE_TRANSPORT_SERIALIZER_DESERIALIZER_PTR_V2(TunnelInfo,
+    (GreetingMsg, greetingMsg),
+    (PortConfig, portConfig)
+)
+
 namespace protocol
 {
 

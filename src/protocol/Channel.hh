@@ -18,6 +18,7 @@
 #define SRC_CPP_PROTOCOL_CHANNEL_HH_
 #include "Schema.hh"
 #include <platform/SharedPtr.hh>
+#include "SessionFeatures.hh"
 
 namespace protocol
 {
@@ -104,6 +105,9 @@ public:
     tString
     GetSrcHost()                { return srcHost; }
 
+    TunnelMode
+    GetMode()                   { return mode; }
+
     void
     SetUserTag(tString tag)     { userTag = tag; }
 
@@ -121,7 +125,7 @@ public:
     GetUserPtr()                { return userPtr ? userPtr->DynamicPointerCast<T>(): nullptr; }
 
 private:
-    Channel(SessionPtr); //constructor
+    Channel(SessionPtr, SessionFeaturesPtr); //constructor
 
     void
     cleanup(); //Very destructive
@@ -149,10 +153,13 @@ private:
 
     void
     setChannelInfo(tUint16 destPort, tString destHost,
-                        tUint16 srcPort, tString srcHost, tChannelType chanType);
+                        tUint16 srcPort, tString srcHost, tChannelType chanType, TunnelMode mode);
 
     void
     initiateIncomingChannel(SetupChannelMsgPtr msg);
+
+    void
+    closeTimeoutTriggered();
 
     friend class                Session;
 
@@ -173,6 +180,7 @@ private:
     tString                     destHost;
     tUint16                     srcPort;
     tString                     srcHost;
+    TunnelMode                  mode;
     tChannelType                chanType;
 
     tUint32                     remoteWindow;
@@ -191,6 +199,7 @@ private:
 
     tString                     userTag;
     tVoidPtr                    userPtr;
+    SessionFeaturesPtr          features;
 
     friend class                Session;
 };

@@ -61,7 +61,7 @@ tDuration PollController::GetNextTaskTimeout()
 
     auto task = taskQueue.top();
 
-    LOGT("Get Next Task Timeout", task->deadline - pollTime, task->deadline, pollTime);
+    // LOGT("Get Next Task Timeout", task->deadline - pollTime, task->deadline, pollTime);
 
     Assert(task->deadline > pollTime);
 
@@ -76,7 +76,7 @@ PollController::ExecuteCurrentTasks()
     while (taskQueue.size() > 0) {
         auto task = taskQueue.top();
 
-        LOGT("ExecuteCurrentTasks", (task->deadline > pollTime ? "notnow" : "now"), (tInt64)(task->deadline - pollTime), task->deadline, pollTime, taskQueue.size());
+        // LOGT("ExecuteCurrentTasks", (task->deadline > pollTime ? "notnow" : "now"), (tInt64)(task->deadline - pollTime), task->deadline, pollTime, taskQueue.size());
         if (task->deadline > pollTime)
             return;
         Assert(task->deadline <= pollTime);

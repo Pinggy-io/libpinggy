@@ -461,10 +461,10 @@ void Deserializer::Deserialize(tString key, std::vector<t##x> &val)             
     if (item->valueType != ValueType_Array) {                                       \
         throw std::runtime_error("Type mismatched");                                \
     }                                                                               \
-    item->deserialize_internal(val);                                                         \
+    item->deserialize_internal(val);                                                \
 }                                                                                   \
                                                                                     \
-void Deserializer::deserialize_internal(std::vector<t##x> &val)                              \
+void Deserializer::deserialize_internal(std::vector<t##x> &val)                     \
 {                                                                                   \
     val.clear();                                                                    \
     for(auto rd : literalsArray) {                                                  \

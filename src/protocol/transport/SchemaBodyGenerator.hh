@@ -353,6 +353,7 @@ static void Deflate(SerializerPtr serializer, cls##Ptr objPtr)                  
 }                                                                               \
 static void Inflate(DeserializerPtr deserializer, cls##Ptr &objPtr)             \
 {                                                                               \
+    objPtr = New##cls##Ptr();                                                   \
     APP_MACRO_FOR_EACH_FORNT(_TRANSPORT_VAR_DESERIALIZER_PTR_v1, __VA_ARGS__)   \
 }
 

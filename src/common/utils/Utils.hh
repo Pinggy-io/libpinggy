@@ -23,6 +23,7 @@
 #include <memory>
 #include <vector>
 #include <map>
+#include <set>
 #include "RawData.hh"
 #include "StringUtils.hh"
 #include "CertificateFileDetail.hh"
@@ -161,6 +162,22 @@ operator<<(std::ostream& os, const std::map<K, V>& map)
     os << "}";
     return os;
 
+}
+
+template<typename T>
+std::ostream&
+operator<<(std::ostream& os, const std::set<T>& vect)
+{
+    os << "{";
+    bool comma = false;
+    for (auto ele : vect) {
+        if (comma)
+            os << ", ";
+        comma = true;
+        os << ele;
+    }
+    os << "}";
+    return os;
 }
 
 #endif /* SERVER_UTILS_HH_ */

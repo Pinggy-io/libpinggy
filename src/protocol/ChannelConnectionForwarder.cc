@@ -33,10 +33,14 @@ ChannelConnectionForwarder::Start()
     netConn->RegisterFDEvenHandler(thisPtr);
     channel->RegisterEventHandler(thisPtr);
     if (!channel->IsConnected()) { //It is not yet accepted
-        netConn->DisableReadPoll();
-        netConn->DisableWritePoll();
         channel->Connect();
     } else {
+        if (channel->HaveDataToRead()) {
+            netConn->EnableWritePoll();
+            fdSendEnabled = true;
+        }
+    }
+    {
         allowCopyFromNetConn = true;
         allowCopyFromChannel = true;
         fdRecvEnabled = true;
@@ -75,7 +79,7 @@ ChannelConnectionForwarder::EnableCopyFromNetConn() //playreq
         fdRecvEnabled = true;
     }
     allowCopyFromNetConn = true; //what if there are data in dataForChannel
-    if (!dataForChannel || !dataForChannel->Len) {
+    if (dataForChannel && dataForChannel->Len) {
         netConn->RaiseDummyReadPoll();
     }
 }
@@ -96,19 +100,18 @@ ChannelConnectionForwarder::DisableCopyFromNetConn() //pauseres
 len_t
 ChannelConnectionForwarder::HandleFDRead(PollableFDPtr)
 {
-    LOGT("Called `" + std::string(__func__) + "`");
+    LOGT("Called `" + std::string(__func__) + "`", netConn->GetFd());
     if (!dataForChannel || !dataForChannel->Len) {
         auto [_1, _2] = netConn->Read(16*KB);
         auto len = _1;
         dataForChannel = _2;
+        LOGT("Called `" + std::string(__func__) + "`", netConn->GetFd(), " read: ", len);
         if (len <= 0) {
             if (netConn->TryAgain()) {
-                // netConn->DisableReadPoll();
-                LOGT("Called `" + std::string(__func__) + "` false alert try again", netConn->TryAgain(), app_get_errno(), len);
-                // fdRecvEnabled = false;
+                LOGT("Called `" + std::string(__func__) + "`", netConn->GetFd(), " false alert try again", netConn->TryAgain(), app_get_errno(), len);
                 return len;
             }
-            LOGT("Called `" + std::string(__func__) + "` close by netconn");
+            LOGT("Called `" + std::string(__func__) + "`", netConn->GetFd(), " close by netconn");
             closeByNetConn();
             return len;
         }
@@ -116,19 +119,19 @@ ChannelConnectionForwarder::HandleFDRead(PollableFDPtr)
     auto availableBuffer = channel->HaveBufferToWrite();
     if ((RawData::tLen)availableBuffer < dataForChannel->Len) {
         netConn->DisableReadPoll();
-        LOGT("Called `" + std::string(__func__) + "` Disabling ", availableBuffer, dataForChannel->Len);
+        LOGT("Called `" + std::string(__func__) + "`", netConn->GetFd(), " Disabling ", availableBuffer, dataForChannel->Len);
         fdRecvEnabled = false;
         return -1;
     }
     auto sent = channel->Send(dataForChannel);
     if (sent == 0) { //TODO impossible statements
-        LOGT("Called `" + std::string(__func__) + "` close by netconn");
+        LOGT("Called `" + std::string(__func__) + "`", netConn->GetFd(), " close by netconn", availableBuffer, dataForChannel->Len);
         closeByNetConn();
         return sent;
     }
     if (sent < 0) {
         netConn->DisableReadPoll();
-        LOGT("Called `" + std::string(__func__) + "` Disabling");
+        LOGT("Called `" + std::string(__func__) + "`", netConn->GetFd(), " Disabling", availableBuffer, dataForChannel->Len);
         fdRecvEnabled = false;
         return sent;
     }
@@ -139,6 +142,8 @@ ChannelConnectionForwarder::HandleFDRead(PollableFDPtr)
     if (counter) {
         counter->CounterByteCopiedToChannel(thisPtr, sent);
     }
+
+    LOGT("Data Sent `" + std::string(__func__) + "`", netConn->GetFd(), sent, (dataForChannel ? dataForChannel->Len : 0));
     return sent;
 }
 
@@ -194,7 +199,8 @@ ChannelConnectionForwarder::HandleFDError(PollableFDPtr, int16_t)
 }
 
 //==ChannelEventHandler
-void ChannelConnectionForwarder::ChannelDataReceived(ChannelPtr)
+void
+ChannelConnectionForwarder::ChannelDataReceived(ChannelPtr)
 {
     if (fdSendEnabled)
         return;
@@ -224,10 +230,10 @@ ChannelConnectionForwarder::ChannelReadyToSend(ChannelPtr, tUint32 availableBuff
     LOGT("Called `" + std::string(__func__) + "` Enabling ", availableBuffer, dataForChannel->Len);
     //We can copy here. However, I want to perform copy only once in the code for consistency
     netConn->EnableReadPoll();
-    if (dataForChannel->Len) {
+    fdRecvEnabled = true;
+    if (dataForChannel && dataForChannel->Len) {
         netConn->RaiseDummyReadPoll();
     }
-    fdRecvEnabled = true;
 }
 
 void
@@ -257,10 +263,16 @@ ChannelConnectionForwarder::ChannelAccepted(ChannelPtr)
         return; //this weird
     }
 
+
+    LOGT("Called `" + std::string(__func__) + "`", netConn->GetFd());
+
     netConn->EnableReadPoll();
     allowCopyFromNetConn = true;
     allowCopyFromChannel = true;
     fdRecvEnabled = true;
+    if (dataForChannel && dataForChannel->Len) {
+        netConn->RaiseDummyReadPoll();
+    }
     if (counter) {
         counter->CounterChannelConnected(thisPtr);
     }

@@ -4,6 +4,7 @@ set(SOURCES
     ChannelConnectionForwarder.cc
     Schema.cc
     Session.cc
+    SessionFeatures.cc
 
     transport/Deserialization.cc
     transport/PathRegistry.cc

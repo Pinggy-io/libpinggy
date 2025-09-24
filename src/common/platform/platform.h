@@ -113,6 +113,10 @@ typedef uint16_t        port_t;
 typedef int16_t         len_t;
 typedef uint16_t        chanId_t;
 
+typedef uint16_t        tPort;
+typedef int16_t         tLen;
+typedef uint16_t        tChanId;
+
 typedef int             tInt;
 typedef int8_t          tInt8;
 typedef int16_t         tInt16;

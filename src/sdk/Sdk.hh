@@ -123,7 +123,6 @@ public:
 };
 DeclareSharedPtr(SdkEventHandler);
 
-DeclareStructWithSharedPtr(PortConfig);
 DeclareClassWithSharedPtr(ThreadLock);
 
 class Sdk:
@@ -198,7 +197,7 @@ public:
     HandleSessionInitiated() override;
 
     virtual void
-    HandleSessionAuthenticatedAsClient(std::vector<tString> messages) override;
+    HandleSessionAuthenticatedAsClient(std::vector<tString> messages, TunnelInfoPtr) override;
 
     virtual void
     HandleSessionAuthenticationFailed(tString error, std::vector<tString> OnAuthenticationFailed) override;
@@ -223,6 +222,9 @@ public:
 
     virtual void
     HandleSessionError(tUint32 errorNo, tString what, tBool recoverable) override;
+
+    virtual void
+    HandleSessionUsages(ClientSpecificUsagesPtr usages) override;
 
 
 //net::ConnectionListenerHandler
@@ -327,6 +329,9 @@ private:
     void
     handlePrimaryForwardingFailed(tString reason);
 
+    void
+    primaryForwardingCompleted();
+
     bool
     internalRequestPrimaryRemoteForwarding(bool block = false);
 
@@ -359,7 +364,7 @@ private:
     SDKConfigPtr                sdkConfig;
     SdkEventHandlerPtr          eventHandler;
     net::ConnectionListenerPtr  webDebugListener;
-    PortConfigPtr               portConfig;
+    SpecialPortConfigPtr        portConfig;
 
     std::thread::id             runningThreadId;
 

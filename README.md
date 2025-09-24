@@ -43,6 +43,13 @@ cmake --build . releasessl //releasing ssl
 cmake --build . distribute //creating libpinggy.tgz/zip
 ```
 
+Also, one can use our build system. It will take care of openssl library as well. However, this is different for every os.
+
+**MacOs**
+```bash
+LOG_LEVEL=LogLevelDebug RELEASE_CLI=yes RELEASE_SO=yes RELEASE_SSL=yes PINGGY_DEBUG=yes bash crossbuilding/macos/buildForMacos.sh
+```
+
 # Tunnel life cycle
 ![alt text](sdk_life_cycle.excalidraw.png)
 

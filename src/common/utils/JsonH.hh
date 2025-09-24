@@ -22,6 +22,9 @@
 
 using json = nlohmann::json;
 
+#define NLOHMANN_DECLARE_JSON_SERIALIZE_ENUM(Type, ...) \
+    void to_json(nlohmann::json& nlohmann_json_j, const Type& vType); \
+    void from_json(const nlohmann::json& nlohmann_json_j, Type& vType);
 
 #define NLOHMANN_DECLARE_TYPE_NON_INTRUSIVE_CUSTOME(Type, ...)  \
     void to_json(nlohmann::json& nlohmann_json_j, const Type& vType); \
