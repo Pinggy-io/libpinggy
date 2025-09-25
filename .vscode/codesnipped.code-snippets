@@ -40,10 +40,29 @@
 			"class ${TM_FILENAME_BASE}$1: virtual public pinggy::SharedObject",
 			"{",
 			"public:",
-			"    ${TM_FILENAME_BASE}$1(/* args */);",
-			"    virtual ~${TM_FILENAME_BASE}$1();",
+			"    ${TM_FILENAME_BASE}$1()",
+			"                                { }",
+			"",
+			"    virtual",
+			"    ~${TM_FILENAME_BASE}$1()",
+			"                                { }",
 			"private:",
 			"    /* data */",
+			"};",
+			"DefineMakeSharedPtr(${TM_FILENAME_BASE}$1);",
+		]
+	},
+	"pinggyStruct": {
+		"prefix": "structpinggy",
+		"body": [
+			"struct ${TM_FILENAME_BASE}$1: virtual public pinggy::SharedObject",
+			"{",
+			"    ${TM_FILENAME_BASE}$1()",
+			"                                { }",
+			"",
+			"    virtual",
+			"    ~${TM_FILENAME_BASE}$1()",
+			"                                { }",
 			"};",
 			"DefineMakeSharedPtr(${TM_FILENAME_BASE}$1);",
 		]
@@ -54,7 +73,9 @@
 			"abstract class ${TM_FILENAME_BASE}$1: virtual public pinggy::SharedObject",
 			"{",
 			"public:",
-			"    virtual ~${TM_FILENAME_BASE}$1(){}",
+			"    virtual",
+			"    ~${TM_FILENAME_BASE}$1()",
+			"                                { }",
 			"};",
 			"DeclareSharedPtr(${TM_FILENAME_BASE}$1);"
 		]
