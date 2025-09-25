@@ -18,7 +18,7 @@
 #include <utils/StringUtils.hh>
 #include <utils/Json.hh>
 #include <platform/Log.hh>
-#include <utils/TunnelCommon.hh>
+#include <platform/network.h>
 #include "SdkException.hh"
 
 namespace sdk
@@ -150,6 +150,128 @@ SDKConfig::GetIpWhiteList()
             j.get_to(x);                \
         }                               \
     } while(0)
+
+
+/**
+ * AddForwarding adds new forwarding to the forwarding list sdkForwardingList
+ * @param forwardingType
+ *      forwardingType can be empty or one of the values: http, tcp, tls, udp, tlstcp. It would be set to SdkForwarding::mode.
+ *      While forwardingType can be empty, SdkForwarding::mode can't be. The value for SdkForwarding::mode is determined based
+ *      on binding url when forwardingType is empty.
+ * @param bindingUrl
+ *      format [schema://]domain[:port]
+ *
+ *      bindingUrl may or may not contain a schema. if schema is present, it have to be one of http, tcp, tls, udp, https.
+ *      when schema is not present, would be derived from forwarding mode. if both not present, it would be http.
+ *      when both of them present, they needs to compatible, http -> [http, https, tcp], tcp -> [tcp], tls -> [tls, tcp], tlstcp -> [tcp], udp -> [udp]
+ *      Once schema is finalized, it would update SdkForwarding::mode
+ *
+ *      Domain is domain only, no ip addess is allowed. It would be put to SdkForwarding::bindingDomain
+ *
+ *      Port is manadatory when SdkForwarding::mode is one of [tcp, tlstcp, udp]. it would be port to SdkForwarding::bindingPort
+ *
+ * @param forwardTo
+ *      format [schema://][host:]port
+ *
+ *      schema stored to SdkForwarding::localSchema. You can ignore it unless SdkForwarding::mode is http and schema is https.
+ *
+ *      default host is localhost unless provided. store it to SdkForwarding::localHost
+ *
+ *      port is mandatory and there is no default port. store it to SdkForwarding::localPort
+ */
+void
+SDKConfig::AddForwarding(tString forwardingType, tString bindingUrl, tString forwardTo)
+{
+    // Parse bindingUrl: [schema://]domain[:port]
+    tString schema, domain, portStr;
+    tPort port = 0;
+
+    auto remoteUrl = NewUrlPtr(bindingUrl, 0, ""); //it might give invalid url exception
+    domain = remoteUrl->GetRawHost();
+    schema = remoteUrl->GetProtocol();
+    port = remoteUrl->GetPort();
+
+    // Validate domain (no IPs allowed)
+    if (is_ip_address(domain.c_str())) {
+        throw SdkConfigException("IP address not allowed in binding domain");
+    }
+
+    auto mode = TunnelModeFromString(StringToLower(forwardingType));
+    // Determine mode
+    if (mode == TunnelMode::None) {
+        if (!schema.empty()) {
+            if (schema == Schema_HTTP || schema == Schema_HTTPS) mode = TunnelMode::HTTP;
+            else if (schema == Schema_TCP) mode = TunnelMode::TCP;
+            else if (schema == Schema_TLS) mode = TunnelMode::TLS;
+            else if (schema == Schema_UDP) mode = TunnelMode::UDP;
+            else throw SdkConfigException("Unknown schema in bindingUrl");
+        } else {
+            mode = TunnelMode::HTTP;
+        }
+    } else {
+        // If both schema and mode are present, check compatibility
+        if (!schema.empty()) {
+            if (mode == TunnelMode::HTTP && !(schema == Schema_HTTP || schema == Schema_HTTPS || schema == Schema_TCP))
+                throw SdkConfigException("Incompatible schema and forwardingType");
+            if (mode == TunnelMode::TCP && schema != Schema_TCP)
+                throw SdkConfigException("Incompatible schema and forwardingType");
+            if (mode == TunnelMode::TLS && !(schema == Schema_TLS || schema == Schema_TCP))
+                throw SdkConfigException("Incompatible schema and forwardingType");
+            if (mode == TunnelMode::TLSTCP && schema != Schema_TCP)
+                throw SdkConfigException("Incompatible schema and forwardingType");
+            if (mode == TunnelMode::UDP && schema != Schema_UDP)
+                throw SdkConfigException("Incompatible schema and forwardingType");
+        }
+    }
+
+    // Set port requirement for certain types
+    if ((mode == TunnelMode::TCP || mode == TunnelMode::TLSTCP || mode == TunnelMode::UDP) && port == 0) {
+        throw SdkConfigException("Port is mandatory for tcp, tlstcp, udp types");
+    }
+
+    // Parse forwardTo: [schema://][host:]port
+    tString localSchema, localHost = "localhost", localPortStr;
+    tPort localPort = 0;
+    tString forwardToRest = forwardTo;
+
+    auto fwdSchemaSplit = SplitString(forwardToRest, "://", 1);
+    if (fwdSchemaSplit.size() == 2) {
+        localSchema = StringToLower(fwdSchemaSplit[0]);
+        forwardToRest = fwdSchemaSplit[1];
+    }
+
+    auto fwdHostPortSplit = SplitString(forwardToRest, ":", 1);
+    if (fwdHostPortSplit.size() == 2) {
+        localHost = fwdHostPortSplit[0];
+        localPortStr = fwdHostPortSplit[1];
+    } else {
+        localPortStr = forwardToRest;
+    }
+    try {
+        localPort = static_cast<tPort>(std::stoi(localPortStr));
+    } catch (...) {
+        throw SdkConfigException("Invalid or missing port in forwardTo");
+    }
+
+    // Create SdkForwarding object
+    auto forwarding = NewSdkForwardingPtr();
+    forwarding->mode = mode;
+    forwarding->bindingDomain = domain;
+    forwarding->bindingPort = port;
+    forwarding->localHost = localHost;
+    forwarding->localPort = localPort;
+    forwarding->localSchema = localSchema;
+
+    // Add to forwarding list
+    sdkForwardingList.push_back(forwarding);
+
+    // Set mode/udpMode if not set
+    if (mode == TunnelMode::UDP) {
+        if (udpMode.empty()) udpMode = TunnelType_UDP;
+    } else {
+        if (this->mode.empty()) this->mode = TunnelTypeFromTunnelMode(mode);
+    }
+}
 
 void
 SDKConfig::SetHeaderManipulations(tString val)

@@ -19,6 +19,7 @@
 
 #include <utils/Utils.hh>
 #include <vector>
+#include <utils/TunnelCommon.hh>
 
 namespace sdk
 {
@@ -28,6 +29,24 @@ class Sdk;
 DeclareStructWithSharedPtr(HeaderMod);
 DeclareStructWithSharedPtr(UserPass);
 DeclareStructWithSharedPtr(SDKConfig);
+
+struct SdkForwarding: virtual public pinggy::SharedObject
+{
+    SdkForwarding()
+                                { }
+
+    virtual
+    ~SdkForwarding()
+                                { }
+
+    TunnelMode                  mode;
+    tPort                       bindingPort;
+    tString                     bindingDomain;
+    tPort                       localPort;
+    tString                     localHost;
+    tString                     localSchema;
+};
+DefineMakeSharedPtr(SdkForwarding);
 
 struct SDKConfig: virtual public pinggy::SharedObject
 {
@@ -167,6 +186,10 @@ struct SDKConfig: virtual public pinggy::SharedObject
                                 { isAllowed(); this->autoReconnectInterval = autoReconnectInterval > 1 ? autoReconnectInterval : 1; }
 
     void
+    AddForwarding(tString forwardingType, tString bindingUrl, tString forwardTo);
+    //===============
+
+    void
     SetHeaderManipulations(tString val);
 
     void
@@ -274,6 +297,8 @@ private:
     bool                        originalRequestUrl;
     bool                        allowPreflight;
     tString                     localServerTls;
+    std::vector<SdkForwardingPtr>
+                                sdkForwardingList;
 
     void
     isAllowed()                 { }

@@ -67,9 +67,15 @@ public:
     tString
     GetSockAddrString()         { return GetHost() + ":" + portStr; }
 
+    /**
+     * return host. incase of IPv6, encase it inside []
+     */
     tString
     GetHost()                   { return (host.empty() || !ipv6) ? host : "["+host+"]"; }
 
+    /**
+     * return host. incase of IPv6, it does not encase with []
+     */
     const tString&
     GetRawHost()                { return host; }
 
