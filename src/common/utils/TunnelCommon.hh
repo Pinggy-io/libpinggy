@@ -19,6 +19,26 @@
 #define __SRC_CPP_PUBLIC_COMMON_UTILS_TUNNELCOMMON_HH__
 
 #include <platform/SharedPtr.hh>
+#include <vector>
+
+
+
+#define TunnelType_None     ""
+#define TunnelType_Unknown  "unknown"
+#define TunnelType_HTTP     "http"
+#define TunnelType_TCP      "tcp"
+#define TunnelType_TLS      "tls"
+#define TunnelType_TLSTCP   "tlstcp"
+#define TunnelType_UDP      "udp"
+
+
+#define Schema_None         ""
+#define Schema_HTTP         "http"
+#define Schema_HTTPS        "https"
+#define Schema_TCP          "tcp"
+#define Schema_TLS          "tls"
+#define Schema_TLSTCP       "tlstcp"
+#define Schema_UDP          "udp"
 
 
 
@@ -37,6 +57,13 @@ enum class TunnelMode {
     TLSTCP  = 1<<3,
     UDP     = 1<<4
 };
+
+
+TunnelMode
+TunnelModeFromString(tString modeStr);
+
+tString
+TunnelTypeFromTunnelMode(TunnelMode mode);
 
 
 enum SpecialPort {
