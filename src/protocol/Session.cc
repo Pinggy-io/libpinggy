@@ -236,7 +236,7 @@ Session::HandleIncomingDeserialize(DeserializerPtr deserializer)
                 ABORT_WITH_MSG("Not expected state");
 
             auto msg = tMsg->DynamicPointerCast<ServerHelloMsg>();
-            features->SetVersion(msg->Version);
+            features->NegotiateVersion(msg->Version);
             eventHandler->HandleSessionInitiated();
         }
         break;
