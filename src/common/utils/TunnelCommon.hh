@@ -21,6 +21,9 @@
 #include <platform/SharedPtr.hh>
 #include <vector>
 
+typedef tUint16 tForwardingId;
+
+#define InvalidForwardingId 0
 
 
 #define TunnelType_None     ""
@@ -58,6 +61,8 @@ enum class TunnelMode {
     UDP     = 1<<4
 };
 
+std::ostream&
+operator<<(std::ostream& os, TunnelMode m);
 
 TunnelMode
 TunnelModeFromString(tString modeStr);
