@@ -129,6 +129,8 @@ Channel::Channel(SessionPtr session, SessionFeaturesPtr features) :
             session(session),
             destPort(0),
             srcPort(0),
+            mode(TunnelMode::None),
+            forwardingId(InvalidForwardingId),
             chanType(ChannelType_Stream),
             remoteWindow(INITIAL_REMOTE_WINDOW_SIZE), //This is just give sender a head start
             localWindow(CHANNEL_WINDOW_SIZE),
@@ -158,6 +160,7 @@ Channel::Connect()
     msg->SrcHost            = srcHost;
     msg->SrcPort            = srcPort;
     msg->Mode               = mode;
+    msg->ForwardingId       = forwardingId;
     msg->ChannelType        = chanType;
     msg->InitialWindowSize  = localWindow;
     msg->MaxDataSize        = localMaxPacket;
@@ -488,7 +491,7 @@ Channel::handleChannelError(ChannelErrorMsgPtr errMsg)
 }
 
 void
-Channel::setChannelInfo(tUint16 destPort, tString destHost, tUint16 srcPort, tString srcHost, tChannelType chanType, TunnelMode mode)
+Channel::setChannelInfo(tUint16 destPort, tString destHost, tUint16 srcPort, tString srcHost, tChannelType chanType, TunnelMode mode, tForwardingId forwardingId)
 {
     this->destHost          = destHost;
     this->srcHost           = srcHost;
@@ -496,6 +499,7 @@ Channel::setChannelInfo(tUint16 destPort, tString destHost, tUint16 srcPort, tSt
     this->srcPort           = srcPort;
     this->chanType          = chanType;
     this->mode              = mode;
+    this->forwardingId      = forwardingId;
 }
 
 /*
@@ -513,6 +517,7 @@ Channel::initiateIncomingChannel(SetupChannelMsgPtr msg)
     srcPort             = msg->SrcPort;
     chanType            = (tChannelType)msg->ChannelType;
     mode                = (TunnelMode)msg->Mode;
+    forwardingId        = msg->ForwardingId;
     state               = ChannelState_Connect_Responding;
 
     if (remoteWindow < remoteMaxPacket)

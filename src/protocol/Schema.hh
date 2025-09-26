@@ -100,6 +100,7 @@ enum tChannelType {
         arg,                                                                            \
         (tMsgId,                    MsgId,              0),                             \
         (tReqId,                    ReqId,              0,                          1), \
+        (tForwardingId,             ForwardingId,       InvalidForwardingId,        1), \
         (tUint8,                    Success,            0,                          1), \
         (std::vector<tString>,      Urls),                                              \
         (tString,                   Error,              "",                         1)  \
@@ -107,6 +108,7 @@ enum tChannelType {
     f(SetupChannel,                                                                     \
         arg,                                                                            \
         (tMsgId,                    MsgId,              0),                             \
+        (tForwardingId,             ForwardingId,       InvalidForwardingId,        1), \
         (tChannelId,                ChannelId,          0,                          1), \
         (tUint16,                   ConnectToPort,      0,                          1), \
         (tString,                   ConnectToHost,      "",                         1), \

@@ -108,6 +108,9 @@ public:
     TunnelMode
     GetMode()                   { return mode; }
 
+    tForwardingId
+    GetForwardingId()           { return forwardingId; }
+
     void
     SetUserTag(tString tag)     { userTag = tag; }
 
@@ -152,8 +155,8 @@ private:
     handleChannelError(ChannelErrorMsgPtr);
 
     void
-    setChannelInfo(tUint16 destPort, tString destHost,
-                        tUint16 srcPort, tString srcHost, tChannelType chanType, TunnelMode mode);
+    setChannelInfo(tUint16 destPort, tString destHost, tUint16 srcPort, tString srcHost,
+                    tChannelType chanType, TunnelMode mode, tForwardingId forwardingId);
 
     void
     initiateIncomingChannel(SetupChannelMsgPtr msg);
@@ -181,6 +184,7 @@ private:
     tUint16                     srcPort;
     tString                     srcHost;
     TunnelMode                  mode;
+    tForwardingId               forwardingId;
     tChannelType                chanType;
 
     tUint32                     remoteWindow;
