@@ -38,23 +38,23 @@ static const std::string ConnMode_HTTP      = "http";
 static const std::string ConnMode_TCP       = "tcp";
 static const std::string ConnMode_TLS       = "tls";
 static const std::string ConnMode_TLSTCP    = "tlstcp";
-static const std::string ConnModeExt_UDP    = "udp";
+static const std::string ConnMode_UDP       = "udp";
 
 struct ClientConfig: virtual public pinggy::SharedObject
 {
     ClientConfig() :
-            sdkConfig(sdk::NewSDKConfigPtr()),
+            SdkConfig(sdk::NewSDKConfigPtr()),
             WebDebuggerPort(4300),
             EnableWebDebugger(false)
                                 {}
 
     virtual ~ClientConfig()     {}
 
-    std::vector<std::pair<std::string, std::string>>
-                                forwardings;
-    sdk::SDKConfigPtr           sdkConfig;
+    std::vector<tString>        forwardings;
+    sdk::SDKConfigPtr           SdkConfig;
     port_t                      WebDebuggerPort;
     bool                        EnableWebDebugger;
+    tString                     mode;
 };
 DefineMakeSharedPtr(ClientConfig);
 
@@ -96,23 +96,66 @@ parseForwarding(const tString& val) {
     return result;
 }
 
-bool
-parseReverseTunnel(ClientConfigPtr config, tString value)
+std::tuple<tString, tString, tPort>
+parseHostname(tString host)
 {
-    auto values = parseForwarding(value);
-    if (values.size() < 2) { // fixed logic here
-        return false;
+    tString schema, hostname;
+    tPort port = 0;
+    // Expected format: [schema//]hostname[/port]
+    // Example: "ssh//example.com/2222", "example.com/2222", "ssh//example.com", "example.com"
+    // Parse schema if present
+
+    hostname = host;
+
+    auto schemaSep = hostname.find("//");
+    if (schemaSep != tString::npos) {
+        schema = hostname.substr(0, schemaSep);
+        hostname = hostname.substr(schemaSep + 2);
     }
-    auto url =  values[values.size() - 2] + ":" + values[values.size() - 1];
-    try {
-        if (values.size() < 4) {
-            config->sdkConfig->SetTcpForwardTo(url);
-        } else {
-            auto forwardingUrl = values[values.size() - 4] + ":" + values[values.size() - 3];
-            config->forwardings.push_back(std::pair(forwardingUrl, url));
+
+    // Find last '/' (port separator)
+    auto lastSlash = hostname.rfind('/');
+    if (lastSlash != tString::npos) {
+        auto portStr = hostname.substr(lastSlash + 1);
+        port = std::stoi(portStr); //Don't care about exception. it would collasped
+        hostname = hostname.substr(0, lastSlash);
+    }
+
+    if (schema != ConnMode_HTTP && schema != ConnMode_TCP && schema != ConnMode_TLS && schema != ConnMode_TLSTCP && schema != ConnMode_UDP) {
+        schema = "";
+    }
+
+    return {schema, hostname, port};
+}
+
+bool
+parseReverseTunnel(ClientConfigPtr config)
+{
+    for (auto value : config->forwardings) {
+        auto values = parseForwarding(value);
+        if (values.size() < 2) { // fixed logic here
+            return false;
         }
-    } catch(...) {
-        return false;
+        auto forwardTo =  values[values.size() - 2] + ":" + values[values.size() - 1];
+        try {
+            if (values.size() < 4) {
+                config->SdkConfig->AddForwarding(config->mode, "", forwardTo);
+            } else {
+                auto remoteHost = values[values.size() - 4];
+                auto [schema, hostname, port] = parseHostname(remoteHost);
+                if (hostname.empty())
+                    hostname = "localhost";
+                hostname += ":" + std::to_string(port);
+                if (schema.empty()) {
+                    config->SdkConfig->AddForwarding(config->mode, hostname, forwardTo);
+                } else {
+                    config->SdkConfig->AddForwarding(schema, hostname, forwardTo);
+                }
+            }
+        } catch(std::exception &e) {
+            LOGF("Exception occurred:", e.what());
+            return false;
+        }
     }
     return true;
 }
@@ -140,28 +183,21 @@ parseUser(ClientConfigPtr config, tString user)
     auto values = SplitString(user, "+");
     tString token = "";
 
-    auto sdkConfig = config->sdkConfig;
-
-    auto forwardingAddress = sdkConfig->GetTcpForwardTo();
-    sdkConfig->SetTcpForwardTo("");
+    auto sdkConfig = config->SdkConfig;
 
     for(auto s : values) {
         auto sl = StringToLower(s);
         LOGT("s=" << s, "sl="<<sl);
-        if (sl == ConnMode_HTTP || sl == ConnMode_TCP || sl == ConnMode_TLS || sl == ConnMode_TLSTCP) {
-            sdkConfig->SetTcpForwardTo(forwardingAddress);
-            sdkConfig->SetMode(sl);
-        } else if (sl == ConnModeExt_UDP) {
-            sdkConfig->SetUdpForwardTo(forwardingAddress);
-            sdkConfig->SetUdpMode(sl);
+        if (sl == ConnMode_HTTP || sl == ConnMode_TCP || sl == ConnMode_TLS || sl == ConnMode_TLSTCP || sl == ConnMode_UDP) {
+            if (!config->mode.empty()){
+                std::cout << "You cannot provide more than one type of default forwarding type";
+                return false;
+            }
+
+            config->mode = sl;
         } else {
             token = "+" + s;
         }
-    }
-
-    if (sdkConfig->GetTcpForwardTo().empty() && sdkConfig->GetUdpForwardTo().empty()) {
-        sdkConfig->SetTcpForwardTo(forwardingAddress);
-        sdkConfig->SetMode(ConnMode_HTTP);
     }
 
     if (token.length() > 1) {
@@ -181,7 +217,7 @@ parseUserServer(ClientConfigPtr config, tString value, tString port)
 
     bool success = true;
     try {
-        config->sdkConfig->SetServerAddress(NewUrlPtr(values[values.size() - 1] + ":" + port));
+        config->SdkConfig->SetServerAddress(NewUrlPtr(values[values.size() - 1] + ":" + port));
         if (values.size() > 1) {
             success = parseUser(config, values[values.size() - 2]);
         }
@@ -223,7 +259,7 @@ parseSdkArguments(ClientConfigPtr config, int argc, char *argv[])
     for (int i = 0; i < argc; i++) {
         args.push_back(tString(argv[i]));
     }
-    config->sdkConfig->SetArguments(ShlexJoinStrings(args));
+    config->SdkConfig->SetArguments(ShlexJoinStrings(args));
 
     return true;
 }
@@ -276,23 +312,23 @@ parseArguments(int argc, char *argv[])
                 serverPort = cli_optarg;
                 break;
             case 'R':
-                success = parseReverseTunnel(config, cli_optarg);
+                config->forwardings.push_back(cli_optarg);
                 break;
             case 'L':
                 success = parseForwardTunnel(config, cli_optarg);
                 break;
             case 'n':
-                config->sdkConfig->SetSsl(false);
-                config->sdkConfig->SetInsecure(true);
+                config->SdkConfig->SetSsl(false);
+                config->SdkConfig->SetInsecure(true);
                 break;
             case 's':
-                config->sdkConfig->SetSniServerName(cli_optarg);
+                config->SdkConfig->SetSniServerName(cli_optarg);
                 break;
             case 'r':
-                config->sdkConfig->SetAutoReconnect(true);
+                config->SdkConfig->SetAutoReconnect(true);
                 break;
             case 'a':
-                config->sdkConfig->SetAdvancedParsing(true);
+                config->SdkConfig->SetAdvancedParsing(true);
                 break;
             case 256: // Handling for --config
                 printf("Config option with value: %s\n", cli_optarg);
@@ -316,7 +352,10 @@ parseArguments(int argc, char *argv[])
         exitNow = true;
     }
 
-    if ((cli_optind + 1) < argc) {
+    if (!exitNow)
+        exitNow = !parseReverseTunnel(config);
+
+    if (exitNow && (cli_optind + 1) < argc) {
         exitNow = !(parseSdkArguments(config, argc - (cli_optind + 1), argv + (cli_optind + 1)));
     }
 
@@ -404,27 +443,33 @@ main(int argc, char *argv[]) {
     InitLogWithCout();
     // SetGlobalLogEnable(false);
     ignore_sigpipe();
-    auto config = parseArguments(argc, argv);
-    auto sdkEventHandler = NewClientSdkEventHandlerPtr(config);
-    auto sdk = sdk::NewSdkPtr(config->sdkConfig, sdkEventHandler);
-    sdkEventHandler->sdk = sdk;
+    try {
+        auto config = parseArguments(argc, argv);
+        auto sdkEventHandler = NewClientSdkEventHandlerPtr(config);
+        auto sdk = sdk::NewSdkPtr(config->SdkConfig, sdkEventHandler);
+        sdkEventHandler->sdk = sdk;
 
-    sdk->StartUsagesUpdate();
+        sdk->StartUsagesUpdate();
 
-    sdk->Connect(true);
-    sdk->RequestPrimaryRemoteForwarding(true);
-    for (auto x : config->forwardings) {
-        sdk->RequestAdditionalRemoteForwarding(x.first, x.second);
+        sdk->Connect(true);
+        sdk->RequestPrimaryRemoteForwarding(true);
+        // for (auto x : config->forwardings) {
+        //     sdk->RequestAdditionalRemoteForwarding(x.first, x.second);
+        // }
+
+        sdk->Start();
+
+        if (sdkEventHandler->error != "")
+            std::cout << "Tunnel ended with msg: " << sdkEventHandler->error << std::endl;
+
+        sdk = nullptr;
+        config = nullptr;
+        sdkEventHandler = nullptr;
+    } catch (std::exception &e) {
+        LOGF("Exception occured: ", e.what());
+    } catch(...) {
+        LOGF("Unknown exception occured");
     }
-
-    sdk->Start();
-
-    if (sdkEventHandler->error != "")
-        std::cout << "Tunnel ended with msg: " << sdkEventHandler->error << std::endl;
-
-    sdk = nullptr;
-    config = nullptr;
-    sdkEventHandler = nullptr;
 
     return 0;
 }

@@ -79,11 +79,11 @@ public:
                                 { }
 
     virtual void
-    OnAdditionalForwardingSucceeded(tString bindAddress, tString forwardTo)
+    OnAdditionalForwardingSucceeded(tString bindAddress, tString forwardTo, tString forwardingType)
                                 { }
 
     virtual void
-    OnAdditionalForwardingFailed(tString bindAddress, tString forwardTo, tString error)
+    OnAdditionalForwardingFailed(tString bindAddress, tString forwardTo, tString forwardingType, tString error)
                                 { }
 
     virtual void
@@ -172,7 +172,10 @@ public:
     RequestPrimaryRemoteForwarding(bool block = false);
 
     void
-    RequestAdditionalRemoteForwarding(tString bindAddress, tString forwardTo);
+    RequestAdditionalRemoteForwarding(tString forwardingType, tString bindingUrl, tString forwardTo);
+
+    void
+    RequestAdditionalRemoteForwarding(tString forwardTo);
 
     bool
     IsTunnelActive()            { return (state >= SdkState_Authenticating && (!stopped)); }
@@ -203,7 +206,7 @@ public:
     HandleSessionAuthenticationFailed(tString error, std::vector<tString> OnAuthenticationFailed) override;
 
     virtual void
-    HandleSessionRemoteForwardingSucceeded(protocol::tReqId reqId, std::vector<tString> urls) override;
+    HandleSessionRemoteForwardingSucceeded(protocol::tReqId reqId, tForwardingId forwardingId, std::vector<tString> urls) override;
 
     virtual void
     HandleSessionRemoteForwardingFailed(protocol::tReqId reqId, tString error) override;
@@ -342,7 +345,7 @@ private:
     releaseAccessLock();
 
     void
-    internalRequestAdditionalRemoteForwarding(tString bindAddress, tString forwardTo);
+    internalRequestAdditionalRemoteForwarding(SdkForwardingPtr forwarding);
 
     void
     updateForwardMapWithPrimaryForwarding();
@@ -356,7 +359,7 @@ private:
 
     bool                        running;
 
-    protocol::tReqId            primaryForwardingReqId;
+    // protocol::tReqId            primaryForwardingReqId;
 
     std::vector<tString>        authenticationMsg;
     std::vector<tString>        urls;
@@ -384,9 +387,12 @@ private:
     SdkState                    state;
     SdkState                    reconnectionState;
 
-    std::map<protocol::tReqId, std::tuple<tString, port_t, tString, port_t, tString, tString>> // pendingReqId [remote binding address to localBinding address]
-                                pendingRemoteForwardingMap;
-    std::map<std::tuple<tString, port_t>, std::tuple<tString, port_t>>
+    std::map<protocol::tReqId, SdkForwardingPtr> // pendingReqId [remote binding address to localBinding address]
+                                pendingAdditionalRemoteForwardingMap;
+    std::map<protocol::tReqId, SdkForwardingPtr>
+                                pendingRemoteForwardingRequestMap;
+    // std::map<std::tuple<tString, port_t>, std::tuple<tString, port_t>>
+    std::map<tForwardingId, SdkForwardingPtr>
                                 remoteForwardings;
 
     common::PollableTaskPtr     keepAliveTask;
@@ -400,7 +406,7 @@ private:
 
     std::map<tString, tString>  forwardingMap;
 
-    std::vector<std::tuple<tString, tString>>
+    std::vector<SdkForwardingPtr>
                                 additionalForwardings;
 
     bool                        appHandlesNewChannel;
