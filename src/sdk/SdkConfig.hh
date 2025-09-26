@@ -29,6 +29,7 @@ class Sdk;
 DeclareStructWithSharedPtr(HeaderMod);
 DeclareStructWithSharedPtr(UserPass);
 DeclareStructWithSharedPtr(SDKConfig);
+DeclareStructWithSharedPtr(SdkForwarding);
 
 struct SdkForwarding: virtual public pinggy::SharedObject
 {
@@ -42,9 +43,16 @@ struct SdkForwarding: virtual public pinggy::SharedObject
     TunnelMode                  mode;
     tPort                       bindingPort;
     tString                     bindingDomain;
-    tPort                       localPort;
-    tString                     localHost;
-    tString                     localSchema;
+    tPort                       fwdToPort;
+    tString                     fwdToHost;
+    bool                        localServerTls;
+
+    tString                     origForwardTo;
+    tString                     origBindingUrl;
+    tString                     origForwardingType;
+
+    SdkForwardingPtr
+    Clone();
 };
 DefineMakeSharedPtr(SdkForwarding);
 
@@ -56,20 +64,20 @@ struct SDKConfig: virtual public pinggy::SharedObject
     tString
     GetToken()                  { return token; }
 
-    tString
-    GetMode();
+    // tString
+    // GetMode();
 
-    tString
-    GetUdpMode();
+    // tString
+    // GetUdpMode();
 
     tString
     GetServerAddress()          { return serverAddress ? serverAddress->GetSockAddrString(): ""; }
 
-    tString
-    GetTcpForwardTo()           { return tcpForwardTo ? tcpForwardTo->ToString() : ""; }
+    // tString
+    // GetTcpForwardTo()           { return tcpForwardTo ? tcpForwardTo->ToString() : ""; }
 
-    tString
-    GetUdpForwardTo()           { return udpForwardTo ? udpForwardTo->ToString() : ""; }
+    // tString
+    // GetUdpForwardTo()           { return udpForwardTo ? udpForwardTo->ToString() : ""; }
 
     bool
     IsForce()                   { return force; }
@@ -94,6 +102,11 @@ struct SDKConfig: virtual public pinggy::SharedObject
 
     tUint16
     GetAutoReconnectInterval()  { return autoReconnectInterval; }
+
+    tString //json
+    GetForwardings();
+
+    //============
 
     const tString
     GetHeaderManipulations();
@@ -138,23 +151,23 @@ struct SDKConfig: virtual public pinggy::SharedObject
     void
     SetToken(tString token)     { isAllowed(); this->token = token; }
 
-    void
-    SetMode(tString mode)       { isAllowed(); this->mode = mode; }
+    // void
+    // SetMode(tString mode)       { isAllowed(); this->mode = mode; }
 
-    void
-    SetUdpMode(tString udpMode) { isAllowed(); this->udpMode = udpMode; }
+    // void
+    // SetUdpMode(tString udpMode) { isAllowed(); this->udpMode = udpMode; }
 
     void
     SetServerAddress(UrlPtr serverAddress)
                                 { isAllowed(); this->serverAddress = serverAddress; }
 
-    void
-    SetTcpForwardTo(tString tcpForwardTo)
-                                { isAllowed(); this->tcpForwardTo = tcpForwardTo.empty() ? nullptr : NewUrlPtr(tcpForwardTo);  }
+    // void
+    // SetTcpForwardTo(tString tcpForwardTo)
+    //                             { isAllowed(); this->tcpForwardTo = NewUrlPtr(tcpForwardTo); }
 
-    void
-    SetUdpForwardTo(tString udpForwardTo)
-                                { isAllowed(); this->udpForwardTo = udpForwardTo.empty() ? nullptr : NewUrlPtr(udpForwardTo, 80, "udp"); }
+    // void
+    // SetUdpForwardTo(tString udpForwardTo)
+    //                             { isAllowed(); this->udpForwardTo = NewUrlPtr(udpForwardTo, 80, "udp"); }
 
     void
     SetForce(bool force)        { isAllowed(); this->force = force; }
@@ -187,6 +200,12 @@ struct SDKConfig: virtual public pinggy::SharedObject
 
     void
     AddForwarding(tString forwardingType, tString bindingUrl, tString forwardTo);
+
+    void
+    AddForwarding(tString forwardTo);
+
+    void
+    ResetForwardings()          { sdkForwardingList.clear(); }
     //===============
 
     void
@@ -246,22 +265,22 @@ private:
     //The token and any other parameters as well.
     tString                     token;
 
-    //The tcp tunnel type tcp, tls, tlstcp or http
-    tString                     mode;
+    // //The tcp tunnel type tcp, tls, tlstcp or http
+    // tString                     mode;
 
-    //The udp tunnel type i.e. udp
-    tString                     udpMode;
+    // //The udp tunnel type i.e. udp
+    // tString                     udpMode;
 
     //sshOverSsl does not exists here as it use ssl only, no ssh
 
     // Pinggy server address. It is supposed to be a.pinggy.io or regional server as well.
     UrlPtr                      serverAddress;
 
-    //this TcpForwarding address
-    UrlPtr                      tcpForwardTo;
+    // //this TcpForwarding address
+    // UrlPtr                      tcpForwardTo;
 
-    //this UdpForwarding address
-    UrlPtr                      udpForwardTo;
+    // //this UdpForwarding address
+    // UrlPtr                      udpForwardTo;
 
     //force login. It add `force` as user name
     bool                        force;
@@ -314,6 +333,12 @@ private:
 
     SDKConfigPtr
     clone();
+
+    static SdkForwardingPtr
+    parseForwarding(tString forwardingType, tString bindingUrl, tString forwardTo); // this will be use full later.
+
+    static SdkForwardingPtr
+    parseForwarding(tString forwardTo); // this will be use full later.
 };
 DefineMakeSharedPtr(SDKConfig);
 

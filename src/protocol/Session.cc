@@ -45,6 +45,13 @@ Session::SetSessionVersion(tUint32 version)
     features->SetVersion(version);
 }
 
+tUint32
+Session::GetSessionVersion()
+{
+    Assert(state >= SessionState_Init);
+    return features->GetVersion();
+}
+
 void Session::Start(SessionEventHandlerPtr eventHandler)
 {
     this->eventHandler = eventHandler;
@@ -153,6 +160,12 @@ Session::AuthenticationFailed(tString error, std::vector<tString> messages)
 void
 Session::AcceptRemoteForwardRequest(tReqId reqId, std::vector<tString> urls)
 {
+    AcceptRemoteForwardRequest(reqId, InvalidForwardingId, urls);
+}
+
+void
+Session::AcceptRemoteForwardRequest(tReqId reqId, tForwardingId forwardingId, std::vector<tString> urls)
+{
     if (state != SessionState_AuthenticatedAsServer) {
         ABORT_WITH_MSG("Auth not received yet");
     }
@@ -160,6 +173,7 @@ Session::AcceptRemoteForwardRequest(tReqId reqId, std::vector<tString> urls)
     msg->Success = true;
     msg->ReqId = reqId;
     msg->Urls = urls;
+    msg->ForwardingId = forwardingId;
     sendMsg(msg);
 }
 
@@ -186,13 +200,19 @@ Session::SendKeepAlive()
 
 ChannelPtr
 Session::CreateChannel(tUint16 destPort, tString destHost,
-                        tUint16 srcPort, tString srcHost, tChannelType chanType, TunnelMode mode)
+                        tUint16 srcPort, tString srcHost, tChannelType chanType)
+{
+    return CreateServerSideChannel(destPort, destHost, srcPort, srcHost, chanType, TunnelMode::None, InvalidForwardingId);
+}
+
+ChannelPtr
+Session::CreateServerSideChannel(tUint16 destPort, tString destHost, tUint16 srcPort, tString srcHost, tChannelType chanType, TunnelMode mode, tForwardingId forwardingId)
 {
     Assert(chanType > ChannelType_Invalid && chanType < MaxSupportedChannelType);
 
     auto cPtr                 = new Channel(thisPtr, features);
     auto channel              = NewChannelPtr(cPtr);
-    channel->setChannelInfo(destPort, destHost, srcPort, srcHost, chanType, mode);
+    channel->setChannelInfo(destPort, destHost, srcPort, srcHost, chanType, mode, forwardingId);
 
     return channel;
 }
@@ -296,7 +316,7 @@ Session::HandleIncomingDeserialize(DeserializerPtr deserializer)
                 ABORT_WITH_MSG("Not expected state");
             }
             auto msg = tMsg->DynamicPointerCast<RemoteForwardResponseMsg>();
-            handleRemoteForwardResponse(msg->ReqId, msg->Success, msg->Urls, msg->Error);
+            handleRemoteForwardResponse(msg->ReqId, msg->Success, msg->ForwardingId, msg->Urls, msg->Error);
         }
         break;
 
@@ -565,10 +585,10 @@ Session::registerChannel(ChannelPtr channel)
 }
 
 void
-Session::handleRemoteForwardResponse(tReqId reqId, tUint8 success, std::vector<tString> urls, tString error)
+Session::handleRemoteForwardResponse(tReqId reqId, tUint8 success, tForwardingId forwardingId, std::vector<tString> urls, tString error)
 {
     if (success) {
-        eventHandler->HandleSessionRemoteForwardingSucceeded(reqId, urls);
+        eventHandler->HandleSessionRemoteForwardingSucceeded(reqId, forwardingId, urls);
     } else {
         eventHandler->HandleSessionRemoteForwardingFailed(reqId, error);
     }

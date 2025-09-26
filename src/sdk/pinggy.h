@@ -258,7 +258,7 @@ typedef pinggy_void_t (*pinggy_on_primary_forwarding_failed_cb_t)               
  * @param forward_to_addr The local forwarding address as a string.
  */
 typedef pinggy_void_t (*pinggy_on_additional_forwarding_succeeded_cb_t)         \
-                            (pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_const_char_p_t bind_addr, pinggy_const_char_p_t forward_to_addr);
+                            (pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_const_char_p_t bind_addr, pinggy_const_char_p_t forward_to_addr, pinggy_const_char_p_t forwarding_type);
 
 /**
  * @typedef pinggy_on_additional_forwarding_failed_cb_t
@@ -271,7 +271,7 @@ typedef pinggy_void_t (*pinggy_on_additional_forwarding_succeeded_cb_t)         
  * @param error Error message string.
  */
 typedef pinggy_void_t (*pinggy_on_additional_forwarding_failed_cb_t)            \
-                            (pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_const_char_p_t bind_addr, pinggy_const_char_p_t forward_to_addr, pinggy_const_char_p_t error);
+                            (pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_const_char_p_t bind_addr, pinggy_const_char_p_t forward_to_addr, pinggy_const_char_p_t forwarding_type, pinggy_const_char_p_t error);
 
 /**
  * @typedef pinggy_on_forwarding_changed_cb_t
@@ -478,49 +478,49 @@ pinggy_config_set_server_address(pinggy_ref_t config, pinggy_char_p_t server_add
 PINGGY_EXPORT pinggy_void_t
 pinggy_config_set_token(pinggy_ref_t config, pinggy_char_p_t token);
 
-/**
- * @brief Sets the tunnel type for the configuration.
- *
- * The type must be one of: "tcp", "http", "tls", or "tlstcp".
- *
- * @param config Reference to the tunnel config object.
- * @param type   Null-terminated string specifying the tunnel type.
- */
-PINGGY_EXPORT pinggy_void_t
-pinggy_config_set_type(pinggy_ref_t config, pinggy_char_p_t type);
+// /**
+//  * @brief Sets the tunnel type for the configuration.
+//  *
+//  * The type must be one of: "tcp", "http", "tls", or "tlstcp".
+//  *
+//  * @param config Reference to the tunnel config object.
+//  * @param type   Null-terminated string specifying the tunnel type.
+//  */
+// PINGGY_EXPORT pinggy_void_t
+// pinggy_config_set_type(pinggy_ref_t config, pinggy_char_p_t type);
 
-/**
- * @brief Sets the UDP tunnel type for the configuration.
- *
- * Currently, the UDP type can be "udp" or an empty string.
- *
- * @param config   Reference to the tunnel config object.
- * @param udp_type Null-terminated string specifying the UDP type.
- */
-PINGGY_EXPORT pinggy_void_t
-pinggy_config_set_udp_type(pinggy_ref_t config, pinggy_char_p_t udp_type);
+// /**
+//  * @brief Sets the UDP tunnel type for the configuration.
+//  *
+//  * Currently, the UDP type can be "udp" or an empty string.
+//  *
+//  * @param config   Reference to the tunnel config object.
+//  * @param udp_type Null-terminated string specifying the UDP type.
+//  */
+// PINGGY_EXPORT pinggy_void_t
+// pinggy_config_set_udp_type(pinggy_ref_t config, pinggy_char_p_t udp_type);
 
-/**
- * @brief Sets the local TCP server address for forwarding.
- *
- * Required when the tunnel type is "tcp", "http", "tls", or "tlstcp". The address should be in the format "<server>:<port>".
- *
- * @param config         Reference to the tunnel config object.
- * @param tcp_forward_to Null-terminated string specifying the local TCP server address.
- */
-PINGGY_EXPORT pinggy_void_t
-pinggy_config_set_tcp_forward_to(pinggy_ref_t config, pinggy_char_p_t tcp_forward_to);
+// /**
+//  * @brief Sets the local TCP server address for forwarding.
+//  *
+//  * Required when the tunnel type is "tcp", "http", "tls", or "tlstcp". The address should be in the format "<server>:<port>".
+//  *
+//  * @param config         Reference to the tunnel config object.
+//  * @param tcp_forward_to Null-terminated string specifying the local TCP server address.
+//  */
+// PINGGY_EXPORT pinggy_void_t
+// pinggy_config_set_tcp_forward_to(pinggy_ref_t config, pinggy_char_p_t tcp_forward_to);
 
-/**
- * @brief Sets the local UDP server address for forwarding.
- *
- * Required when the UDP type is set to "udp". The address should be in the format "<server>:<port>".
- *
- * @param config         Reference to the tunnel config object.
- * @param udp_forward_to Null-terminated string specifying the local UDP server address.
- */
-PINGGY_EXPORT pinggy_void_t
-pinggy_config_set_udp_forward_to(pinggy_ref_t config, pinggy_char_p_t udp_forward_to);
+// /**
+//  * @brief Sets the local UDP server address for forwarding.
+//  *
+//  * Required when the UDP type is set to "udp". The address should be in the format "<server>:<port>".
+//  *
+//  * @param config         Reference to the tunnel config object.
+//  * @param udp_forward_to Null-terminated string specifying the local UDP server address.
+//  */
+// PINGGY_EXPORT pinggy_void_t
+// pinggy_config_set_udp_forward_to(pinggy_ref_t config, pinggy_char_p_t udp_forward_to);
 
 /**
  * @brief Enables or disables force mode for the tunnel configuration.
@@ -785,89 +785,89 @@ pinggy_config_get_token(pinggy_ref_t config, pinggy_capa_t buffer_len, pinggy_ch
 PINGGY_EXPORT pinggy_const_int_t
 pinggy_config_get_token_len(pinggy_ref_t config, pinggy_capa_t buffer_len, pinggy_char_p_t buffer, pinggy_capa_p_t max_len);
 
-/**
- * @brief Retrieves the tunnel type (e.g., "tcp", "http") from the tunnel config.
- * @param config      Reference to the tunnel config object.
- * @param buffer_len  Length of the buffer provided for the type string.
- * @param buffer      Pointer to a character array where the type will be copied.
- * @return            Number of bytes copied to the buffer (including null terminator).
- */
-PINGGY_EXPORT pinggy_const_int_t
-pinggy_config_get_type(pinggy_ref_t config, pinggy_capa_t buffer_len, pinggy_char_p_t buffer);
+// /**
+//  * @brief Retrieves the tunnel type (e.g., "tcp", "http") from the tunnel config.
+//  * @param config      Reference to the tunnel config object.
+//  * @param buffer_len  Length of the buffer provided for the type string.
+//  * @param buffer      Pointer to a character array where the type will be copied.
+//  * @return            Number of bytes copied to the buffer (including null terminator).
+//  */
+// PINGGY_EXPORT pinggy_const_int_t
+// pinggy_config_get_type(pinggy_ref_t config, pinggy_capa_t buffer_len, pinggy_char_p_t buffer);
 
-/**
- * @brief Retrieves the tunnel type from the tunnel config, and provides the required buffer size.
- * @param config      Reference to the tunnel config object.
- * @param buffer_len  Length of the buffer provided for the type string.
- * @param buffer      Pointer to a character array where the type will be copied.
- * @param max_len     Pointer to a variable that will be set to the total length required to hold the full type string (including null terminator).
- * @return            Number of bytes copied to the buffer (including null terminator).
- */
-PINGGY_EXPORT pinggy_const_int_t
-pinggy_config_get_type_len(pinggy_ref_t config, pinggy_capa_t buffer_len, pinggy_char_p_t buffer, pinggy_capa_p_t max_len);
+// /**
+//  * @brief Retrieves the tunnel type from the tunnel config, and provides the required buffer size.
+//  * @param config      Reference to the tunnel config object.
+//  * @param buffer_len  Length of the buffer provided for the type string.
+//  * @param buffer      Pointer to a character array where the type will be copied.
+//  * @param max_len     Pointer to a variable that will be set to the total length required to hold the full type string (including null terminator).
+//  * @return            Number of bytes copied to the buffer (including null terminator).
+//  */
+// PINGGY_EXPORT pinggy_const_int_t
+// pinggy_config_get_type_len(pinggy_ref_t config, pinggy_capa_t buffer_len, pinggy_char_p_t buffer, pinggy_capa_p_t max_len);
 
-/**
- * @brief Retrieves the UDP tunnel type from the tunnel config.
- * @param config      Reference to the tunnel config object.
- * @param buffer_len  Length of the buffer provided for the UDP type string.
- * @param buffer      Pointer to a character array where the UDP type will be copied.
- * @return            Number of bytes copied to the buffer (including null terminator).
- */
-PINGGY_EXPORT pinggy_const_int_t
-pinggy_config_get_udp_type(pinggy_ref_t config, pinggy_capa_t buffer_len, pinggy_char_p_t buffer);
+// /**
+//  * @brief Retrieves the UDP tunnel type from the tunnel config.
+//  * @param config      Reference to the tunnel config object.
+//  * @param buffer_len  Length of the buffer provided for the UDP type string.
+//  * @param buffer      Pointer to a character array where the UDP type will be copied.
+//  * @return            Number of bytes copied to the buffer (including null terminator).
+//  */
+// PINGGY_EXPORT pinggy_const_int_t
+// pinggy_config_get_udp_type(pinggy_ref_t config, pinggy_capa_t buffer_len, pinggy_char_p_t buffer);
 
-/**
- * @brief Retrieves the UDP tunnel type from the tunnel config, and provides the required buffer size.
- * @param config      Reference to the tunnel config object.
- * @param buffer_len  Length of the buffer provided for the UDP type string.
- * @param buffer      Pointer to a character array where the UDP type will be copied.
- * @param max_len     Pointer to a variable that will be set to the total length required to hold the full UDP type string (including null terminator).
- * @return            Number of bytes copied to the buffer (including null terminator).
- */
-PINGGY_EXPORT pinggy_const_int_t
-pinggy_config_get_udp_type_len(pinggy_ref_t config, pinggy_capa_t buffer_len, pinggy_char_p_t buffer, pinggy_capa_p_t max_len);
+// /**
+//  * @brief Retrieves the UDP tunnel type from the tunnel config, and provides the required buffer size.
+//  * @param config      Reference to the tunnel config object.
+//  * @param buffer_len  Length of the buffer provided for the UDP type string.
+//  * @param buffer      Pointer to a character array where the UDP type will be copied.
+//  * @param max_len     Pointer to a variable that will be set to the total length required to hold the full UDP type string (including null terminator).
+//  * @return            Number of bytes copied to the buffer (including null terminator).
+//  */
+// PINGGY_EXPORT pinggy_const_int_t
+// pinggy_config_get_udp_type_len(pinggy_ref_t config, pinggy_capa_t buffer_len, pinggy_char_p_t buffer, pinggy_capa_p_t max_len);
 
-/**
- * @brief Retrieves the TCP forwarding address from the tunnel config.
- * @param config      Reference to the tunnel config object.
- * @param buffer_len  Length of the buffer provided for the forwarding address.
- * @param buffer      Pointer to a character array where the forwarding address will be copied.
- * @return            Number of bytes copied to the buffer (including null terminator).
- */
-PINGGY_EXPORT pinggy_const_int_t
-pinggy_config_get_tcp_forward_to(pinggy_ref_t config, pinggy_capa_t buffer_len, pinggy_char_p_t buffer);
+// /**
+//  * @brief Retrieves the TCP forwarding address from the tunnel config.
+//  * @param config      Reference to the tunnel config object.
+//  * @param buffer_len  Length of the buffer provided for the forwarding address.
+//  * @param buffer      Pointer to a character array where the forwarding address will be copied.
+//  * @return            Number of bytes copied to the buffer (including null terminator).
+//  */
+// PINGGY_EXPORT pinggy_const_int_t
+// pinggy_config_get_tcp_forward_to(pinggy_ref_t config, pinggy_capa_t buffer_len, pinggy_char_p_t buffer);
 
-/**
- * @brief Retrieves the TCP forwarding address from the tunnel config, and provides the required buffer size.
- * @param config      Reference to the tunnel config object.
- * @param buffer_len  Length of the buffer provided for the forwarding address.
- * @param buffer      Pointer to a character array where the forwarding address will be copied.
- * @param max_len     Pointer to a variable that will be set to the total length required to hold the full forwarding address (including null terminator).
- * @return            Number of bytes copied to the buffer (including null terminator).
- */
-PINGGY_EXPORT pinggy_const_int_t
-pinggy_config_get_tcp_forward_to_len(pinggy_ref_t config, pinggy_capa_t buffer_len, pinggy_char_p_t buffer, pinggy_capa_p_t max_len);
+// /**
+//  * @brief Retrieves the TCP forwarding address from the tunnel config, and provides the required buffer size.
+//  * @param config      Reference to the tunnel config object.
+//  * @param buffer_len  Length of the buffer provided for the forwarding address.
+//  * @param buffer      Pointer to a character array where the forwarding address will be copied.
+//  * @param max_len     Pointer to a variable that will be set to the total length required to hold the full forwarding address (including null terminator).
+//  * @return            Number of bytes copied to the buffer (including null terminator).
+//  */
+// PINGGY_EXPORT pinggy_const_int_t
+// pinggy_config_get_tcp_forward_to_len(pinggy_ref_t config, pinggy_capa_t buffer_len, pinggy_char_p_t buffer, pinggy_capa_p_t max_len);
 
-/**
- * @brief Retrieves the UDP forwarding address from the tunnel config.
- * @param config      Reference to the tunnel config object.
- * @param buffer_len  Length of the buffer provided for the forwarding address.
- * @param buffer      Pointer to a character array where the forwarding address will be copied.
- * @return            Number of bytes copied to the buffer (including null terminator).
- */
-PINGGY_EXPORT pinggy_const_int_t
-pinggy_config_get_udp_forward_to(pinggy_ref_t config, pinggy_capa_t buffer_len, pinggy_char_p_t buffer);
+// /**
+//  * @brief Retrieves the UDP forwarding address from the tunnel config.
+//  * @param config      Reference to the tunnel config object.
+//  * @param buffer_len  Length of the buffer provided for the forwarding address.
+//  * @param buffer      Pointer to a character array where the forwarding address will be copied.
+//  * @return            Number of bytes copied to the buffer (including null terminator).
+//  */
+// PINGGY_EXPORT pinggy_const_int_t
+// pinggy_config_get_udp_forward_to(pinggy_ref_t config, pinggy_capa_t buffer_len, pinggy_char_p_t buffer);
 
-/**
- * @brief Retrieves the UDP forwarding address from the tunnel config, and provides the required buffer size.
- * @param config      Reference to the tunnel config object.
- * @param buffer_len  Length of the buffer provided for the forwarding address.
- * @param buffer      Pointer to a character array where the forwarding address will be copied.
- * @param max_len     Pointer to a variable that will be set to the total length required to hold the full forwarding address (including null terminator).
- * @return            Number of bytes copied to the buffer (including null terminator).
- */
-PINGGY_EXPORT pinggy_const_int_t
-pinggy_config_get_udp_forward_to_len(pinggy_ref_t config, pinggy_capa_t buffer_len, pinggy_char_p_t buffer, pinggy_capa_p_t max_len);
+// /**
+//  * @brief Retrieves the UDP forwarding address from the tunnel config, and provides the required buffer size.
+//  * @param config      Reference to the tunnel config object.
+//  * @param buffer_len  Length of the buffer provided for the forwarding address.
+//  * @param buffer      Pointer to a character array where the forwarding address will be copied.
+//  * @param max_len     Pointer to a variable that will be set to the total length required to hold the full forwarding address (including null terminator).
+//  * @return            Number of bytes copied to the buffer (including null terminator).
+//  */
+// PINGGY_EXPORT pinggy_const_int_t
+// pinggy_config_get_udp_forward_to_len(pinggy_ref_t config, pinggy_capa_t buffer_len, pinggy_char_p_t buffer, pinggy_capa_p_t max_len);
 
 /**
  * @brief Checks whether the force mode is enabled in the tunnel config.
@@ -1238,11 +1238,12 @@ pinggy_tunnel_request_primary_forwarding_blocking(pinggy_ref_t tunnel);
  * @brief Requests additional remote forwarding from the server.
  *
  * @param tunnel              Reference to the tunnel object.
- * @param remote_binding_addr Null-terminated string specifying the remote binding address.
+ * @param remote_binding_url  Null-terminated string specifying the remote binding address. It can contain schema. `forwarding_type` would be derived from the schema if it is empty.
  * @param forward_to          Null-terminated string specifying the local forwarding address.
+ * @param forwarding_type     It is equivalen to tunnel_type. It can be one of [http, tcp, tls, tlstcp, udp]
  */
 PINGGY_EXPORT pinggy_void_t
-pinggy_tunnel_request_additional_forwarding(pinggy_ref_t, pinggy_const_char_p_t, pinggy_const_char_p_t);
+pinggy_tunnel_request_additional_forwarding(pinggy_ref_t tunnel, pinggy_const_char_p_t remote_binding_url, pinggy_const_char_p_t forward_to, pinggy_const_char_p_t forwarding_type);
 
 /**
  * @brief Starts continuous usage updates for the tunnel.

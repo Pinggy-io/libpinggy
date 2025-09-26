@@ -16,6 +16,36 @@
 
 #include "TunnelCommon.hh"
 #include "StringUtils.hh"
+#include <iostream>
+
+std::ostream &
+operator<<(std::ostream &os, TunnelMode m)
+{
+    switch (m) {
+        case TunnelMode::None:
+            os << "None";
+            break;
+        case TunnelMode::HTTP:
+            os << TunnelType_HTTP;
+            break;
+        case TunnelMode::TCP:
+            os << TunnelType_TCP;
+            break;
+        case TunnelMode::TLS:
+            os << TunnelType_TLS;
+            break;
+        case TunnelMode::TLSTCP:
+            os << TunnelType_TLSTCP;
+            break;
+        case TunnelMode::UDP:
+            os << TunnelType_UDP;
+            break;
+        default:
+            os << TunnelType_Unknown;
+    }
+    os << "("<<(tUint16)m<<")";
+    return os;
+}
 
 TunnelMode
 TunnelModeFromString(tString modeStr)
