@@ -344,6 +344,10 @@ SslConnectionListener::HandleFDErrorWPtr(PollableFDPtr pollableFD, pinggy::VoidP
     return 0;
 }
 
+/**
+ * It would accept connection asynchronously and call HandleAcceptedSslConnection on success.
+ * There is no call back on failure. It would silently close the connection.
+ */
 void
 SslConnectionListener::AcceptSslAsync(NetworkConnectionPtr netConn, pinggy::VoidPtr ptr)
 {

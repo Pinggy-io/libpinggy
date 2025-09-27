@@ -67,11 +67,14 @@ extern "C" {
 union tConnType {
     struct {
         tUint64                 Enabled:1; // 1
+
+
         tUint64                 padding1:1; // 2
 
         tUint64                 HandlerType:2; // 4
 #define ConnType_H_Visitor      0
 #define ConnType_H_Client       1
+
         tUint64                 padding2:4; // 8
 
         tUint64                 SourceType:5; // 13
@@ -84,6 +87,8 @@ union tConnType {
 #define ConnType_Src_Redirect   5
 #define ConnType_Src_Dashboard  6
 #define ConnType_Src_BashUsages 7
+
+
         tUint64                 padding5:3; // 16
 
         tUint64                 ContentType:5; // 21
@@ -93,6 +98,10 @@ union tConnType {
 #define ConnType_Cnt_Ssh        3 //connection starts with ssh
 #define ConnType_Cnt_Pinggy     4 //connection starts with PINGGY
 #define ConnType_Cnt_Relay      5 //connection starts with RLPINGGY
+#define ConnType_Cnt_ConnectProxy \
+                                6
+
+
         tUint64                 padding6:3; // 24
 
         tUint64                 ProtocolType:4; //28

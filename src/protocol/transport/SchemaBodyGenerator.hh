@@ -18,6 +18,7 @@
 #define __SRC_CPP_PROTOCOL_TRANSPORT_SCHEMABODYGENERATOR_HH__
 
 #include "SchemaHeaderGenerator.hh"
+#include <algorithm>
 
 //==============================================================================
 //    Define exception
@@ -353,7 +354,53 @@ static void Deflate(SerializerPtr serializer, cls##Ptr objPtr)                  
 }                                                                               \
 static void Inflate(DeserializerPtr deserializer, cls##Ptr &objPtr)             \
 {                                                                               \
+    objPtr = New##cls##Ptr();                                                   \
     APP_MACRO_FOR_EACH_FORNT(_TRANSPORT_VAR_DESERIALIZER_PTR_v1, __VA_ARGS__)   \
+}
+
+
+#define DEFINE_TRANSPORT_SERIALIZER_DESERIALIZER_ENUM_CAST(type, cast, default) \
+static void                                                                     \
+Deflate(SerializerPtr serializer, type mode)                                    \
+{                                                                               \
+    serializer->Serialize("v", (castTo)mode);                                   \
+}                                                                               \
+static void                                                                     \
+Inflate(DeserializerPtr deserializer, type &mode)                               \
+{                                                                               \
+    castTo v = default;                                                         \
+    deserializer->Deserialize("v", v);                                          \
+    mode = (type)v;                                                             \
+}
+
+
+#define DEFINE_TRANSPORT_SERIALIZER_DESERIALIZER_ENUM_TYPE(type, type2, ...)    \
+static void                                                                     \
+Deflate(SerializerPtr serializer, type e)                                       \
+{                                                                               \
+    static_assert(std::is_enum<type>::value, TO_STR(type) " must be an enum!"); \
+    static const std::pair<type, type2> m[] = {                                 \
+        __VA_ARGS__                                                             \
+    };                                                                          \
+    auto it = std::find_if(std::begin(m), std::end(m),                          \
+                        [e](const std::pair<type, type2> &ej_pair) ->           \
+                            bool { return ej_pair.first == e; });               \
+    auto v = ((it != std::end(m)) ? it : std::begin(m))->second;                \
+    serializer->Serialize("v", v); \
+}                                                                               \
+static void                                                                     \
+Inflate(DeserializerPtr deserializer, type &e)                                  \
+{                                                                               \
+    static_assert(std::is_enum<type>::value, TO_STR(type) " must be an enum!"); \
+    type2 v;                                                                    \
+    deserializer->Deserialize("v", v);                                          \
+    static const std::pair<type, type2> m[] = {                                 \
+        __VA_ARGS__                                                             \
+    };                                                                          \
+    auto it = std::find_if(std::begin(m), std::end(m),                          \
+                        [v](const std::pair<type, type2> &ej_pair) ->           \
+                            bool { return ej_pair.second == v; });              \
+    e = ((it != std::end(m)) ? it : std::begin(m))->first;                      \
 }
 
 

@@ -17,36 +17,47 @@
 #include "Session.hh"
 #include "Channel.hh"
 
+
 namespace protocol
 {
 
-Session::Session(net::NetworkConnectionPtr netConn, bool asServer):
-        netConn(netConn),
-        serverMode(asServer),
-        state(SessionState_Init),
-        lastReqId(1023),
-        endSent(false),
-        keepAliveSentTick(0),
-        incomingActivities(false)
+Session::Session(net::NetworkConnectionPtr netConn, common::PollControllerPtr pollController, bool asServer):
+            netConn(netConn),
+            serverMode(asServer),
+            state(SessionState_Init),
+            lastReqId(1023),
+            endSent(false),
+            keepAliveSentTick(0),
+            incomingActivities(false),
+            pollController(pollController)
 {
     lastChannelId = 4;
     if (asServer)
         lastChannelId += 1;
     lastReqId = 3;
+    features = NewSessionFeaturesPtr(PINGGY_SESSION_VERSION);
 }
 
 void
-Session::Start(SessionEventHandlerPtr eventHandler)
+Session::SetSessionVersion(tUint32 version)
+{
+    Assert(state == SessionState_Init);
+    features->SetVersion(version);
+}
+
+void Session::Start(SessionEventHandlerPtr eventHandler)
 {
     this->eventHandler = eventHandler;
     transportManager = NewTransportManagerPtr(netConn, thisPtr);
     netConn->RegisterFDEvenHandler(transportManager);
     if (serverMode) {
         auto serverHello = NewServerHelloMsgPtr();
+        serverHello->Version = features->GetVersion();
         sendMsg(serverHello);
         state = SessionState_ServerHelloSent;
     } else {
         auto clientHello = NewClientHelloMsgPtr();
+        clientHello->Version = features->GetVersion();
         sendMsg(clientHello);
         state = SessionState_ClientHelloSent;
     }
@@ -92,7 +103,7 @@ Session::AuthenticateAsClient(tString user, tString arguments, bool advanceParsi
 }
 
 tReqId
-Session::SendRemoteForwardRequest(tInt16 listeningPort, tString listeningHost, tInt16 forwardingPort, tString forwardingHost)
+Session::SendRemoteForwardRequest(tInt16 listeningPort, tString listeningHost, tInt16 forwardingPort, tString forwardingHost, TunnelMode mode)
 {
     if (state != SessionState_AuthenticatedAsClient) {
         ABORT_WITH_MSG("You are not allowed to authenticate as client");
@@ -104,13 +115,14 @@ Session::SendRemoteForwardRequest(tInt16 listeningPort, tString listeningHost, t
     msg->ListeningPort = listeningPort;
     msg->ForwardingHost = forwardingHost;
     msg->ForwardingPort = forwardingPort;
+    msg->Mode = mode;
 
     sendMsg(msg);
     return msg->ReqId;
 }
 
 void
-Session::AuthenticationSucceeded(std::vector<tString> messages)
+Session::AuthenticationSucceeded(std::vector<tString> messages, TunnelInfoPtr info)
 {
     if (state != SessionState_AuthenticationRequestRecved) {
         ABORT_WITH_MSG("Auth not received yet");
@@ -118,6 +130,7 @@ Session::AuthenticationSucceeded(std::vector<tString> messages)
     auto msg = NewAuthenticationResponseMsgPtr();
     msg->Success = true;
     msg->Messages = messages;
+    msg->TunnelInfo = info;
     state = SessionState_AuthenticatedAsServer;
 
     sendMsg(msg);
@@ -173,15 +186,23 @@ Session::SendKeepAlive()
 
 ChannelPtr
 Session::CreateChannel(tUint16 destPort, tString destHost,
-                        tUint16 srcPort, tString srcHost, tChannelType chanType)
+                        tUint16 srcPort, tString srcHost, tChannelType chanType, TunnelMode mode)
 {
     Assert(chanType > ChannelType_Invalid && chanType < MaxSupportedChannelType);
 
-    auto cPtr                 = new Channel(thisPtr);
+    auto cPtr                 = new Channel(thisPtr, features);
     auto channel              = NewChannelPtr(cPtr);
-    channel->setChannelInfo(destPort, destHost, srcPort, srcHost, chanType);
+    channel->setChannelInfo(destPort, destHost, srcPort, srcHost, chanType, mode);
 
     return channel;
+}
+
+void
+Session::SendUsages(ClientSpecificUsagesPtr usage)
+{
+    auto msg = NewUsagesMsgPtr();
+    msg->Usages = usage;
+    sendMsg(msg);
 }
 
 void
@@ -214,6 +235,8 @@ Session::HandleIncomingDeserialize(DeserializerPtr deserializer)
             if (state != SessionState_ClientHelloSent)
                 ABORT_WITH_MSG("Not expected state");
 
+            auto msg = tMsg->DynamicPointerCast<ServerHelloMsg>();
+            features->NegotiateVersion(msg->Version);
             eventHandler->HandleSessionInitiated();
         }
         break;
@@ -223,6 +246,8 @@ Session::HandleIncomingDeserialize(DeserializerPtr deserializer)
             if (state != SessionState_ServerHelloSent)
                 ABORT_WITH_MSG("Not expected state");
 
+            auto msg = tMsg->DynamicPointerCast<ClientHelloMsg>();
+            features->NegotiateVersion(msg->Version);
             eventHandler->HandleSessionInitiated();
         }
         break;
@@ -246,7 +271,7 @@ Session::HandleIncomingDeserialize(DeserializerPtr deserializer)
             auto msg = tMsg->DynamicPointerCast<AuthenticationResponseMsg>();
             if (msg->Success) {
                 state = SessionState_AuthenticatedAsClient;
-                eventHandler->HandleSessionAuthenticatedAsClient(msg->Messages);
+                eventHandler->HandleSessionAuthenticatedAsClient(msg->Messages, msg->TunnelInfo);
             } else {
                 state = SessionState_AuthenticationFailed;
                 eventHandler->HandleSessionAuthenticationFailed(msg->Error, msg->Messages);
@@ -261,7 +286,7 @@ Session::HandleIncomingDeserialize(DeserializerPtr deserializer)
             }
             auto msg = tMsg->DynamicPointerCast<RemoteForwardRequestMsg>();
             eventHandler->HandleSessionRemoteForwardRequest(msg->ReqId, msg->ListeningPort,
-                            msg->Bind, msg->ForwardingPort, msg->ForwardingHost);
+                            msg->Bind, msg->ForwardingPort, msg->ForwardingHost, (TunnelMode)msg->Mode);
         }
         break;
 
@@ -291,6 +316,7 @@ Session::HandleIncomingDeserialize(DeserializerPtr deserializer)
             auto msg = tMsg->DynamicPointerCast<SetupChannelResponseMsg>();
             if (channels.find(msg->ChannelId) == channels.end()) {
                 // sendWarningMsg(0, "Unknown channel id " + std::to_string(msg->ChannelId) + " " + std::to_string(__LINE__));
+                LOGD("Ignoring channel setup response as it is not registered: ", msg->ChannelId);
                 break;
             }
             auto channel = channels.at(msg->ChannelId);
@@ -305,6 +331,7 @@ Session::HandleIncomingDeserialize(DeserializerPtr deserializer)
             auto msg = tMsg->DynamicPointerCast<ChannelDataMsg>();
             if (channels.find(msg->ChannelId) == channels.end()) {
                 // sendWarningMsg(0, "Unknown channel id " + std::to_string(msg->ChannelId) + " " + std::to_string(__LINE__));
+                LOGD("Ignoring channel data as it is not registered: ", msg->ChannelId);
                 break;
             }
             auto channel = channels.at(msg->ChannelId);
@@ -318,6 +345,7 @@ Session::HandleIncomingDeserialize(DeserializerPtr deserializer)
                 ABORT_WITH_MSG("Not expected state");
             auto msg = tMsg->DynamicPointerCast<ChannelWindowAdjustMsg>();
             if (channels.find(msg->ChannelId) == channels.end()) {
+                LOGD("Ignoring channel window adjust as it is not registered: ", msg->ChannelId);
                 // sendWarningMsg(0, "Unknown channel id " + std::to_string(msg->ChannelId) + " " + std::to_string(__LINE__));
                 break;
             }
@@ -332,6 +360,7 @@ Session::HandleIncomingDeserialize(DeserializerPtr deserializer)
                 ABORT_WITH_MSG("Not expected state");
             auto msg = tMsg->DynamicPointerCast<ChannelCloseMsg>();
             if (channels.find(msg->ChannelId) == channels.end()) {
+                LOGD("Ignoring channel close as it is not registered: ", msg->ChannelId);
                 // sendWarningMsg(0, "Unknown channel id " + std::to_string(msg->ChannelId) + " " + std::to_string(__LINE__));
                 break;
             }
@@ -388,6 +417,14 @@ Session::HandleIncomingDeserialize(DeserializerPtr deserializer)
             auto msg = tMsg->DynamicPointerCast<DisconnectMsg>();
             endReason = msg->Reason;
             eventHandler->HandleSessionDisconnection(msg->Reason);
+        }
+        break;
+
+        case MsgType_Usages:
+        {
+            auto msg = tMsg->DynamicPointerCast<UsagesMsg>();
+            auto usages = msg->Usages;
+            eventHandler->HandleSessionUsages(usages);
         }
         break;
 
@@ -509,7 +546,7 @@ void
 Session::deregisterChannel(ChannelPtr channel)
 {
     if (channels.find(channel->channelId) == channels.end()) {
-        ABORT_WITH_MSG("Channel does not exists");
+        Assert(false && "Channel does not exists");
         return;
     }
 
@@ -544,9 +581,11 @@ Session::handleNewChannel(SetupChannelMsgPtr msg)
     tString rejectMsg = "";
     if (!validRemoteChannel(msg->ChannelId)) {
         rejectMsg += "Invalid channelId " + std::to_string(msg->ChannelId) + ". ";
+        LOGD("Rejecting channel due to invalid channelId: ", msg->ChannelId);
     }
     if (chanType <= ChannelType_Invalid || chanType >= MaxSupportedChannelType) {
         rejectMsg += "Unknown channel type" + std::to_string(msg->ChannelType) + ". " + " " + std::to_string(__LINE__);
+        LOGD("Rejecting channel due to unsuppoted channel type: ", chanType);
     }
     if (!rejectMsg.empty()) {
         auto chMsg          = NewSetupChannelResponseMsgPtr();
@@ -557,10 +596,20 @@ Session::handleNewChannel(SetupChannelMsgPtr msg)
         return;
     }
 
-    auto channel                = NewChannelPtr(new Channel(thisPtr));
+    LOGT("New channel request received: ", msg->ChannelId, msg->ConnectToPort);
+
+    auto channel            = NewChannelPtr(new Channel(thisPtr, features));
     channel->initiateIncomingChannel(msg);
 
     eventHandler->HandleSessionNewChannelRequest(channel);
+}
+
+common::PollableTaskPtr
+Session::setupChannelCloseTimeout(ChannelPtr channel)
+{
+    if (!pollController) return nullptr;
+
+    return pollController->SetTimeout(10*SECOND, channel, &Channel::closeTimeoutTriggered);
 }
 
 } // namespace protocol

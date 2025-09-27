@@ -23,6 +23,14 @@
 #include "Channel.hh"
 #include "Schema.hh"
 #include <queue>
+#include "SessionFeatures.hh"
+#include <poll/PinggyPoll.hh>
+
+/*
+ Version to features map:
+ 0x00: simple channel
+ 0x01: Expect close in response to Reject
+ */
 
 namespace protocol
 {
@@ -53,7 +61,7 @@ public:
                                 { return false; }
 
     virtual void
-    HandleSessionAuthenticatedAsClient(std::vector<tString> messages)
+    HandleSessionAuthenticatedAsClient(std::vector<tString> messages, TunnelInfoPtr)
                                 { }
 
     virtual void
@@ -61,7 +69,8 @@ public:
                                 { ABORT_WITH_MSG("Not implemented"); }
 
     virtual void
-    HandleSessionRemoteForwardRequest(tReqId reqId, tInt16 listeningPort, tString listeningHost, tInt16 forwardingPort, tString forwardingHost)
+    HandleSessionRemoteForwardRequest(tReqId reqId, tPort listeningPort, tString listeningHost,
+                                        tPort forwardingPort, tString forwardingHost, TunnelMode mode)
                                 { ABORT_WITH_MSG("Not implemented"); }
 
     virtual void
@@ -95,16 +104,23 @@ public:
     virtual void
     HandleSessionConnectionReset()
                                 { ABORT_WITH_MSG("Not implemented"); }
+
+    virtual void
+    HandleSessionUsages(ClientSpecificUsagesPtr usages)
+                                { ABORT_WITH_MSG("Not implemented"); }
 };
 DeclareSharedPtr(SessionEventHandler);
 
 class Session: virtual public TransportManagerEventHandler
 {
 public:
-    Session(net::NetworkConnectionPtr netConn, bool asServer=false);
+    Session(net::NetworkConnectionPtr netConn, common::PollControllerPtr pollController = nullptr, bool asServer=false);
 
     virtual
     ~Session()                  { }
+
+    void
+    SetSessionVersion(tUint32 version);
 
     virtual void
     Start(SessionEventHandlerPtr eventHandler);
@@ -119,10 +135,10 @@ public:
     AuthenticateAsClient(tString user, tString arguments, bool advanceParsing = true);
 
     virtual tReqId
-    SendRemoteForwardRequest(tInt16 listeningPort, tString listeningHost, tInt16 forwardingPort, tString forwardingHost);
+    SendRemoteForwardRequest(tInt16 listeningPort, tString listeningHost, tInt16 forwardingPort, tString forwardingHost, TunnelMode mode = TunnelMode::None);
 
     virtual void
-    AuthenticationSucceeded(std::vector<tString> messages);
+    AuthenticationSucceeded(std::vector<tString> messages, TunnelInfoPtr info);
 
     virtual void
     AuthenticationFailed(tString error, std::vector<tString> messages);
@@ -136,9 +152,18 @@ public:
     virtual tUint64
     SendKeepAlive();
 
+    /**
+     * @brief Create a channel with destination host and destination port
+     * @param destPort When server request a channel, destPort is the port client requested to bind. Otherwise it means where to connect to.
+     * @param destHost Similarly, When server request a channel, destHost is the host clint requested to bind.
+     * @param srcPort Origin port of the connection.
+     * @param srcHost Origin host of the connection.
+     * @param chanType TCP or UDP
+     * @return
+     */
     virtual ChannelPtr
-    CreateChannel(tUint16 destPort, tString destHost,
-                    tUint16 srcPort, tString srcHost, tChannelType chanType = ChannelType_Stream);
+    CreateChannel(tUint16 destPort, tString destHost, tUint16 srcPort, tString srcHost,
+                    tChannelType chanType = ChannelType_Stream, TunnelMode mode = TunnelMode::None);
 
     virtual tString
     GetMessage()                { return endReason; }
@@ -147,10 +172,23 @@ public:
     SendError(tString msg)      { sendErrorMsg(0, msg, true); }
 
     virtual void
+    SendUsages(ClientSpecificUsagesPtr usage);
+
+    virtual void
     ResetIncomingActivities()   { incomingActivities = false; }
 
     virtual bool
     IsThereIncomingActivities() { return incomingActivities; }
+
+    bool
+    IsImplicitUsages()          { return features->IsImplicitUsages(); }
+
+    bool
+    IsImplicitGreeting()        { return features->IsImplicitGreeting(); }
+
+    bool
+    IsPrimaryForwardingModeEnabled()
+                                { return features->IsPrimaryForwardingModeEnabled();}
 
 // TransportManagerEventHandler
     virtual void
@@ -196,6 +234,9 @@ private:
     void
     handleNewChannel(SetupChannelMsgPtr newChannelMsg);
 
+    common::PollableTaskPtr
+    setupChannelCloseTimeout(ChannelPtr);
+
     friend class                Channel;
 
     net::NetworkConnectionPtr   netConn;
@@ -214,6 +255,9 @@ private:
     tString                     endReason;
     tUint64                     keepAliveSentTick;
     bool                        incomingActivities;
+    SessionFeaturesPtr          features;
+    common::PollControllerPtr   pollController;
+
 };
 DefineMakeSharedPtr(Session);
 
