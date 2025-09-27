@@ -20,6 +20,15 @@
 
 #include <platform/SharedPtr.hh>
 
+
+
+#define TunnelType_None     ""
+#define TunnelType_HTTP     "http"
+#define TunnelType_TCP      "tcp"
+#define TunnelType_TLS      "tls"
+#define TunnelType_TLSTCP   "tlstcp"
+#define TunnelType_UDP      "udp"
+
 enum class TunnelMode {
     None    = 0,
     HTTP    = 1<<0,

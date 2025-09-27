@@ -18,6 +18,7 @@
 #include <utils/StringUtils.hh>
 #include <utils/Json.hh>
 #include <platform/Log.hh>
+#include <utils/TunnelCommon.hh>
 #include "SdkException.hh"
 
 namespace sdk
@@ -66,13 +67,6 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_CUSTOME_NEW_PTR1(UserPass,
     username,
     password
 );
-
-#define TunnelType_None     ""
-#define TunnelType_HTTP     "http"
-#define TunnelType_TCP      "tcp"
-#define TunnelType_TLS      "tls"
-#define TunnelType_TLSTCP   "tlstcp"
-#define TunnelType_UDP      "udp"
 
 SDKConfig::SDKConfig():
     force(false),

@@ -157,7 +157,7 @@ Channel::Connect()
     msg->ConnectToPort      = destPort;
     msg->SrcHost            = srcHost;
     msg->SrcPort            = srcPort;
-    msg->Mode               = (tUint8)mode;
+    msg->Mode               = mode;
     msg->ChannelType        = chanType;
     msg->InitialWindowSize  = localWindow;
     msg->MaxDataSize        = localMaxPacket;

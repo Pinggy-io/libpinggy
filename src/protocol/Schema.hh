@@ -94,7 +94,7 @@ enum tChannelType {
         (tString,                   Bind,               "",                         1), \
         (tInt16,                    ForwardingPort,     0,                          1), \
         (tString,                   ForwardingHost,     "",                         1), \
-        (tInt8,                     Mode,               (tInt8)TunnelMode::None,    1)  \
+        (TunnelMode,                Mode)                                               \
     )                                                                                   \
     f(RemoteForwardResponse,                                                            \
         arg,                                                                            \
@@ -112,7 +112,7 @@ enum tChannelType {
         (tString,                   ConnectToHost,      "",                         1), \
         (tUint16,                   SrcPort,            0,                          1), \
         (tString,                   SrcHost,            "",                         1), \
-        (tInt8,                     Mode,               (tInt8)TunnelMode::None,    1), \
+        (TunnelMode,                Mode),                                              \
         (tInt8,                     ChannelType,        ChannelType_Stream,         1), \
         (tUint32,                   InitialWindowSize,  0,                          1), \
         (tUint32,                   MaxDataSize,        0,                          1)  \

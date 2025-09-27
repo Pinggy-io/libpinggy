@@ -115,7 +115,7 @@ Session::SendRemoteForwardRequest(tInt16 listeningPort, tString listeningHost, t
     msg->ListeningPort = listeningPort;
     msg->ForwardingHost = forwardingHost;
     msg->ForwardingPort = forwardingPort;
-    msg->Mode = (tUint8)mode;
+    msg->Mode = mode;
 
     sendMsg(msg);
     return msg->ReqId;
