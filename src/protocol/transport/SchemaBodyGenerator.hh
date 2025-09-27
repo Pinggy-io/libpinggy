@@ -379,9 +379,7 @@ static void                                                                     
 Deflate(SerializerPtr serializer, type e)                                       \
 {                                                                               \
     static_assert(std::is_enum<type>::value, TO_STR(type) " must be an enum!"); \
-    static const std::pair<type, type2> m[] = {                                 \
-        __VA_ARGS__                                                             \
-    };                                                                          \
+    static const std::pair<type, type2> m[] = __VA_ARGS__;                      \
     auto it = std::find_if(std::begin(m), std::end(m),                          \
                         [e](const std::pair<type, type2> &ej_pair) ->           \
                             bool { return ej_pair.first == e; });               \
@@ -394,9 +392,7 @@ Inflate(DeserializerPtr deserializer, type &e)                                  
     static_assert(std::is_enum<type>::value, TO_STR(type) " must be an enum!"); \
     type2 v;                                                                    \
     deserializer->Deserialize("v", v);                                          \
-    static const std::pair<type, type2> m[] = {                                 \
-        __VA_ARGS__                                                             \
-    };                                                                          \
+    static const std::pair<type, type2> m[] = __VA_ARGS__;                      \
     auto it = std::find_if(std::begin(m), std::end(m),                          \
                         [v](const std::pair<type, type2> &ej_pair) ->           \
                             bool { return ej_pair.second == v; });              \

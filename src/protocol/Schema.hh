@@ -101,6 +101,8 @@ enum tChannelType {
         (tMsgId,                    MsgId,              0),                             \
         (tReqId,                    ReqId,              0,                          1), \
         (tForwardingId,             ForwardingId,       InvalidForwardingId,        1), \
+        (std::vector<RemoteForwardingPtr>,                                              \
+                                    RemoteForwardings),                                 \
         (tUint8,                    Success,            0,                          1), \
         (std::vector<tString>,      Urls),                                              \
         (tString,                   Error,              "",                         1)  \

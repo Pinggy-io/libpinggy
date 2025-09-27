@@ -17,6 +17,17 @@
 #include "TunnelCommon.hh"
 #include "StringUtils.hh"
 #include <iostream>
+#include <utils/Json.hh>
+
+NLOHMANN_JSON_SERIALIZE_ENUM_PINGGY(TunnelMode, tString, TUNNEL_MODE_FIELDS_MAP)
+
+
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_CUSTOME_NEW_PTR(RemoteForwarding,
+                                (),
+                                (Mode, mode),
+                                (ForwardTo, forwardTo),
+                                (RemoteBindings, remoteBindings)
+                            )
 
 std::ostream &
 operator<<(std::ostream &os, TunnelMode m)

@@ -486,7 +486,8 @@ Sdk::HandleSessionAuthenticationFailed(tString error, std::vector<tString> authe
 }
 
 void
-Sdk::HandleSessionRemoteForwardingSucceeded(protocol::tReqId reqId, tForwardingId forwardingId, std::vector<tString> urls)
+Sdk::HandleSessionRemoteForwardingSucceeded(protocol::tReqId reqId, tForwardingId forwardingId, std::vector<tString> urls,
+                                            std::vector<RemoteForwardingPtr> remoteForwardings)
 {
     LOGT("Remote Fowarding succeeded");
 
@@ -504,12 +505,12 @@ Sdk::HandleSessionRemoteForwardingSucceeded(protocol::tReqId reqId, tForwardingI
         if (urls.size() > 0) //it would come with the primary forwarding only
             this->urls = urls;
 
-        if (remoteForwardings.find(forwardingId) != remoteForwardings.end()) {
+        if (sdkForwardings.find(forwardingId) != sdkForwardings.end()) {
             ABORT_WITH_MSG("This not supposed to happen"); //cannot test it ever
             return;
         }
 
-        remoteForwardings[forwardingId] = elem->second;
+        sdkForwardings[forwardingId] = elem->second;
 
         pendingRemoteForwardingRequestMap.erase(elem);
 
@@ -523,7 +524,7 @@ Sdk::HandleSessionRemoteForwardingSucceeded(protocol::tReqId reqId, tForwardingI
         // Probably 5 second is not a lot. But, we want it to fail soon.
         LOGD("Primary forwarding done");
 
-        updateForwardMapWithPrimaryForwarding();
+        updateForwardMap(remoteForwardings);
 
         return;
     }
@@ -537,14 +538,14 @@ Sdk::HandleSessionRemoteForwardingSucceeded(protocol::tReqId reqId, tForwardingI
     auto forwarding = elem2->second;
     pendingAdditionalRemoteForwardingMap.erase(reqId);
 
-    if (remoteForwardings.find(forwardingId) != remoteForwardings.end()) {
+    if (sdkForwardings.find(forwardingId) != sdkForwardings.end()) {
         ABORT_WITH_MSG("This not supposed to happen"); //cannot test it ever
         return;
     }
 
-    remoteForwardings[forwardingId] = forwarding;
+    sdkForwardings[forwardingId] = forwarding;
 
-    updateForwardMapWithAdditionalForwarding();
+    updateForwardMap(remoteForwardings);
 
     if (eventHandler && !reconnectNow) {
         eventHandler->OnAdditionalForwardingSucceeded(forwarding->origBindingUrl, forwarding->origForwardTo, forwarding->origForwardingType);
@@ -593,12 +594,12 @@ Sdk::HandleSessionNewChannelRequest(protocol::ChannelPtr channel)
     auto chanType = channel->GetType();
 
     auto forwardingId = channel->GetForwardingId();
-    if (remoteForwardings.find(forwardingId) == remoteForwardings.end()) {
+    if (sdkForwardings.find(forwardingId) == sdkForwardings.end()) {
         channel->Reject("Unknown forwarding");
         return;
     }
 
-    auto forwarding = remoteForwardings[forwardingId];
+    auto forwarding = sdkForwardings[forwardingId];
     auto toHost = forwarding->fwdToHost;
     auto toPort = forwarding->fwdToPort;
 
@@ -1274,30 +1275,12 @@ Sdk::internalRequestAdditionalRemoteForwarding(SdkForwardingPtr forwarding)
 }
 
 void
-Sdk::updateForwardMapWithPrimaryForwarding()
+Sdk::updateForwardMap(std::vector<RemoteForwardingPtr> remoteForwardings)
 {
     if (eventHandler) {
         tString changedUrls;
         try {
-            std::map<tString, std::vector<tString>> changedUrlsMap {{"DEFAULT", urls}};
-            json j = changedUrlsMap;
-            changedUrls = j.dump();
-        } catch(...) {
-        }
-        eventHandler->OnForwardingChanged(changedUrls);
-    }
-}
-
-void
-Sdk::updateForwardMapWithAdditionalForwarding()
-{
-    // for the time being this two things are exactly same.
-    // however, this might change in the future.
-    if (eventHandler) {
-        tString changedUrls;
-        try {
-            std::map<tString, std::vector<tString>> changedUrlsMap {{"DEFAULT", urls}};
-            json j = changedUrlsMap;
+            json j = remoteForwardings;
             changedUrls = j.dump();
         } catch(...) {
         }

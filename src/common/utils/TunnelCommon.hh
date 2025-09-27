@@ -20,6 +20,7 @@
 
 #include <platform/SharedPtr.hh>
 #include <vector>
+#include <utils/JsonH.hh>
 
 typedef tUint16 tForwardingId;
 
@@ -43,15 +44,6 @@ typedef tUint16 tForwardingId;
 #define Schema_TLSTCP       "tlstcp"
 #define Schema_UDP          "udp"
 
-
-
-#define TunnelType_None     ""
-#define TunnelType_HTTP     "http"
-#define TunnelType_TCP      "tcp"
-#define TunnelType_TLS      "tls"
-#define TunnelType_TLSTCP   "tlstcp"
-#define TunnelType_UDP      "udp"
-
 enum class TunnelMode {
     None    = 0,
     HTTP    = 1<<0,
@@ -60,6 +52,15 @@ enum class TunnelMode {
     TLSTCP  = 1<<3,
     UDP     = 1<<4
 };
+
+#define TUNNEL_MODE_FIELDS_MAP {                    \
+        {TunnelMode::None,      TunnelType_None},   \
+        {TunnelMode::HTTP,      TunnelType_HTTP},   \
+        {TunnelMode::TCP,       TunnelType_TCP},    \
+        {TunnelMode::TLS,       TunnelType_TLS},    \
+        {TunnelMode::TLSTCP,    TunnelType_TLSTCP}, \
+        {TunnelMode::UDP,       TunnelType_UDP},    \
+    }
 
 std::ostream&
 operator<<(std::ostream& os, TunnelMode m);
@@ -173,5 +174,24 @@ struct TunnelInfo: virtual public pinggy::SharedObject
 
 };
 DefineMakeSharedPtr(TunnelInfo);
+
+
+struct RemoteForwarding: virtual public pinggy::SharedObject
+{
+    TunnelMode                  Mode;       //"mode": "tcp",
+    tString                     ForwardTo;  //"forwardTo": "localhost:8000", // Empty string means not known
+    std::vector<tString>        RemoteBindings; //"remoteBindings"
+};
+DefineMakeSharedPtr(RemoteForwarding);
+
+
+NLOHMANN_DECLARE_JSON_SERIALIZE_ENUM_PINGGY(TunnelMode)
+
+NLOHMANN_DECLARE_TYPE_NON_INTRUSIVE_CUSTOME_NEW_PTR(RemoteForwarding,
+                                (),
+                                (Mode, mode),
+                                (ForwardTo, forwardTo),
+                                (RemoteBindings, remoteBindings)
+                            )
 
 #endif // __SRC_CPP_PUBLIC_COMMON_UTILS_TUNNELCOMMON_HH__
