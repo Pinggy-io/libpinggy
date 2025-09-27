@@ -27,14 +27,13 @@ DEFINE_TRANSPORT_SERIALIZER_DESERIALIZER_PTR_V1(SpecialPortConfig,
         SPECIAL_PORT_BASIC_FIELDS
 )
 
-DEFINE_TRANSPORT_SERIALIZER_DESERIALIZER_ENUM_TYPE(TunnelMode, tString,
-        {TunnelMode::None,      TunnelType_None},
-        {TunnelMode::HTTP,      TunnelType_HTTP},
-        {TunnelMode::TCP,       TunnelType_TCP},
-        {TunnelMode::TLS,       TunnelType_TLS},
-        {TunnelMode::TLSTCP,    TunnelType_TLSTCP},
-        {TunnelMode::UDP,       TunnelType_UDP},
+DEFINE_TRANSPORT_SERIALIZER_DESERIALIZER_PTR_V2(RemoteForwarding,
+        (Mode, mode),
+        (ForwardTo, forwardTo),
+        (RemoteBindings, remoteBindings)
 )
+
+DEFINE_TRANSPORT_SERIALIZER_DESERIALIZER_ENUM_TYPE(TunnelMode, tString, TUNNEL_MODE_FIELDS_MAP)
 
 DEFINE_TRANSPORT_SERIALIZER_DESERIALIZER_PTR_V2(TunnelInfo,
     (GreetingMsg, greetingMsg),

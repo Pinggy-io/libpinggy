@@ -160,11 +160,12 @@ Session::AuthenticationFailed(tString error, std::vector<tString> messages)
 void
 Session::AcceptRemoteForwardRequest(tReqId reqId, std::vector<tString> urls)
 {
-    AcceptRemoteForwardRequest(reqId, InvalidForwardingId, urls);
+    AcceptRemoteForwardRequest(reqId, InvalidForwardingId, urls, {});
 }
 
 void
-Session::AcceptRemoteForwardRequest(tReqId reqId, tForwardingId forwardingId, std::vector<tString> urls)
+Session::AcceptRemoteForwardRequest(tReqId reqId, tForwardingId forwardingId, std::vector<tString> urls,
+                                    std::vector<RemoteForwardingPtr> remoteForwardings)
 {
     if (state != SessionState_AuthenticatedAsServer) {
         ABORT_WITH_MSG("Auth not received yet");
@@ -174,6 +175,7 @@ Session::AcceptRemoteForwardRequest(tReqId reqId, tForwardingId forwardingId, st
     msg->ReqId = reqId;
     msg->Urls = urls;
     msg->ForwardingId = forwardingId;
+    msg->RemoteForwardings = remoteForwardings;
     sendMsg(msg);
 }
 
@@ -316,7 +318,7 @@ Session::HandleIncomingDeserialize(DeserializerPtr deserializer)
                 ABORT_WITH_MSG("Not expected state");
             }
             auto msg = tMsg->DynamicPointerCast<RemoteForwardResponseMsg>();
-            handleRemoteForwardResponse(msg->ReqId, msg->Success, msg->ForwardingId, msg->Urls, msg->Error);
+            handleRemoteForwardResponse(msg->ReqId, msg->Success, msg->ForwardingId, msg->Urls, msg->RemoteForwardings, msg->Error);
         }
         break;
 
@@ -585,10 +587,11 @@ Session::registerChannel(ChannelPtr channel)
 }
 
 void
-Session::handleRemoteForwardResponse(tReqId reqId, tUint8 success, tForwardingId forwardingId, std::vector<tString> urls, tString error)
+Session::handleRemoteForwardResponse(tReqId reqId, tUint8 success, tForwardingId forwardingId, std::vector<tString> urls,
+                                        std::vector<RemoteForwardingPtr> remoteForwardings, tString error)
 {
     if (success) {
-        eventHandler->HandleSessionRemoteForwardingSucceeded(reqId, forwardingId, urls);
+        eventHandler->HandleSessionRemoteForwardingSucceeded(reqId, forwardingId, urls, remoteForwardings);
     } else {
         eventHandler->HandleSessionRemoteForwardingFailed(reqId, error);
     }

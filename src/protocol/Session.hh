@@ -74,7 +74,8 @@ public:
                                 { ABORT_WITH_MSG("Not implemented"); }
 
     virtual void
-    HandleSessionRemoteForwardingSucceeded(tReqId, tForwardingId forwardingId, std::vector<tString>)
+    HandleSessionRemoteForwardingSucceeded(tReqId, tForwardingId forwardingId, std::vector<tString>,
+                                                std::vector<RemoteForwardingPtr> remoteForwardings)
                                 { ABORT_WITH_MSG("Not implemented"); }
 
     virtual void
@@ -150,7 +151,7 @@ public:
     AcceptRemoteForwardRequest(tReqId reqId, std::vector<tString> urls);
 
     virtual void
-    AcceptRemoteForwardRequest(tReqId reqId, tForwardingId forwardingId, std::vector<tString> urls);
+    AcceptRemoteForwardRequest(tReqId reqId, tForwardingId forwardingId, std::vector<tString> urls, std::vector<RemoteForwardingPtr> remoteForwardings);
 
     virtual void
     RejectRemoteForwardRequest(tReqId reqId, tString error);
@@ -239,7 +240,8 @@ private:
     registerChannel(ChannelPtr channel);
 
     void
-    handleRemoteForwardResponse(tReqId reqId, tUint8 success, tForwardingId forwardingId, std::vector<tString> urls, tString error);
+    handleRemoteForwardResponse(tReqId reqId, tUint8 success, tForwardingId forwardingId, std::vector<tString> urls,
+                                    std::vector<RemoteForwardingPtr> remoteForwardings, tString error);
 
     void
     handleNewChannel(SetupChannelMsgPtr newChannelMsg);
