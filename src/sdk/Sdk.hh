@@ -206,7 +206,8 @@ public:
     HandleSessionAuthenticationFailed(tString error, std::vector<tString> OnAuthenticationFailed) override;
 
     virtual void
-    HandleSessionRemoteForwardingSucceeded(protocol::tReqId reqId, tForwardingId forwardingId, std::vector<tString> urls) override;
+    HandleSessionRemoteForwardingSucceeded(protocol::tReqId reqId, tForwardingId forwardingId, std::vector<tString> urls,
+                                            std::vector<RemoteForwardingPtr> remoteForwardings) override;
 
     virtual void
     HandleSessionRemoteForwardingFailed(protocol::tReqId reqId, tString error) override;
@@ -348,10 +349,7 @@ private:
     internalRequestAdditionalRemoteForwarding(SdkForwardingPtr forwarding);
 
     void
-    updateForwardMapWithPrimaryForwarding();
-
-    void
-    updateForwardMapWithAdditionalForwarding();
+    updateForwardMap(std::vector<RemoteForwardingPtr> remoteForwardings);
 
     net::NetworkConnectionPtr   baseConnection;
     common::PollControllerPtr   pollController;
@@ -393,7 +391,7 @@ private:
                                 pendingRemoteForwardingRequestMap;
     // std::map<std::tuple<tString, port_t>, std::tuple<tString, port_t>>
     std::map<tForwardingId, SdkForwardingPtr>
-                                remoteForwardings;
+                                sdkForwardings;
 
     common::PollableTaskPtr     keepAliveTask;
     tInt16                      reconnectCounter;
