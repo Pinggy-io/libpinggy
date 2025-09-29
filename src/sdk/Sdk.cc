@@ -506,7 +506,7 @@ Sdk::HandleSessionRemoteForwardingSucceeded(protocol::tReqId reqId, tForwardingI
             this->urls = urls;
 
         if (sdkForwardings.find(forwardingId) != sdkForwardings.end()) {
-            ABORT_WITH_MSG("This not supposed to happen"); //cannot test it ever
+            ABORT_WITH_MSG("This not supposed to happen: ", forwardingId); //cannot test it ever
             return;
         }
 

@@ -256,6 +256,7 @@ typedef pinggy_void_t (*pinggy_on_primary_forwarding_failed_cb_t)               
  * @param tunnel_ref Reference to the tunnel object.
  * @param bind_addr  The remote bind address as a string.
  * @param forward_to_addr The local forwarding address as a string.
+ * @param forwarding_type The forwarding type as a string.
  */
 typedef pinggy_void_t (*pinggy_on_additional_forwarding_succeeded_cb_t)         \
                             (pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_const_char_p_t bind_addr, pinggy_const_char_p_t forward_to_addr, pinggy_const_char_p_t forwarding_type);
@@ -268,6 +269,7 @@ typedef pinggy_void_t (*pinggy_on_additional_forwarding_succeeded_cb_t)         
  * @param tunnel_ref Reference to the tunnel object.
  * @param bind_addr  The remote bind address as a string.
  * @param forward_to_addr The local forwarding address as a string.
+ * @param forwarding_type The forwarding type as a string.
  * @param error Error message string.
  */
 typedef pinggy_void_t (*pinggy_on_additional_forwarding_failed_cb_t)            \
@@ -521,6 +523,106 @@ pinggy_config_set_token(pinggy_ref_t config, pinggy_char_p_t token);
 //  */
 // PINGGY_EXPORT pinggy_void_t
 // pinggy_config_set_udp_forward_to(pinggy_ref_t config, pinggy_char_p_t udp_forward_to);
+
+/**
+ * @brief * @brief Adds a new forwarding rule to the tunnel configuration.
+ *
+ * This function allows you to specify how incoming connections to a `binding_url`
+ * on the Pinggy server should be forwarded to a `forward_to` address on your local machine.
+ *
+ * @param config          Reference to the tunnel config object.
+ * @param forwarding_type Null-terminated string specifying the type of forwarding.
+ *                        Valid types are "http", "tcp", "udp", "tls", "tlstcp".
+ *                        If an empty string or NULL is provided, "http" is assumed.
+ * @param binding_url     Null-terminated string specifying the remote address to bind to.
+ *                        This can be a domain name, a domain:port combination, or just a port.
+ *                        Examples: "example.pinggy.io", "example.pinggy.io:8080", ":80".
+ *                        If empty or NULL, the server will assign a default binding.
+ * @param forward_to      Null-terminated string specifying the local address to forward to.
+ *                        This can be a URL (e.g., "http://localhost:3000"), an IP address
+ *                        (e.g., "127.0.0.1:8000"), or just a port (e.g., ":5000").
+ *                        If the schema (e.g., "http://") and host are omitted, "localhost"
+ *                        is assumed. For example, ":3000" becomes "http://localhost:3000"
+ *                        for HTTP forwarding.
+ *                        If `forwarding_type` is "http" and `forward_to` specifies an "https"
+ *                        schema (e.g., "https://localhost:443"), this implicitly enables
+ *                        `local_server_tls` for this specific forwarding rule.
+ * @return                pinggy_true on success, pinggy_false on failure.
+ */
+PINGGY_EXPORT pinggy_void_t
+pinggy_config_add_forwarding(pinggy_ref_t config, pinggy_char_p_t forwarding_type, pinggy_char_p_t binding_url, pinggy_char_p_t forward_to);
+
+/**
+ * @brief Adds a new forwarding rule to the tunnel configuration with simplified parameters.
+ *
+ * This function provides a simplified way to add forwarding rules. It automatically
+ * determines the `forwarding_type` and `binding_url` based on the `forward_to`
+ * parameter, following a specific format.
+ *
+ * The `forward_to` parameter should follow the format `[forwarding_type://][localhost:]port`.
+ *
+ * - If `forwarding_type` is "https", it means the `forwarding_type` will be "http"
+ *   and `local_server_tls` will be enabled for this specific forwarding rule.
+ * - If `forwarding_type` is omitted, "http" is assumed.
+ * - If `localhost:` is omitted, "localhost" is assumed.
+ *
+ * Examples:
+ * - `pinggy_config_add_forwarding_simple(config, "3000")` will be interpreted as
+ *   `pinggy_config_add_forwarding(config, "http", "", "http://localhost:3000")`.
+ * - `pinggy_config_add_forwarding_simple(config, "tcp://localhost:22")` will be interpreted as
+ *   `pinggy_config_add_forwarding(config, "tcp", "", "tcp://localhost:22")`.
+ * - `pinggy_config_add_forwarding_simple(config, "https://8080")` will be interpreted as
+ *   `pinggy_config_add_forwarding(config, "http", "", "https://localhost:8080")`
+ *   and will also enable `local_server_tls` for this rule.
+ *
+ * @param config          Reference to the tunnel config object.
+ * @param forward_to      Null-terminated string specifying the local address to forward to,
+ *                        following the format `[forwarding_type://][localhost:]port`.
+ * @return                pinggy_true on success, pinggy_false on failure.
+ */
+PINGGY_EXPORT pinggy_void_t
+pinggy_config_add_forwarding_simple(pinggy_ref_t config, pinggy_char_p_t forward_to);
+
+/**
+ * @brief Sets multiple forwarding rules for the tunnel configuration.
+ *
+ * This function allows you to define multiple forwarding rules either as a single
+ * simplified forwarding string (similar to `pinggy_config_add_forwarding_simple`)
+ * or as a JSON array of forwarding objects.
+ *
+ * If `forwardings` is a single string, it should follow the format
+ * `[forwarding_type://][localhost:]port`.
+ *
+ * If `forwardings` is a JSON string, it should be an array of objects, where each
+ * object defines a forwarding rule with the following properties:
+ * - `type`: (Optional) The type of forwarding (e.g., "http", "tcp", "udp", "tls", "tlstcp").
+ *   Defaults to "http" if not specified.
+ * - `listenAddress`: (Optional) The remote address to bind to. Format: `[host][:port]`.
+ *   An empty string or undefined means the server will assign a default binding.
+ *   The hostname is ignored for TCP and UDP tunnels. Any schema provided will be ignored.
+ * - `address`: The local address to forward to. Format: `[protocol://][host]:port`.
+ *   The `protocol` is primarily used to determine if `local_server_tls` should be
+ *   enabled for this specific rule (e.g., `https://`). It is ignored otherwise.
+ *
+ * @param config      Reference to the tunnel config object.
+ * @param forwardings Null-terminated string representing either a single simplified
+ *                    forwarding rule or a JSON array of forwarding rule objects.
+ */
+PINGGY_EXPORT pinggy_void_t
+pinggy_config_set_forwardings(pinggy_ref_t config, pinggy_char_p_t forwardings);
+
+/**
+ * @brief Resets all forwarding rules previously added to the tunnel configuration.
+ *
+ * This function clears any forwarding rules that were set using `pinggy_config_add_forwarding`,
+ * `pinggy_config_add_forwarding_simple`, or `pinggy_config_set_forwardings`.
+ * After calling this function, the tunnel configuration will have no active forwarding rules
+ * until new ones are added.
+ *
+ * @param config Reference to the tunnel config object.
+ */
+PINGGY_EXPORT pinggy_void_t
+pinggy_config_reset_forwardings(pinggy_ref_t config);
 
 /**
  * @brief Enables or disables force mode for the tunnel configuration.
@@ -868,6 +970,28 @@ pinggy_config_get_token_len(pinggy_ref_t config, pinggy_capa_t buffer_len, pingg
 //  */
 // PINGGY_EXPORT pinggy_const_int_t
 // pinggy_config_get_udp_forward_to_len(pinggy_ref_t config, pinggy_capa_t buffer_len, pinggy_char_p_t buffer, pinggy_capa_p_t max_len);
+
+/**
+ * @brief Retrieves the forwarding rules (as a JSON string) from the tunnel config.
+ * @param config      Reference to the tunnel config object.
+ * @param buffer_len  Length of the buffer provided for the forwarding rules string.
+ * @param buffer      Pointer to a character array where the forwarding rules JSON will be copied.
+ * @return            Number of bytes copied to the buffer (including null terminator).
+ */
+PINGGY_EXPORT pinggy_const_int_t
+pinggy_config_get_forwardings(pinggy_ref_t config, pinggy_capa_t buffer_len, pinggy_char_p_t buffer);
+
+/**
+ * @brief Retrieves the forwarding rules (as a JSON string) from the tunnel config, and provides the required buffer size.
+ * @param config      Reference to the tunnel config object.
+ * @param buffer_len  Length of the buffer provided for the forwarding rules string.
+ * @param buffer      Pointer to a character array where the forwarding rules JSON will be copied.
+ * @param max_len     Pointer to a variable that will be set to the total length required to hold the full forwarding rules string (including null terminator).
+ * @return            Number of bytes copied to the buffer (including null terminator).
+ */
+PINGGY_EXPORT pinggy_const_int_t
+pinggy_config_get_forwardings_len(pinggy_ref_t config, pinggy_capa_t buffer_len, pinggy_char_p_t buffer, pinggy_capa_p_t max_len);
+
 
 /**
  * @brief Checks whether the force mode is enabled in the tunnel config.

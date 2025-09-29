@@ -205,6 +205,9 @@ struct SDKConfig: virtual public pinggy::SharedObject
     AddForwarding(tString forwardTo);
 
     void
+    SetForwarding(tString forwardings);
+
+    void
     ResetForwardings()          { sdkForwardingList.clear(); }
     //===============
 

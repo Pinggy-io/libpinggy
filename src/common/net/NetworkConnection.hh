@@ -298,9 +298,9 @@ private:
     parseSockaddr();
 
     sockaddr_ip                 sockAddr;
-    bool                        valid;
-    bool                        uds;
-    bool                        ipv6;
+    bool                        valid   = false;
+    bool                        uds     = false;
+    bool                        ipv6    = false;
     tString                     ip;
     port_t                      port;
     tString                     path;
