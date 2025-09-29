@@ -44,6 +44,29 @@
 #define ConnMode_TLSTCP    "tlstcp"
 #define ConnModeExt_UDP    "udp"
 
+_Thread_local const char *global_where;
+_Thread_local const char *global_what;
+void
+setChars(pinggy_const_char_p_t where, pinggy_const_char_p_t what)
+{
+     if (global_where) {
+         free(global_where);
+         global_where = NULL;
+     }
+     if (global_what) {
+         free(global_what);
+         global_what = NULL;
+     }
+     if (where) {
+         global_where = (pinggy_const_char_p_t)malloc(strlen(where)+1);
+         strcpy(global_where, where);
+     }
+     if (what) {
+         global_what = (pinggy_const_char_p_t)malloc(strlen(where)+1);
+         strcpy(global_what, what);
+     }
+}
+
 void
 printHelpOptions(const char *prog){
     printf("%s [-h|--help] [-v|-version] [--port|-p PORT] [-R ADDR:PORT] [-L ADDR:PORT] token@server\n", prog);
@@ -70,11 +93,14 @@ printHelpOptions(const char *prog){
 }
 
 typedef struct {
-    pinggy_ref_t config_ref;
-    uint16_t web_debugger_port;
-    pinggy_bool_t enable_web_debugger;
-    char *error_msg;
-    pinggy_ref_t tunnel_ref;
+    pinggy_ref_t                config_ref;
+    port_t                      web_debugger_port;
+    pinggy_bool_t               enable_web_debugger;
+    pinggy_char_p_t             error_msg;
+    pinggy_ref_t                tunnel_ref;
+    pinggy_char_p_t             mode;
+    pinggy_char_p_p_t           forwardings;
+    pinggy_len_t                forwaring_cnt;
 } client_app_data_t;
 
 static int parse_forward_tunnel(client_app_data_t *app_data, const char *value) {
@@ -189,9 +215,65 @@ static int parse_sdk_arguments(pinggy_ref_t config_ref, int argc, char *argv[]) 
     return 1;
 }
 
-static client_app_data_t* parse_arguments(int argc, char *argv[]) {
+//add forward to app->forwardings
+void
+push_remote_forwarding(client_app_data_t *app, pinggy_char_p_t forward)
+{
+    app->forwaring_cnt++;
+    app->forwardings = (pinggy_char_p_p_t)realloc(app->forwardings, app->forwaring_cnt * sizeof(pinggy_char_p_t));
+    if (!app->forwardings) {
+        // Handle realloc failure
+        return;
+    }
+    app->forwardings[app->forwaring_cnt - 1] = strdup(forward); // Make a copy of the string
+    if (!app->forwardings[app->forwaring_cnt - 1]) {
+        // Handle strdup failure
+        return;
+    }
+}
+
+void
+parse_reverse_tunnel(client_app_data_t *app)
+{
+    for (int i = 0; i < app->forwaring_cnt; i++) {
+        char *forwarding_str = app->forwardings[i];
+        char *first_colon = strchr(forwarding_str, ':');
+        if (!first_colon) {
+            fprintf(stderr, "Invalid forwarding format: %s. Expected <bind_addr>:<forward_to_addr> or <bind_addr>:<forward_to_addr>\n", forwarding_str);
+            continue;
+        }
+
+        char *second_colon = strchr(first_colon + 1, ':');
+        if (second_colon) {
+            // Format: <type>:<bind_addr>:<forward_to_addr>
+            *first_colon = '\0';
+            *second_colon = '\0';
+            char *type = forwarding_str;
+            char *bind_addr = first_colon + 1;
+            char *forward_to_addr = second_colon + 1;
+            pinggy_config_add_forwarding(app->config_ref, type, bind_addr, forward_to_addr);
+        } else {
+            // Format: <bind_addr>:<forward_to_addr>
+            *first_colon = '\0';
+            char *bind_addr = forwarding_str;
+            char *forward_to_addr = first_colon + 1;
+            // Default to "tcp" type if not specified
+            pinggy_config_add_forwarding(app->config_ref, "tcp", bind_addr, forward_to_addr);
+        }
+        free(app->forwardings[i]); // Free the duplicated string
+    }
+    free(app->forwardings); // Free the array of pointers
+    app->forwardings = NULL;
+    app->forwaring_cnt = 0;
+
+}
+
+static client_app_data_t *
+parse_arguments(int argc, char *argv[])
+{
     client_app_data_t *app_data = (client_app_data_t*)calloc(1, sizeof(client_app_data_t));
     if (!app_data) return NULL;
+    bzero(app_data, sizeof(client_app_data_t));
 
     app_data->config_ref = pinggy_create_config();
     if (app_data->config_ref == INVALID_PINGGY_REF) {
@@ -242,13 +324,14 @@ static client_app_data_t* parse_arguments(int argc, char *argv[]) {
                 server_port = cli_optarg;
                 break;
             case 'R':
-                pinggy_config_set_tcp_forward_to(app_data->config_ref, cli_optarg);
+                push_remote_forwarding(app_data, cli_optarg);
                 break;
             case 'L':
                 success = parse_forward_tunnel(app_data, cli_optarg);
                 break;
             case 'n':
                 pinggy_config_set_ssl(app_data->config_ref, pinggy_false);
+                pinggy_config_set_insecure(app_data->config_ref, pinggy_true);
                 break;
             case 's':
                 pinggy_config_set_sni_server_name(app_data->config_ref, cli_optarg);
@@ -274,6 +357,10 @@ static client_app_data_t* parse_arguments(int argc, char *argv[]) {
         exit_now = 1;
     }
 
+    if (!exit_now) {
+        exit_now = !parse_reverse_tunnel(app_data);
+    }
+
     if ((cli_optind + 1) < argc) {
         if (!parse_sdk_arguments(app_data->config_ref, argc - (cli_optind + 1), argv + (cli_optind + 1))) {
             exit_now = 1;
@@ -289,7 +376,8 @@ static client_app_data_t* parse_arguments(int argc, char *argv[]) {
     return app_data;
 }
 
-static void on_primary_forwarding_succeeded(pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_len_t num_urls, pinggy_char_p_p_t urls) {
+static void
+on_primary_forwarding_succeeded(pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_len_t num_urls, pinggy_char_p_p_t urls) {
     client_app_data_t *app_data = (client_app_data_t *)user_data;
     int i;
     printf("Connection completed\n");
@@ -373,9 +461,11 @@ static pinggy_void_t
 pinggy_on_raise_exception_cb(pinggy_const_char_p_t where, pinggy_const_char_p_t what)
 {
     printf("%s ==> %s\n", where, what);
+    exit(1);
 }
 
-int main(int argc, char *argv[]) {
+int
+main(int argc, char *argv[]) {
 #ifdef __WINDOWS_OS__
     WindowsSocketInitialize();
 #endif
