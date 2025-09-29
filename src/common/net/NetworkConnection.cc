@@ -472,6 +472,7 @@ void SocketAddress::parseSockaddr()
             addr.__padd8[10] = 0xff;
             addr.__padd8[11] = 0xff;
             addr.v4 = sockAddr.inaddr.sin_addr;
+            ipv6 = false;
             break;
         }
         case AF_INET6: {
@@ -483,13 +484,14 @@ void SocketAddress::parseSockaddr()
                     LOGEE("inet_ntop");
                     break;
                 }
+                ipv6 = false;
             } else {
                 if(app_inet_ntop(sockAddr.addr.sa_family, &sockAddr.in6addr.sin6_addr, buf, INET6_ADDRSTRLEN) == NULL) {
                     LOGEE("inet_ntop");
                     break;
                 }
+                ipv6 = true;
             }
-            ipv6 = true;
             ip = tString(buf);
             port = app_ntohs(sockAddr.inaddr.sin_port);
             valid = true;
@@ -508,6 +510,7 @@ void SocketAddress::parseSockaddr()
             path = addr;
             valid = true;
             uds = true;
+            ipv6 = false;
             break;
         }
 #endif //__WINDOWS_OS__

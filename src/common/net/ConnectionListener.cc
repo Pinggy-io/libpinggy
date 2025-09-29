@@ -78,7 +78,7 @@ ConnectionListenerImpl::StartListening()
             port = app_socket_port(fd);
             set_close_on_exec(fd);
         }
-        LOGI("Listening to `http://localhost:" << port << "`");
+        LOGI("Listening to `http://localhost:" << port << "` (" << fd << ")");
     }
     if (IsValidSocket(fd)) {
         blocking = is_blocking(fd);
