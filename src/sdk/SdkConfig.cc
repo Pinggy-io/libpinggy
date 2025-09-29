@@ -506,15 +506,10 @@ SDKConfig::SetGlobalConfig(tString args)
  *      port is mandatory and there is no default port. store it to SdkForwarding::fwdToPort
  */
 SdkForwardingPtr SDKConfig::parseForwarding(tString forwardingType, tString bindingUrl, tString forwardTo)
-{    // Parse bindingUrl: [schema://]domain[:port]
+{
+    // Parse bindingUrl: [schema://]domain[:port]
     tString schema, domain, portStr;
     tPort port = 0;
-
-    //TODO use url parse if possible.
-    // auto remoteUrl = NewUrlPtr(bindingUrl, 0, ""); //it might give invalid url exception
-    // domain = remoteUrl->GetRawHost();
-    // schema = remoteUrl->GetProtocol();
-    // port = remoteUrl->GetPort();
 
     auto schemaSplit = SplitString(bindingUrl, "://", 1);
     if (schemaSplit.size() == 2) {

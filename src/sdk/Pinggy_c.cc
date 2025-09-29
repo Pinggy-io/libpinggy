@@ -484,58 +484,6 @@ pinggy_config_set_token(pinggy_ref_t ref, pinggy_char_p_t token)
     );
 }
 
-// PINGGY_EXPORT pinggy_void_t
-// pinggy_config_set_type(pinggy_ref_t ref, pinggy_char_p_t mode)
-// {
-//     auto sdkConf = getSDKConfig(ref);
-//     if (!sdkConf) {
-//         LOGE("No sdkConf found for the ref:", ref);
-//         return;
-//     }
-//     ExpectException(
-//         sdkConf->SetMode(EmptyStringIfNull(mode));
-//     );
-// }
-
-// PINGGY_EXPORT pinggy_void_t
-// pinggy_config_set_udp_type(pinggy_ref_t ref, pinggy_char_p_t udp_type)
-// {
-//     auto sdkConf = getSDKConfig(ref);
-//     if (!sdkConf) {
-//         LOGE("No sdkConf found for the ref:", ref);
-//         return;
-//     }
-//     ExpectException(
-//         sdkConf->SetUdpMode(EmptyStringIfNull(udp_type));
-//     );
-// }
-
-// PINGGY_EXPORT pinggy_void_t
-// pinggy_config_set_tcp_forward_to(pinggy_ref_t ref, pinggy_char_p_t tcp_forward_to)
-// {
-//     auto sdkConf = getSDKConfig(ref);
-//     if (!sdkConf) {
-//         LOGE("No sdkConf found for the ref:", ref);
-//         return;
-//     }
-//     ExpectException(
-//         sdkConf->SetTcpForwardTo(EmptyStringIfNull(tcp_forward_to));
-//     );
-// }
-
-// PINGGY_EXPORT pinggy_void_t
-// pinggy_config_set_udp_forward_to(pinggy_ref_t ref, pinggy_char_p_t udp_forward_to)
-// {
-//     auto sdkConf = getSDKConfig(ref);
-//     if (!sdkConf) {
-//         LOGE("No sdkConf found for the ref:", ref);
-//         return;
-//     }
-//     ExpectException(
-//         sdkConf->SetUdpForwardTo(EmptyStringIfNull(udp_forward_to));
-//     );
-// }
-
 PINGGY_EXPORT pinggy_void_t
 pinggy_config_add_forwarding(pinggy_ref_t ref, pinggy_char_p_t forwarding_type, pinggy_char_p_t binding_url, pinggy_char_p_t forward_to)
 {
@@ -915,54 +863,6 @@ pinggy_config_get_token_len(pinggy_ref_t ref, pinggy_capa_t capa, pinggy_char_p_
 {
     SdkConfigCopyStringToOutputLen(capa, val, GetToken(), max_len);
 }
-
-// PINGGY_EXPORT pinggy_const_int_t
-// pinggy_config_get_type(pinggy_ref_t ref, pinggy_capa_t capa, pinggy_char_p_t val)
-// {
-//     return pinggy_config_get_type_len(ref, capa, val, NULL);
-// }
-
-// PINGGY_EXPORT pinggy_const_int_t
-// pinggy_config_get_type_len(pinggy_ref_t ref, pinggy_capa_t capa, pinggy_char_p_t val, pinggy_capa_p_t max_len)
-// {
-//     SdkConfigCopyStringToOutputLen(capa, val, GetMode(), max_len);
-// }
-
-// PINGGY_EXPORT pinggy_const_int_t
-// pinggy_config_get_udp_type(pinggy_ref_t ref, pinggy_capa_t capa, pinggy_char_p_t val)
-// {
-//     return pinggy_config_get_udp_type_len(ref, capa, val, NULL);
-// }
-
-// PINGGY_EXPORT pinggy_const_int_t
-// pinggy_config_get_udp_type_len(pinggy_ref_t ref, pinggy_capa_t capa, pinggy_char_p_t val, pinggy_capa_p_t max_len)
-// {
-//     SdkConfigCopyStringToOutputLen(capa, val, GetUdpMode(), max_len);
-// }
-
-// PINGGY_EXPORT pinggy_const_int_t
-// pinggy_config_get_tcp_forward_to(pinggy_ref_t ref, pinggy_capa_t capa, pinggy_char_p_t val)
-// {
-//     return pinggy_config_get_tcp_forward_to_len(ref, capa, val, NULL);
-// }
-
-// PINGGY_EXPORT pinggy_const_int_t
-// pinggy_config_get_tcp_forward_to_len(pinggy_ref_t ref, pinggy_capa_t capa, pinggy_char_p_t val, pinggy_capa_p_t max_len)
-// {
-//     SdkConfigCopyStringToOutputLen(capa, val, GetTcpForwardTo(), max_len);
-// }
-
-// PINGGY_EXPORT pinggy_const_int_t
-// pinggy_config_get_udp_forward_to(pinggy_ref_t ref, pinggy_capa_t capa, pinggy_char_p_t val)
-// {
-//     return pinggy_config_get_udp_forward_to_len(ref, capa, val, NULL);
-// }
-
-// PINGGY_EXPORT pinggy_const_int_t
-// pinggy_config_get_udp_forward_to_len(pinggy_ref_t ref, pinggy_capa_t capa, pinggy_char_p_t val, pinggy_capa_p_t max_len)
-// {
-//     SdkConfigCopyStringToOutputLen(capa, val, GetUdpForwardTo(), max_len);
-// }
 
 PINGGY_EXPORT pinggy_const_int_t
 pinggy_config_get_forwardings(pinggy_ref_t ref, pinggy_capa_t capa, pinggy_char_p_t val)
