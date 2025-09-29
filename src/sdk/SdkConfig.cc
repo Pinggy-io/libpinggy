@@ -26,14 +26,12 @@ namespace sdk
 
 #define MAX_RECONNECTION_TRY 20
 
-void
-to_json(nlohmann::json& nlohmann_json_j, const SdkForwardingPtr& obj)
-{
-    if (!obj) return;
-    nlohmann_json_j["forwardTo"] = obj->origForwardTo;
-    nlohmann_json_j["bindingUrl"] = obj->origBindingUrl;
-    nlohmann_json_j["forwardingType"] = obj->origBindingUrl;
-}
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_CUSTOME_NEW_PTR(SdkForwarding,
+    (),
+    (origForwardTo,         address),
+    (origBindingUrl,        listenAddress),
+    (origForwardingType,    type)
+)
 
 struct HeaderMod : virtual public pinggy::SharedObject
 {
@@ -184,6 +182,25 @@ SDKConfig::AddForwarding(tString forwardTo)
     auto forwarding = parseForwarding(forwardTo);
     // Add to forwarding list
     sdkForwardingList.push_back(forwarding);
+}
+
+void
+SDKConfig::SetForwarding(tString val)
+{
+    try {
+        LOGD("The forwardings: ", val);
+        // json j = json::parse(forwardings);
+        std::vector<SdkForwardingPtr> parsedForwardings;
+        FROM_JSON_STR(parsedForwardings, val);
+        ResetForwardings();
+        for (auto forward : parsedForwardings) {
+            AddForwarding(forward->origForwardingType, forward->origBindingUrl, forward->origForwardTo);
+        }
+    } catch (std::exception &e) {
+        ResetForwardings();
+        AddForwarding(val);
+        // LOGD(e.what());
+    }
 }
 
 void
