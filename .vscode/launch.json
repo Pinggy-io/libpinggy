@@ -31,7 +31,7 @@
             "request": "launch",
             "program": "${workspaceFolder}/releases/macos/universal/pinggyclient",
             // "args": [ "-p443", "-r", "-R0:l:4000", "-L4300:l:4300", "a.pinggy.io"],
-            "args": [ "-r", "-R0:l:4000", "-Rtcp//l/11232:0:l:8000", "-L4300:l:4300", "-sexample.com", "-p7879", "-n", "terminateAtUsages@l"],
+            "args": [ "-r", "-R0:l:4000", "-Rtcp//l/11232:0:l:8000", "-L4300:l:4300", "-sexample.com", "-p7879", "-n", "handleTcpPort@l"],
             "cwd": "${workspaceFolder}",
             "stopOnEntry": false,
             "env": {},

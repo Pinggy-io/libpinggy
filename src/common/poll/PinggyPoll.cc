@@ -54,14 +54,20 @@ PollController::AddFutureTask(tDuration timeout, tDuration align, bool repeat, T
     return pollableTask;
 }
 
-tDuration PollController::GetNextTaskTimeout()
+tDuration
+PollController::GetNextTaskTimeout()
 {
-    if (taskQueue.size() == 0)
+    PollableTaskPtr task = nullptr;
+    while(taskQueue.size()) { //This would clear out unnessary task.
+        task = taskQueue.top();
+        if (task->task)
+            break;
+        taskQueue.pop();
+        task = nullptr;
+    }
+
+    if (!task)
         return 0;
-
-    auto task = taskQueue.top();
-
-    // LOGT("Get Next Task Timeout", task->deadline - pollTime, task->deadline, pollTime);
 
     Assert(task->deadline > pollTime);
 
