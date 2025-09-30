@@ -130,6 +130,10 @@ Sdk::~Sdk()
 bool PINGGY_LIFE_CYCLE_FUNC
 Sdk::Connect(bool block)
 {
+    if (stopped) {
+        throw SdkException("tunnel is stopped");
+    }
+
     //==== Setup =========
     acquireAccessLock();
     DEFER(releaseAccessLock(););
@@ -153,6 +157,9 @@ Sdk::Connect(bool block)
 bool PINGGY_LIFE_CYCLE_WRAPPER_FUNC
 Sdk::Start()
 {
+    if (stopped) {
+        throw SdkException("tunnel is stopped");
+    }
     // No lockAccess required as it is not calling any private function
     if(!reconnectNow) {
         if (!Connect(true)) { //entry point
@@ -329,6 +336,10 @@ Sdk::LockIfDifferentThread()
 port_t PINGGY_ATTRIBUTE_FUNC
 Sdk::StartWebDebugging(port_t port)
 {
+    if (stopped) {
+        throw SdkException("tunnel is stopped");
+    }
+
     if (state < SdkState_Authenticated) {
         throw WebDebuggerException("You are not logged in. How did you managed to come here?" );
     }
@@ -359,6 +370,10 @@ Sdk::StartWebDebugging(port_t port)
 bool PINGGY_LIFE_CYCLE_FUNC
 Sdk::RequestPrimaryRemoteForwarding(bool block)
 {
+    if (stopped) {
+        throw SdkException("tunnel is stopped");
+    }
+
     acquireAccessLock();
     DEFER({releaseAccessLock();});
 
@@ -368,6 +383,10 @@ Sdk::RequestPrimaryRemoteForwarding(bool block)
 void PINGGY_ATTRIBUTE_FUNC
 Sdk::RequestAdditionalRemoteForwarding(tString forwardingType, tString bindingUrl, tString forwardTo)
 {
+    if (stopped) {
+        throw SdkException("tunnel is stopped");
+    }
+
     if (state < SdkState_Authenticated) {
         WebDebuggerException("You are not logged in. How did you managed to come here?" );
     }
@@ -391,6 +410,10 @@ Sdk::RequestAdditionalRemoteForwarding(tString forwardingType, tString bindingUr
 void
 Sdk::RequestAdditionalRemoteForwarding(tString forwardTo)
 {
+    if (stopped) {
+        throw SdkException("tunnel is stopped");
+    }
+
     if (state < SdkState_Authenticated) {
         WebDebuggerException("You are not logged in. How did you managed to come here?" );
     }
@@ -481,6 +504,8 @@ Sdk::HandleSessionAuthenticationFailed(tString error, std::vector<tString> authe
         baseConnection->DeregisterFDEvenHandler();
         baseConnection->CloseConn();
     }
+
+    stopped = true;
 
     pollController->StopPolling();
 }
@@ -1188,8 +1213,8 @@ Sdk::handlePrimaryForwardingFailed(tString reason)
         baseConnection->DeregisterFDEvenHandler();
         baseConnection->CloseConn();
     }
-
-    LOGD("Primary forwarding timed out");
+    stopped = true;
+    LOGD(reason);
 }
 
 void
