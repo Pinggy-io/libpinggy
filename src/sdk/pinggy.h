@@ -481,7 +481,7 @@ PINGGY_EXPORT pinggy_void_t
 pinggy_config_set_token(pinggy_ref_t config, pinggy_char_p_t token);
 
 /**
- * @brief * @brief Adds a new forwarding rule to the tunnel configuration.
+ * @brief Adds a new forwarding rule to the tunnel configuration.
  *
  * This function allows you to specify how incoming connections to a `binding_url`
  * on the Pinggy server should be forwarded to a `forward_to` address on your local machine.
