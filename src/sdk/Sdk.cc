@@ -66,9 +66,7 @@ const char BASE_CERTIFICATE[] = \
 namespace sdk
 {
 
-tString PORT_CONF = "PORT_CONF";
 tString NOTIFICATION_FD = "NOTIFICATION_FD";
-tString GREETING_MSG_TAG = "GREETING_MSG_TAG";
 
 #define PINGGY_LIFE_CYCLE_FUNC
 #define PINGGY_LIFE_CYCLE_WRAPPER_FUNC
@@ -546,8 +544,9 @@ Sdk::HandleSessionRemoteForwardingSucceeded(protocol::tReqId reqId, tForwardingI
 
         state = SdkState_PrimaryReverseForwardingAccepted;
 
-        tunnelInitiated();
+        // tunnelInitiated();
         // Probably 5 second is not a lot. But, we want it to fail soon.
+        primaryForwardingCompleted();
         LOGD("Primary forwarding done");
 
         return;
@@ -837,73 +836,73 @@ Sdk::HandleConnectionFailed(net::NetworkConnectionImplPtr netConn)
 void
 Sdk::ChannelDataReceived(protocol::ChannelPtr channel)
 {
-    if (channel == usageChannel) {
-        auto [len, data] = usageChannel->Recv(4096);
-        if (len > 0) {
-            if (eventHandler && usagesRunning) {
-                lastUsagesUpdate = data->ToString();
-                try {
-                    json jd = json::parse(lastUsagesUpdate);
-                    if (jd.contains("elaspedTime") && !jd.contains("elapsedTime"))
-                        jd["elapsedTime"] = jd["elaspedTime"];
-                    lastUsagesUpdate = jd.dump();
-                } catch(...) {
-                }
-                eventHandler->OnUsageUpdate(lastUsagesUpdate);
-            }
-        }
-        return;
-    }
-    auto tag = channel->GetUserTag();
-    if (tag == PORT_CONF) {
-        auto data = NewRawDataPtr();
-        while (channel->HaveDataToRead()) {
-            auto [len, newData] = channel->Recv(4096);
-            if (len <= 0) {
-                channel->Close();
-                break;
-            }
-            data->AddData(newData);
-        }
-        try {
-            json jdata = json::parse(data->ToString());
-            auto portConfigPtr = NewSpecialPortConfigPtr();
-            PINGGY_NLOHMANN_JSON_TO_PTR_VAR1(jdata, portConfigPtr,
-                                            SPECIAL_PORT_BASIC_FIELDS
-                                        )
-            thisPtr->portConfig = portConfigPtr;
+    // if (channel == usageChannel) {
+    //     auto [len, data] = usageChannel->Recv(4096);
+    //     if (len > 0) {
+    //         if (eventHandler && usagesRunning) {
+    //             lastUsagesUpdate = data->ToString();
+    //             try {
+    //                 json jd = json::parse(lastUsagesUpdate);
+    //                 if (jd.contains("elaspedTime") && !jd.contains("elapsedTime"))
+    //                     jd["elapsedTime"] = jd["elaspedTime"];
+    //                 lastUsagesUpdate = jd.dump();
+    //             } catch(...) {
+    //             }
+    //             eventHandler->OnUsageUpdate(lastUsagesUpdate);
+    //         }
+    //     }
+    //     return;
+    // }
+    // auto tag = channel->GetUserTag();
+    // if (tag == PORT_CONF) {
+    //     auto data = NewRawDataPtr();
+    //     while (channel->HaveDataToRead()) {
+    //         auto [len, newData] = channel->Recv(4096);
+    //         if (len <= 0) {
+    //             channel->Close();
+    //             break;
+    //         }
+    //         data->AddData(newData);
+    //     }
+    //     try {
+    //         json jdata = json::parse(data->ToString());
+    //         auto portConfigPtr = NewSpecialPortConfigPtr();
+    //         PINGGY_NLOHMANN_JSON_TO_PTR_VAR1(jdata, portConfigPtr,
+    //                                         SPECIAL_PORT_BASIC_FIELDS
+    //                                     )
+    //         thisPtr->portConfig = portConfigPtr;
 
-            if (!usageChannel) {
-                initiateContinousUsages();
-            }
-            setupLocalChannelNGetData(portConfig->GreetingMsgTCP, GREETING_MSG_TAG);
-        } catch(...) {
-            LOGE("Some error while parsing port config");
-        }
-    } else if (tag == GREETING_MSG_TAG) {
-        auto data = NewRawDataPtr();
-        while (channel->HaveDataToRead()) {
-            auto [len, newData] = channel->Recv(4096);
-            if (len <= 0) {
-                channel->Close();
-                break;
-            }
-            data->AddData(newData);
-        }
-        if (data->Len) {
-            try {
-                json jdata = json::parse(data->ToString());
-                if (jdata.contains("Msgs")) {
-                    greetingMsgs = jdata["Msgs"].dump();
-                }
-                LOGD("greeting received");
-                primaryForwardingCompleted();
-            } catch(...) {
-                LOGE("Some error while parsing greeting msg");
-            }
-        }
-        return;
-    }
+    //         if (!usageChannel) {
+    //             initiateContinousUsages();
+    //         }
+    //         setupLocalChannelNGetData(portConfig->GreetingMsgTCP, GREETING_MSG_TAG);
+    //     } catch(...) {
+    //         LOGE("Some error while parsing port config");
+    //     }
+    // } else if (tag == GREETING_MSG_TAG) {
+    //     auto data = NewRawDataPtr();
+    //     while (channel->HaveDataToRead()) {
+    //         auto [len, newData] = channel->Recv(4096);
+    //         if (len <= 0) {
+    //             channel->Close();
+    //             break;
+    //         }
+    //         data->AddData(newData);
+    //     }
+    //     if (data->Len) {
+    //         try {
+    //             json jdata = json::parse(data->ToString());
+    //             if (jdata.contains("Msgs")) {
+    //                 greetingMsgs = jdata["Msgs"].dump();
+    //             }
+    //             LOGD("greeting received");
+    //             primaryForwardingCompleted();
+    //         } catch(...) {
+    //             LOGE("Some error while parsing greeting msg");
+    //         }
+    //     }
+    //     return;
+    // }
     channel->Close();
 }
 
@@ -921,12 +920,12 @@ Sdk::ChannelError(protocol::ChannelPtr channel, protocol::tError errorCode, tStr
 void
 Sdk::ChannelCleanup(protocol::ChannelPtr channel)
 {
-    if (channel == usageChannel) {
-        channel->Close();
-        usageChannel = nullptr;
-        //TODO reinitiate channel
-        pollController->SetTimeout(SECOND, thisPtr, &Sdk::initiateContinousUsages);
-    }
+    // if (channel == usageChannel) {
+    //     channel->Close();
+    //     usageChannel = nullptr;
+    //     //TODO reinitiate channel
+    //     pollController->SetTimeout(SECOND, thisPtr, &Sdk::initiateContinousUsages);
+    // }
 
     channel->Close();
 }
@@ -949,22 +948,22 @@ Sdk::authenticate()
     LOGT("Authentication sent");
 }
 
-void
-Sdk::tunnelInitiated()
-{
-    if (session->IsImplicitGreeting()){
-        initiateContinousUsages();
-        return;
-    }
+// void
+// Sdk::tunnelInitiated()
+// {
+//     if (!session->IsImplicitGreeting()){
+//         initiateContinousUsages();
+//         return;
+//     }
 
-    if (!primaryForwardingCheckTimeout)
-        primaryForwardingCheckTimeout = pollController->SetTimeout(5 * SECOND, thisPtr, &Sdk::handlePrimaryForwardingFailed, tString("could not fetch greetingmsg"));
+//     if (!primaryForwardingCheckTimeout)
+//         primaryForwardingCheckTimeout = pollController->SetTimeout(5 * SECOND, thisPtr, &Sdk::handlePrimaryForwardingFailed, tString("could not fetch greetingmsg"));
 
-    auto channel = session->CreateChannel(4, "localhost", 4300, "localhost");
-    channel->RegisterEventHandler(thisPtr);
-    channel->SetUserTag(PORT_CONF);
-    channel->Connect();
-}
+//     auto channel = session->CreateChannel(4, "localhost", 4300, "localhost");
+//     channel->RegisterEventHandler(thisPtr);
+//     channel->SetUserTag(PORT_CONF);
+//     channel->Connect();
+// }
 
 bool Sdk::internalConnect(bool block)
 {
@@ -1150,31 +1149,6 @@ void Sdk::initPollController()
     this->pollController = pollController;
 }
 
-void
-Sdk::initiateContinousUsages()
-{
-    if (session->IsImplicitUsages()) {
-        primaryForwardingCompleted();
-        return;
-    }
-    if (usageChannel) {
-        return; //No point in raising exception
-    }
-
-    if (reconnectNow || stopped)
-        return;
-
-    if (!portConfig)
-        return;
-
-    if (!primaryForwardingCheckTimeout)
-        primaryForwardingCheckTimeout = pollController->SetTimeout(5 * SECOND, thisPtr, &Sdk::handlePrimaryForwardingFailed, tString("could not fetch greetingmsg"));
-
-    usageChannel = session->CreateChannel(portConfig->UsageContinuousTcp, "localhost", 0, "localhost");
-    usageChannel->RegisterEventHandler(thisPtr);
-    usageChannel->Connect();
-}
-
 bool
 Sdk::resumeWithLock(tString funcName, tInt32 timeout)
 {   auto ret = pollController->PollOnce(timeout);
@@ -1197,7 +1171,6 @@ Sdk::handlePrimaryForwardingFailed(tString reason)
     DEFER({pollController->StopPolling();});
     state = SdkState_PrimaryReverseForwardingFailed;
     reconnectionState = SdkState_Reconnect_Failed;
-    primaryForwardingCheckTimeout = nullptr;
 
     if (notificationConn && notificationConn->IsValid()) {
         notificationConn->CloseConn();
@@ -1219,10 +1192,6 @@ Sdk::handlePrimaryForwardingFailed(tString reason)
 void
 Sdk::primaryForwardingCompleted()
 {
-    if (primaryForwardingCheckTimeout){
-        primaryForwardingCheckTimeout->DisArm();
-        primaryForwardingCheckTimeout = nullptr;
-    }
     if (eventHandler && !reconnectNow)
         eventHandler->OnPrimaryForwardingSucceeded(urls);
     state = SdkState_PrimaryReverseForwardingSucceeded;
