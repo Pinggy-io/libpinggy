@@ -281,8 +281,8 @@ private:
     void
     authenticate();
 
-    void
-    tunnelInitiated();
+    // void
+    // tunnelInitiated();
 
     bool
     internalConnect(bool block);
@@ -314,8 +314,8 @@ private:
     void
     initPollController();
 
-    void
-    initiateContinousUsages();
+    // void
+    // initiateContinousUsages();
 
     bool
     resumeWithLock(tString funcName);
@@ -396,11 +396,11 @@ private:
     common::PollableTaskPtr     keepAliveTask;
     tInt16                      reconnectCounter;
 
-    protocol::ChannelPtr        usageChannel;
+    // protocol::ChannelPtr        usageChannel;
     bool                        usagesRunning;
     tString                     greetingMsgs;
     tString                     lastUsagesUpdate;
-    common::PollableTaskPtr     primaryForwardingCheckTimeout;
+    // common::PollableTaskPtr     primaryForwardingCheckTimeout;
 
     std::map<tString, tString>  forwardingMap;
 
