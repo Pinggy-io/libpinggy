@@ -539,6 +539,7 @@ Sdk::HandleSessionRemoteForwardingSucceeded(protocol::tReqId reqId, tForwardingI
 
         pendingRemoteForwardingRequestMap.erase(elem);
 
+        updateForwardMap(remoteForwardings);
 
         if (pendingRemoteForwardingRequestMap.size() > 0)
             return;
@@ -548,8 +549,6 @@ Sdk::HandleSessionRemoteForwardingSucceeded(protocol::tReqId reqId, tForwardingI
         tunnelInitiated();
         // Probably 5 second is not a lot. But, we want it to fail soon.
         LOGD("Primary forwarding done");
-
-        updateForwardMap(remoteForwardings);
 
         return;
     }
