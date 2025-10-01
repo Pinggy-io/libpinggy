@@ -148,6 +148,15 @@ struct SDKConfig: virtual public pinggy::SharedObject
     GetLocalServerTls()
                                 { return localServerTls; }
 
+
+    bool
+    IsWebDebug()                { return  webDebug; }
+
+    tPort
+    GetWebDebugPort()           { return webDebugPort; }
+
+    //======
+
     void
     SetToken(tString token)     { isAllowed(); this->token = token; }
 
@@ -251,6 +260,12 @@ struct SDKConfig: virtual public pinggy::SharedObject
     SetLocalServerTls(tString val)
                                 { localServerTls = val; }
 
+    void
+    SetWebDebugger(bool val)    { webDebug = val; }
+
+    void
+    SetWebDebugPort(tPort val)  { webDebugPort = val; webDebug = val>0; }
+
     //===================
 
     void
@@ -321,6 +336,9 @@ private:
     tString                     localServerTls;
     std::vector<SdkForwardingPtr>
                                 sdkForwardingList;
+
+    bool                        webDebug = false;
+    tPort                       webDebugPort = 0;
 
     void
     isAllowed()                 { }

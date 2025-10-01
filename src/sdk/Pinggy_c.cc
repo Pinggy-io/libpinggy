@@ -190,10 +190,10 @@ public:
                                 onAuthenticatedCB;
     pinggy_on_authentication_failed_cb_t
                                 onAuthenticationFailedCB;
-    pinggy_on_primary_forwarding_succeeded_cb_t
-                                onPrimaryForwardingSucceededCB;
-    pinggy_on_primary_forwarding_failed_cb_t
-                                onPrimaryForwardingFailedCB;
+    pinggy_on_forwarding_succeeded_cb_t
+                                onForwardingSucceededCB;
+    pinggy_on_forwarding_failed_cb_t
+                                onForwardingFailedCB;
     pinggy_on_additional_forwarding_succeeded_cb_t
                                 onAdditionalForwardingSucceededCB;
     pinggy_on_additional_forwarding_failed_cb_t
@@ -215,8 +215,8 @@ public:
     pinggy_void_p_t             onConnectedUserData;
     pinggy_void_p_t             onAuthenticatedUserData;
     pinggy_void_p_t             onAuthenticationFailedUserData;
-    pinggy_void_p_t             onPrimaryForwardingSucceededUserData;
-    pinggy_void_p_t             onPrimaryForwardingFailedUserData;
+    pinggy_void_p_t             onForwardingSucceededUserData;
+    pinggy_void_p_t             onForwardingFailedUserData;
     pinggy_void_p_t             onAdditionalForwardingSucceededUserData;
     pinggy_void_p_t             onAdditionalForwardingFailedUserData;
     pinggy_void_p_t             onForwardingChangedUserData;
@@ -235,8 +235,8 @@ public:
                         onConnectedCB(NULL),
                         onAuthenticatedCB(NULL),
                         onAuthenticationFailedCB(NULL),
-                        onPrimaryForwardingSucceededCB(NULL),
-                        onPrimaryForwardingFailedCB(NULL),
+                        onForwardingSucceededCB(NULL),
+                        onForwardingFailedCB(NULL),
                         onAdditionalForwardingSucceededCB(NULL),
                         onAdditionalForwardingFailedCB(NULL),
                         onForwardingChangedCB(NULL),
@@ -250,8 +250,8 @@ public:
 
                         onAuthenticatedUserData(NULL),
                         onAuthenticationFailedUserData(NULL),
-                        onPrimaryForwardingSucceededUserData(NULL),
-                        onPrimaryForwardingFailedUserData(NULL),
+                        onForwardingSucceededUserData(NULL),
+                        onForwardingFailedUserData(NULL),
                         onAdditionalForwardingSucceededUserData(NULL),
                         onAdditionalForwardingFailedUserData(NULL),
                         onForwardingChangedUserData(NULL),
@@ -298,21 +298,21 @@ public:
         ReleaseCStringArray(cWhy, why);
     }
     virtual pinggy_void_t
-    OnPrimaryForwardingSucceeded(std::vector<tString> urls) override
+    OnForwardingSucceeded(std::vector<tString> urls) override
     {
-        if (!onPrimaryForwardingSucceededCB) {
-            LOGD("onPrimaryForwardingSucceededCB does not exists");
+        if (!onForwardingSucceededCB) {
+            LOGD("onForwardingSucceededCB does not exists");
             return;
         }
         GetCStringArray(cUrls, urls);
-        onPrimaryForwardingSucceededCB(onPrimaryForwardingSucceededUserData, sdk, urls.size(), cUrls);
+        onForwardingSucceededCB(onForwardingSucceededUserData, sdk, urls.size(), cUrls);
         ReleaseCStringArray(cUrls, urls);
     }
     virtual pinggy_void_t
-    OnPrimaryForwardingFailed(tString message) override
+    OnForwardingFailed(tString message) override
     {
-        if (!onPrimaryForwardingFailedCB) return;
-        onPrimaryForwardingFailedCB(onPrimaryForwardingFailedUserData, sdk, message.c_str());
+        if (!onForwardingFailedCB) return;
+        onForwardingFailedCB(onForwardingFailedUserData, sdk, message.c_str());
     }
     virtual pinggy_void_t
     OnAdditionalForwardingSucceeded(tString bindAddress, tString forwardTo, tString forwardingType) override
@@ -1275,7 +1275,7 @@ pinggy_tunnel_start_web_debugging(pinggy_ref_t ref, pinggy_uint16_t port)
 }
 
 static pinggy_void_t
-pinggy_tunnel_request_primary_forwarding_v2(pinggy_ref_t ref, pinggy_bool_t blocking)
+pinggy_tunnel_start_forwarding_v2(pinggy_ref_t ref, pinggy_bool_t blocking)
 {
     auto sdk =  getSdk(ref);
     if (sdk == nullptr) {
@@ -1283,7 +1283,7 @@ pinggy_tunnel_request_primary_forwarding_v2(pinggy_ref_t ref, pinggy_bool_t bloc
         return;
     }
     try {
-        sdk->RequestPrimaryRemoteForwarding(blocking==pinggy_true);
+        sdk->StartForwarding(blocking==pinggy_true);
         return;
     } catch (const std::exception &e) {
         if (exception_callback) {
@@ -1296,15 +1296,15 @@ pinggy_tunnel_request_primary_forwarding_v2(pinggy_ref_t ref, pinggy_bool_t bloc
 }
 
 PINGGY_EXPORT pinggy_void_t
-pinggy_tunnel_request_primary_forwarding(pinggy_ref_t ref)
+pinggy_tunnel_start_forwarding(pinggy_ref_t ref)
 {
-    pinggy_tunnel_request_primary_forwarding_v2(ref, pinggy_false);
+    pinggy_tunnel_start_forwarding_v2(ref, pinggy_false);
 }
 
 PINGGY_EXPORT pinggy_void_t
-pinggy_tunnel_request_primary_forwarding_blocking(pinggy_ref_t ref)
+pinggy_tunnel_start_forwarding_blocking(pinggy_ref_t ref)
 {
-    pinggy_tunnel_request_primary_forwarding_v2(ref, pinggy_true);
+    pinggy_tunnel_start_forwarding_v2(ref, pinggy_true);
 }
 
 PINGGY_EXPORT pinggy_void_t
@@ -1317,7 +1317,7 @@ pinggy_tunnel_request_additional_forwarding(pinggy_ref_t ref, pinggy_const_char_
     }
     try {
         //tString forwardingType, tString bindingUrl, tString forwardTo
-        return sdk->RequestAdditionalRemoteForwarding(EmptyStringIfNull(forwarding_type), EmptyStringIfNull(bindingAddr), EmptyStringIfNull(forwardTo));
+        return sdk->RequestAdditionalForwarding(EmptyStringIfNull(forwarding_type), EmptyStringIfNull(bindingAddr), EmptyStringIfNull(forwardTo));
     } catch (const std::exception &e) {
         if (exception_callback) {
             exception_callback("CPP exception:", e.what());
@@ -1468,20 +1468,20 @@ pinggy_tunnel_set_on_authentication_failed_callback(pinggy_ref_t sdkRef, pinggy_
 }
 
 PINGGY_EXPORT pinggy_bool_t
-pinggy_tunnel_set_on_primary_forwarding_succeeded_callback(pinggy_ref_t sdkRef, pinggy_on_primary_forwarding_succeeded_cb_t tunnel_initiated, pinggy_void_p_t user_data)
+pinggy_tunnel_set_on_forwarding_succeeded_callback(pinggy_ref_t sdkRef, pinggy_on_forwarding_succeeded_cb_t tunnel_initiated, pinggy_void_p_t user_data)
 {
     GetEventHandlerFromSdkRef(sdkRef, aev);
-    aev->onPrimaryForwardingSucceededCB = tunnel_initiated;
-    aev->onPrimaryForwardingSucceededUserData = user_data;
+    aev->onForwardingSucceededCB = tunnel_initiated;
+    aev->onForwardingSucceededUserData = user_data;
     return pinggy_true;
 }
 
 PINGGY_EXPORT pinggy_bool_t
-pinggy_tunnel_set_primary_forwarding_failed_callback(pinggy_ref_t sdkRef, pinggy_on_primary_forwarding_failed_cb_t tunnel_initiation_failed, pinggy_void_p_t user_data)
+pinggy_tunnel_set_forwarding_failed_callback(pinggy_ref_t sdkRef, pinggy_on_forwarding_failed_cb_t tunnel_initiation_failed, pinggy_void_p_t user_data)
 {
     GetEventHandlerFromSdkRef(sdkRef, aev);
-    aev->onPrimaryForwardingFailedCB = tunnel_initiation_failed;
-    aev->onPrimaryForwardingFailedUserData = user_data;
+    aev->onForwardingFailedCB = tunnel_initiation_failed;
+    aev->onForwardingFailedUserData = user_data;
     return pinggy_true;
 }
 

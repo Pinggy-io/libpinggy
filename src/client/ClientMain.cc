@@ -374,14 +374,14 @@ struct ClientSdkEventHandler: virtual public sdk::SdkEventHandler
     ~ClientSdkEventHandler()    { }
 
     virtual void
-    OnPrimaryForwardingSucceeded(std::vector<std::string> urls) override;
+    OnForwardingSucceeded(std::vector<std::string> urls) override;
 
     virtual void
     OnAuthenticationFailed(std::vector<tString> why) override
                                 { this->error = JoinString(why, " "); }
 
     virtual void
-    OnPrimaryForwardingFailed(tString error) override
+    OnForwardingFailed(tString error) override
                                 { this->error = error; }
 
     virtual void
@@ -452,9 +452,9 @@ main(int argc, char *argv[]) {
         sdk->StartUsagesUpdate();
 
         sdk->Connect(true);
-        sdk->RequestPrimaryRemoteForwarding(true);
+        sdk->StartForwarding(true);
         // for (auto x : config->forwardings) {
-        //     sdk->RequestAdditionalRemoteForwarding(x.first, x.second);
+        //     sdk->RequestAdditionalForwarding(x.first, x.second);
         // }
 
         sdk->Start();
@@ -475,7 +475,7 @@ main(int argc, char *argv[]) {
 }
 
 void
-ClientSdkEventHandler::OnPrimaryForwardingSucceeded(std::vector<std::string> urls)
+ClientSdkEventHandler::OnForwardingSucceeded(std::vector<std::string> urls)
 {
     std::cout << "Connection completed" << std::endl;
     for (auto url : urls) {

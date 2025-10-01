@@ -164,7 +164,7 @@ Sdk::Start()
             LOGD("Not connected or authenticated");
             return false;
         }
-        if (!RequestPrimaryRemoteForwarding(true)) {
+        if (!StartForwarding(true)) {
             LOGD("Primary forwarding failed");
             return false;
         }
@@ -290,7 +290,7 @@ Sdk::ResumeTunnel(tInt32 timeout)
 std::vector<tString> PINGGY_ATTRIBUTE_FUNC
 Sdk::GetUrls()
 {
-    if (state < SdkState_PrimaryReverseForwardingSucceeded) {
+    if (state < SdkState_ForwardingSucceeded) {
         LOGE("Tunnel is not running");
         return {};
     }
@@ -366,7 +366,7 @@ Sdk::StartWebDebugging(port_t port)
 #define PRIMARY_REMOTE_FORWARDING_PORT 0
 
 bool PINGGY_LIFE_CYCLE_FUNC
-Sdk::RequestPrimaryRemoteForwarding(bool block)
+Sdk::StartForwarding(bool block)
 {
     if (stopped) {
         throw SdkException("tunnel is stopped");
@@ -379,7 +379,7 @@ Sdk::RequestPrimaryRemoteForwarding(bool block)
 }
 
 void PINGGY_ATTRIBUTE_FUNC
-Sdk::RequestAdditionalRemoteForwarding(tString forwardingType, tString bindingUrl, tString forwardTo)
+Sdk::RequestAdditionalForwarding(tString forwardingType, tString bindingUrl, tString forwardTo)
 {
     if (stopped) {
         throw SdkException("tunnel is stopped");
@@ -396,7 +396,7 @@ Sdk::RequestAdditionalRemoteForwarding(tString forwardingType, tString bindingUr
     auto forwarding = SDKConfig::parseForwarding(forwardingType, bindingUrl, forwardTo);
 
     auto lock = LockIfDifferentThread();
-    if (state < SdkState_PrimaryReverseForwardingSucceeded) {
+    if (state < SdkState_ForwardingSucceeded) {
         throw RemoteForwardingException("primary reverse forwarding for this tunnel");
     }
 
@@ -406,7 +406,7 @@ Sdk::RequestAdditionalRemoteForwarding(tString forwardingType, tString bindingUr
 }
 
 void
-Sdk::RequestAdditionalRemoteForwarding(tString forwardTo)
+Sdk::RequestAdditionalForwarding(tString forwardTo)
 {
     if (stopped) {
         throw SdkException("tunnel is stopped");
@@ -423,7 +423,7 @@ Sdk::RequestAdditionalRemoteForwarding(tString forwardTo)
     auto forwarding = SDKConfig::parseForwarding(forwardTo);
 
     auto lock = LockIfDifferentThread();
-    if (state < SdkState_PrimaryReverseForwardingSucceeded) {
+    if (state < SdkState_ForwardingSucceeded) {
         throw RemoteForwardingException("primary reverse forwarding for this tunnel");
     }
 
@@ -517,7 +517,7 @@ Sdk::HandleSessionRemoteForwardingSucceeded(protocol::tReqId reqId, tForwardingI
     auto elem = pendingRemoteForwardingRequestMap.find(reqId);
     if (elem != pendingRemoteForwardingRequestMap.end()) {
 
-        if (state >= SdkState_PrimaryReverseForwardingAccepted) {
+        if (state >= SdkState_ForwardingAccepted) {
             pollController->StopPolling();
             ABORT_WITH_MSG("Received multiple primary forwarding");
             return;
@@ -542,7 +542,7 @@ Sdk::HandleSessionRemoteForwardingSucceeded(protocol::tReqId reqId, tForwardingI
         if (pendingRemoteForwardingRequestMap.size() > 0)
             return;
 
-        state = SdkState_PrimaryReverseForwardingAccepted;
+        state = SdkState_ForwardingAccepted;
 
         // tunnelInitiated();
         // Probably 5 second is not a lot. But, we want it to fail soon.
@@ -585,7 +585,7 @@ Sdk::HandleSessionRemoteForwardingFailed(protocol::tReqId reqId, tString error)
     auto elem = pendingRemoteForwardingRequestMap.find(reqId);
     if (elem != pendingRemoteForwardingRequestMap.end()) {
         DEFER({pollController->StopPolling();});
-        if (state >= SdkState_PrimaryReverseForwardingAccepted) {
+        if (state >= SdkState_ForwardingAccepted) {
             ABORT_WITH_MSG("Received multiple primary forwarding");
             return;
         }
@@ -967,6 +967,7 @@ Sdk::authenticate()
 
 bool Sdk::internalConnect(bool block)
 {
+    //TODO Change both the connect to non-blocking
     try {
         auto serverAddress = sdkConfig->serverAddress;
         baseConnection = net::NewNetworkConnectionImplPtr(serverAddress->GetRawHost(), serverAddress->GetPortStr());
@@ -1169,7 +1170,7 @@ void
 Sdk::handlePrimaryForwardingFailed(tString reason)
 {
     DEFER({pollController->StopPolling();});
-    state = SdkState_PrimaryReverseForwardingFailed;
+    state = SdkState_ForwardingFailed;
     reconnectionState = SdkState_Reconnect_Failed;
 
     if (notificationConn && notificationConn->IsValid()) {
@@ -1179,7 +1180,7 @@ Sdk::handlePrimaryForwardingFailed(tString reason)
     }
 
     if (eventHandler && !reconnectNow)
-        eventHandler->OnPrimaryForwardingFailed(reason);
+        eventHandler->OnForwardingFailed(reason);
 
     if (baseConnection->IsValid()) {
         baseConnection->DeregisterFDEvenHandler();
@@ -1193,8 +1194,8 @@ void
 Sdk::primaryForwardingCompleted()
 {
     if (eventHandler && !reconnectNow)
-        eventHandler->OnPrimaryForwardingSucceeded(urls);
-    state = SdkState_PrimaryReverseForwardingSucceeded;
+        eventHandler->OnForwardingSucceeded(urls);
+    state = SdkState_ForwardingSucceeded;
     reconnectionState = SdkState_Reconnect_Forwarded;
     pollController->StopPolling();
 }
@@ -1211,7 +1212,7 @@ Sdk::internalRequestPrimaryRemoteForwarding(bool block)
     }
 
     // primaryReverseForwardingInitiated = true;
-    state = SdkState_PrimaryReverseForwardingInitiated;
+    state = SdkState_ForwardingInitiated;
 
     for (auto forwarding : sdkConfig->sdkForwardingList) {
         auto reqId = session->SendRemoteForwardRequest(forwarding->bindingPort, forwarding->bindingDomain,
@@ -1227,7 +1228,7 @@ Sdk::internalRequestPrimaryRemoteForwarding(bool block)
     if (cleanupNow)
         cleanup();
 
-    return state == SdkState_PrimaryReverseForwardingSucceeded ;
+    return state == SdkState_ForwardingSucceeded ;
 }
 
 void

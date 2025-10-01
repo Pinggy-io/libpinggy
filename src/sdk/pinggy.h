@@ -222,11 +222,11 @@ typedef pinggy_void_t (*pinggy_on_authentication_failed_cb_t)                   
                             (pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_len_t num_reasons, pinggy_char_p_p_t reasons);
 
 /**
- * @typedef pinggy_on_primary_forwarding_succeeded_cb_t
+ * @typedef pinggy_on_forwarding_succeeded_cb_t
  * @brief Callback for when primary forwarding is successfully established.
  *
  * This callback can arrive only when the app has requested primary forwarding using
- * `pinggy_tunnel_request_primary_forwarding_blocking` or has called `pinggy_tunnel_request_primary_forwarding`
+ * `pinggy_tunnel_start_forwarding_blocking` or has called `pinggy_tunnel_start_forwarding`
  * and is waiting for an event by calling `pinggy_tunnel_resume`.
  *
  * @param user_data  User-defined pointer passed during callback registration.
@@ -234,18 +234,18 @@ typedef pinggy_void_t (*pinggy_on_authentication_failed_cb_t)                   
  * @param num_urls Size of the `urls` array.
  * @param urls Array of URLs as strings.
  */
-typedef pinggy_void_t (*pinggy_on_primary_forwarding_succeeded_cb_t)            \
+typedef pinggy_void_t (*pinggy_on_forwarding_succeeded_cb_t)            \
                             (pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_len_t num_urls, pinggy_char_p_p_t urls);
 
 /**
- * @typedef pinggy_on_primary_forwarding_failed_cb_t
+ * @typedef pinggy_on_forwarding_failed_cb_t
  * @brief Callback for when primary forwarding fails. The context is the same as
- * `pinggy_on_primary_forwarding_succeeded_cb_t`.
+ * `pinggy_on_forwarding_succeeded_cb_t`.
  * @param user_data  User-defined pointer passed during callback registration.
  * @param tunnel_ref Reference to the tunnel object.
  * @param msg Error message string.
  */
-typedef pinggy_void_t (*pinggy_on_primary_forwarding_failed_cb_t)               \
+typedef pinggy_void_t (*pinggy_on_forwarding_failed_cb_t)               \
                             (pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_const_char_p_t msg);
 
 /**
@@ -1158,7 +1158,7 @@ pinggy_tunnel_connect_blocking(pinggy_ref_t tunnel);
 /**
  * @brief Resumes tunnel operation after connect.
  *
- * Applications should call this function in a loop after pinggy_tunnel_connect and pinggy_tunnel_request_primary_forwarding to keep the tunnel active. Returns false when the tunnel should stop.
+ * Applications should call this function in a loop after pinggy_tunnel_connect and pinggy_tunnel_start_forwarding to keep the tunnel active. Returns false when the tunnel should stop.
  *
  * @param tunnel Reference to the tunnel object.
  * @return      pinggy_true to continue, pinggy_false to stop.
@@ -1217,7 +1217,7 @@ pinggy_tunnel_start_web_debugging(pinggy_ref_t tunnel, pinggy_uint16_t listening
  * @param tunnel Reference to the tunnel object.
  */
 PINGGY_EXPORT pinggy_void_t
-pinggy_tunnel_request_primary_forwarding(pinggy_ref_t tunnel);
+pinggy_tunnel_start_forwarding(pinggy_ref_t tunnel);
 
 
 /**
@@ -1228,7 +1228,7 @@ pinggy_tunnel_request_primary_forwarding(pinggy_ref_t tunnel);
  * @param tunnel Reference to the tunnel object.
  */
 PINGGY_EXPORT pinggy_void_t
-pinggy_tunnel_request_primary_forwarding_blocking(pinggy_ref_t tunnel);
+pinggy_tunnel_start_forwarding_blocking(pinggy_ref_t tunnel);
 
 /**
  * @brief Requests additional remote forwarding from the server.
@@ -1348,23 +1348,23 @@ pinggy_tunnel_set_on_authentication_failed_callback(pinggy_ref_t tunnel, pinggy_
  * @brief Registers a callback for when primary forwarding is successfully established.
  *
  * @param tunnel                         Reference to the tunnel object.
- * @param primary_forwarding_succeeded   Function pointer for the primary forwarding succeeded callback.
+ * @param forwarding_succeeded   Function pointer for the primary forwarding succeeded callback.
  * @param user_data                      User data to be passed to the callback.
  * @return                               pinggy_true on success, pinggy_false on failure.
  */
 PINGGY_EXPORT pinggy_bool_t
-pinggy_tunnel_set_on_primary_forwarding_succeeded_callback(pinggy_ref_t tunnel, pinggy_on_primary_forwarding_succeeded_cb_t, pinggy_void_p_t user_data);
+pinggy_tunnel_set_on_forwarding_succeeded_callback(pinggy_ref_t tunnel, pinggy_on_forwarding_succeeded_cb_t, pinggy_void_p_t user_data);
 
 /**
  * @brief Registers a callback for when primary forwarding fails.
  *
  * @param tunnel                       Reference to the tunnel object.
- * @param primary_forwarding_failed    Function pointer for the primary forwarding failed callback.
+ * @param forwarding_failed    Function pointer for the primary forwarding failed callback.
  * @param user_data                    User data to be passed to the callback.
  * @return                             pinggy_true on success, pinggy_false on failure.
  */
 PINGGY_EXPORT pinggy_bool_t
-pinggy_tunnel_set_on_primary_forwarding_failed_callback(pinggy_ref_t tunnel, pinggy_on_primary_forwarding_failed_cb_t, pinggy_void_p_t user_data);
+pinggy_tunnel_set_on_forwarding_failed_callback(pinggy_ref_t tunnel, pinggy_on_forwarding_failed_cb_t, pinggy_void_p_t user_data);
 
 /**
  * @brief Registers a callback for when additional forwarding is successfully established.
@@ -1826,8 +1826,8 @@ pinggy_build_os_len(pinggy_capa_t capa, pinggy_char_p_t val, pinggy_capa_p_t max
 #define pinggy_connected_cb_t                                       pinggy_on_connected_cb_t
 #define pinggy_authenticated_cb_t                                   pinggy_on_authenticated_cb_t
 #define pinggy_authentication_failed_cb_t                           pinggy_on_authentication_failed_cb_t
-#define pinggy_primary_forwarding_succeeded_cb_t                    pinggy_on_primary_forwarding_succeeded_cb_t
-#define pinggy_primary_forwarding_failed_cb_t                       pinggy_on_primary_forwarding_failed_cb_t
+#define pinggy_forwarding_succeeded_cb_t                            pinggy_on_forwarding_succeeded_cb_t
+#define pinggy_forwarding_failed_cb_t                               pinggy_on_forwarding_failed_cb_t
 #define pinggy_additional_forwarding_succeeded_cb_t                 pinggy_on_additional_forwarding_succeeded_cb_t
 #define pinggy_additional_forwarding_failed_cb_t                    pinggy_on_additional_forwarding_failed_cb_t
 #define pinggy_disconnected_cb_t                                    pinggy_on_disconnected_cb_t
@@ -1839,8 +1839,8 @@ pinggy_build_os_len(pinggy_capa_t capa, pinggy_char_p_t val, pinggy_capa_p_t max
 #define pinggy_tunnel_set_connected_callback                        pinggy_tunnel_set_on_connected_callback
 #define pinggy_tunnel_set_authenticated_callback                    pinggy_tunnel_set_on_authenticated_callback
 #define pinggy_tunnel_set_authentication_failed_callback            pinggy_tunnel_set_on_authentication_failed_callback
-#define pinggy_tunnel_set_primary_forwarding_succeeded_callback     pinggy_tunnel_set_on_primary_forwarding_succeeded_callback
-#define pinggy_tunnel_set_primary_forwarding_failed_callback        pinggy_tunnel_set_on_primary_forwarding_failed_callback
+#define pinggy_tunnel_set_forwarding_succeeded_callback             pinggy_tunnel_set_on_forwarding_succeeded_callback
+#define pinggy_tunnel_set_forwarding_failed_callback                pinggy_tunnel_set_on_forwarding_failed_callback
 #define pinggy_tunnel_set_additional_forwarding_succeeded_callback  pinggy_tunnel_set_on_additional_forwarding_succeeded_callback
 #define pinggy_tunnel_set_additional_forwarding_failed_callback     pinggy_tunnel_set_on_additional_forwarding_failed_callback
 #define pinggy_tunnel_set_disconnected_callback                     pinggy_tunnel_set_on_disconnected_callback
