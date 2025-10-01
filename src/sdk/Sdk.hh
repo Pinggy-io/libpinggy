@@ -32,7 +32,7 @@ namespace sdk
 enum SdkState {
     SdkState_Invalid = 0,
     SdkState_AuthenticationFailed,
-    SdkState_PrimaryReverseForwardingFailed,
+    SdkState_ForwardingFailed,
 
     SdkState_Initial,
     SdkState_Connecting,
@@ -41,9 +41,9 @@ enum SdkState {
     SdkState_SessionInitiated,
     SdkState_Authenticating,
     SdkState_Authenticated,
-    SdkState_PrimaryReverseForwardingInitiated,
-    SdkState_PrimaryReverseForwardingAccepted,
-    SdkState_PrimaryReverseForwardingSucceeded,
+    SdkState_ForwardingInitiated,
+    SdkState_ForwardingAccepted,
+    SdkState_ForwardingSucceeded,
 
     SdkState_Disconnected,
 
@@ -71,12 +71,11 @@ public:
                                 { }
 
     virtual void
-    OnPrimaryForwardingSucceeded(std::vector<tString> urls)
+    OnForwardingSucceeded(std::vector<tString> urls)
                                 { }
 
     virtual void
-    OnPrimaryForwardingFailed(tString)
-                                { }
+    OnForwardingFailed(tString) { }
 
     virtual void
     OnAdditionalForwardingSucceeded(tString bindAddress, tString forwardTo, tString forwardingType)
@@ -169,13 +168,13 @@ public:
     StartWebDebugging(port_t port=4300);
 
     bool
-    RequestPrimaryRemoteForwarding(bool block = false);
+    StartForwarding(bool block = false);
 
     void
-    RequestAdditionalRemoteForwarding(tString forwardingType, tString bindingUrl, tString forwardTo);
+    RequestAdditionalForwarding(tString forwardingType, tString bindingUrl, tString forwardTo);
 
     void
-    RequestAdditionalRemoteForwarding(tString forwardTo);
+    RequestAdditionalForwarding(tString forwardTo);
 
     bool
     IsTunnelActive()            { return (state >= SdkState_Authenticating && (!stopped)); }
