@@ -101,19 +101,19 @@ DefineMakeSharedPtr(ThreadLock);
 
 Sdk::Sdk(SDKConfigPtr config, SdkEventHandlerPtr _eventHandler):
             running(false),
-            // primaryForwardingReqId(0),
             sdkConfig(config),
             eventHandler(_eventHandler),
             semaphore(NewSemaphorePtr(1)),
-            stopped(false),
-            reconnectNow(false),
-            cleanupNow(false),
+            // stopped(false),
+            // reconnectNow(false),
+            // cleanupNow(false),
             lastKeepAliveTickReceived(0),
             state(SdkState_Initial),
-            reconnectionState(SdkState_Initial),
+            // reconnectionState(SdkState_Initial),
             reconnectCounter(0),
             usagesRunning(false),
-            appHandlesNewChannel(false)
+            appHandlesNewChannel(false),
+            reconnectMode(false)
 {
     if (!config) {
         throw SdkException("Config not provided.");
@@ -128,53 +128,41 @@ Sdk::~Sdk()
 bool PINGGY_LIFE_CYCLE_FUNC
 Sdk::Connect(bool block)
 {
-    if (stopped) {
-        throw SdkException("tunnel is stopped");
-    }
+    throw SdkException("Function obsoleted");
 
-    //==== Setup =========
-    acquireAccessLock();
-    DEFER(releaseAccessLock(););
-
-    if (state >= SdkState_Connecting)
-        return true;
-
-    state = SdkState_Connecting;
-
-    sdkConfig = sdkConfig->clone();
-
-    sdkConfig->validate();
-
-    initPollController();
-
-    //=============
-
-    return internalConnect(block);
+    return false;
 }
 
 bool PINGGY_LIFE_CYCLE_WRAPPER_FUNC
-Sdk::Start()
+Sdk::Start(bool block)
 {
-    if (stopped) {
-        throw SdkException("tunnel is stopped");
-    }
-    // No lockAccess required as it is not calling any private function
-    if(!reconnectNow) {
-        if (!Connect(true)) { //entry point
-            LOGD("Not connected or authenticated");
-            return false;
-        }
-        if (!StartForwarding(true)) {
-            LOGD("Primary forwarding failed");
-            return false;
-        }
+    //==== Setup =========
+    if (state == SdkState_Initial) // Make sure that SdkInitial is not set again
+    {
+        acquireAccessLock();
+
+        state = SdkState_Started;
+
+        sdkConfig = sdkConfig->clone();
+        sdkConfig->validate();
+
+        initPollController();
+        internalConnect();
+
+        releaseAccessLock();
     }
 
-    while(true) {
+    if (!block)
+        return true;
+
+    while(state < SdkState_Stopped) {
         auto ret = ResumeTunnel();
         if (!ret)
             break;
     }
+
+    state = SdkState_Stopped;
+
     return true;
 }
 
@@ -182,106 +170,51 @@ bool PINGGY_ATTRIBUTE_FUNC
 Sdk::Stop()
 {
     auto lock = LockIfDifferentThread();
-    if (cleanupNow)
+    if (state == SdkState_Stopped)
         return false;
     if (session) {
         session->End("Connection close");
+        // session = nullptr;
     }
 
-    // stopWebDebugger();
-    cleanupNow = true;
+    // releaseBaseConnection();
+    state = SdkState_Stopped;
     return true;
 }
 
 bool PINGGY_LIFE_CYCLE_FUNC
 Sdk::ResumeTunnel(tInt32 timeout)
 {
-    if (stopped)
-        return false;
+    if (state == SdkState_Initial) {
+        throw SdkException("Tunnel not started yet");
+    }
+    if (state == SdkState_Stopped) {
+        throw SdkException("Tunnel has been stopped");
+    }
+
     acquireAccessLock();
     DEFER({releaseAccessLock();});
-    if (reconnectNow) {
-        reconnectLock.lock();
-        DEFER({reconnectLock.unlock();});
-        switch (reconnectionState) {
-            case SdkState_ReconnectWaiting:
-                { //Ongoing reconnection
-                    return resumeWithLock(__func__, timeout);
-                }
-                break;
 
-            case SdkState_Reconnect_Initiated:
-                {
-                    auto ret = internalConnect(false);
-                    reconnectionState = SdkState_ReconnectWaiting;
-                    if (!ret) { //initiating  // it needs to be non-blocking
-                        LOGD("Not connected or authenticated");
-                        pollController->SetTimeout(sdkConfig->GetAutoReconnectInterval() * SECOND, thisPtr,
-                                                    &Sdk::setReconnectionState, SdkState_Reconnect_Failed);
-                    }
-                }
-                break;
-
-            case SdkState_Reconnect_Connected:
-                {
-                    auto ret = internalRequestPrimaryRemoteForwarding(false);
-                    reconnectionState = SdkState_ReconnectWaiting;
-                    if (!ret) { // it needs to be non-blocking
-                        LOGD("Primary forwarding failed");
-                        pollController->SetTimeout(sdkConfig->GetAutoReconnectInterval() * SECOND, thisPtr,
-                                                    &Sdk::setReconnectionState, SdkState_Reconnect_Failed);
-                    }
-                }
-                break;
-
-            case SdkState_Reconnect_Forwarded: //it should not come here
-                {
-                    if (webDebugListener && webDebugListener->IsListening()) {
-                        webDebugListener->RegisterListenerHandler(pollController, thisPtr, 1);
-                    }
-                    reconnectCounter = 0;
-                    reconnectNow = false;
-                    if (eventHandler)
-                        eventHandler->OnReconnectionCompleted(this->urls);
-
-                    if (additionalForwardings.size() > 0) {
-                        for (auto ele : additionalForwardings) {
-                            internalRequestAdditionalRemoteForwarding(ele);
-                        }
-                    }
-                }
-                break;
-
-            case SdkState_Reconnect_Failed:
-            default:
-                {
-                    cleanupForReconnection(); //cleaning up last connection
-                    if (reconnectCounter >= sdkConfig->maxReconnectAttempts && sdkConfig->maxReconnectAttempts != 0) {
-                        reconnectionState = SdkState_Reconnect_Failed;
-                        lastError = "Maximum reconnection attempts reached. Exiting.";
-                        reconnectNow = false;
-                        cleanupNow = true;
-                        cleanupReason = lastError;
-                        if (eventHandler)
-                            eventHandler->OnReconnectionFailed(reconnectCounter);
-                    }
-                    reconnectionState = SdkState_Reconnect_Initiated;
-                    reconnectCounter += 1;
-                }
+    if (state == SdkState_Restart) {
+        if (    reconnectCounter >= sdkConfig->maxReconnectAttempts
+             && sdkConfig->maxReconnectAttempts != 0) {
+            lastError = "Maximum reconnection attempts reached. Exiting.";
+            if (eventHandler)
+                eventHandler->OnReconnectionFailed(reconnectCounter);
+            state = SdkState_Stopped;
+            return false;
         }
+
+        cleanupForReconnection();
+        reconnectCounter += 1;
+
         return true;
     }
 
-    if (cleanupNow) {
+    if (state == SdkState_Stopped) {
         cleanup();
         return false;
     }
-
-    if (state < SdkState_Connected)
-        throw std::runtime_error("tunnel is not started");
-
-    if (stopped)
-        return false;
 
     auto success = resumeWithLock(__func__, timeout);
     return success;
@@ -294,7 +227,7 @@ Sdk::GetUrls()
         LOGE("Tunnel is not running");
         return {};
     }
-    if (cleanupNow)
+    if (state == SdkState_Stopped)
         return {};
     LOGD("Returning urls");
     return urls;
@@ -326,6 +259,8 @@ Sdk::LockIfDifferentThread()
     if (notificationConn) {
         notificationConn->Write(NewRawDataPtr(tString("a")));
         threadLock = NewThreadLockPtr(new ThreadLock(thisPtr));
+    } else {
+        throw SdkException("The tunnel is not ready now");
     }
     semaphore->Notify();
     return threadLock;
@@ -334,7 +269,7 @@ Sdk::LockIfDifferentThread()
 port_t PINGGY_ATTRIBUTE_FUNC
 Sdk::StartWebDebugging(port_t port)
 {
-    if (stopped) {
+    if (state == SdkState_Stopped) {
         throw SdkException("tunnel is stopped");
     }
 
@@ -368,29 +303,20 @@ Sdk::StartWebDebugging(port_t port)
 bool PINGGY_LIFE_CYCLE_FUNC
 Sdk::StartForwarding(bool block)
 {
-    if (stopped) {
-        throw SdkException("tunnel is stopped");
-    }
+    throw RemoteForwardingException("Function obsoleted");
 
-    acquireAccessLock();
-    DEFER({releaseAccessLock();});
-
-    return internalRequestPrimaryRemoteForwarding(block);
+    return true;
 }
 
 void PINGGY_ATTRIBUTE_FUNC
 Sdk::RequestAdditionalForwarding(tString forwardingType, tString bindingUrl, tString forwardTo)
 {
-    if (stopped) {
-        throw SdkException("tunnel is stopped");
+    if (state == SdkState_Stopped) {
+        throw RemoteForwardingException("tunnel is stopped");
     }
 
     if (state < SdkState_Authenticated) {
-        WebDebuggerException("You are not logged in. How did you managed to come here?" );
-    }
-
-    if (stopped) {
-        throw RemoteForwardingException("tunnel stopped");
+        RemoteForwardingException("You are not logged in. How did you managed to come here?" );
     }
 
     auto forwarding = SDKConfig::parseForwarding(forwardingType, bindingUrl, forwardTo);
@@ -408,16 +334,12 @@ Sdk::RequestAdditionalForwarding(tString forwardingType, tString bindingUrl, tSt
 void
 Sdk::RequestAdditionalForwarding(tString forwardTo)
 {
-    if (stopped) {
-        throw SdkException("tunnel is stopped");
+    if (state == SdkState_Stopped) {
+        throw RemoteForwardingException("tunnel is stopped");
     }
 
     if (state < SdkState_Authenticated) {
-        WebDebuggerException("You are not logged in. How did you managed to come here?" );
-    }
-
-    if (stopped) {
-        throw RemoteForwardingException("tunnel stopped");
+        RemoteForwardingException("You are not logged in. How did you managed to come here?" );
     }
 
     auto forwarding = SDKConfig::parseForwarding(forwardTo);
@@ -450,14 +372,20 @@ Sdk::HandleSessionInitiated()
         return;
 
     state = SdkState_SessionInitiated;
-    if (eventHandler && !reconnectNow)
-        eventHandler->OnConnected();
+
     //TODO verify if primary mode allowed or not.
     if (session->GetSessionVersion() < PINGGY_SESSION_VERSION_1_02) {
+        // // cleanup();
+        // state = SdkState_Stopped;
+        // releaseBaseConnection();
         LOGE("Not authenticating for sdk version mismatch. Server is older that the sdk.");
         HandleSessionAuthenticationFailed("Incompatible SDK. Kindly upgrade", {"Incompatible SDK. Kindly upgrade"});
         return;
     }
+
+    if (eventHandler && !reconnectMode)
+        eventHandler->OnConnected();
+
     authenticate();
 }
 
@@ -466,17 +394,17 @@ Sdk::HandleSessionAuthenticatedAsClient(std::vector<tString> messages, TunnelInf
 {
     authenticationMsg = messages;
     state = SdkState_Authenticated;
-    reconnectionState = SdkState_Reconnect_Connected;
+
     LOGD("OnAuthenticated");
     if (info) {
         json j = info->GreetingMsg;
         greetingMsgs = j.dump();
         portConfig = info->PortConfig;
     }
-    if (eventHandler && !reconnectNow)
+    if (eventHandler && !reconnectMode)
         eventHandler->OnAuthenticated();
 
-    pollController->StopPolling();
+    internalRequestForwarding();
 }
 
 void
@@ -485,27 +413,17 @@ Sdk::HandleSessionAuthenticationFailed(tString error, std::vector<tString> authe
     // authenticated = false;
     authenticationMsg = authenticationFailed;
     state = SdkState_AuthenticationFailed;
-    reconnectionState = SdkState_Reconnect_Failed;
+    // reconnectionState = SdkState_Reconnect_Failed;
     lastError = JoinString(authenticationFailed, "\r\n");
     LOGE("Authentication Failed");
 
-    if (notificationConn && notificationConn->IsValid()) {
-        notificationConn->CloseConn();
-        notificationConn = nullptr;
-        _notificateMonitorConn = nullptr;
+    releaseBaseConnection();
+
+    reconnectOrStopLoop();
+
+    if (eventHandler && !reconnectMode) {
+            eventHandler->OnAuthenticationFailed(authenticationMsg);
     }
-
-    if (eventHandler && !reconnectNow)
-        eventHandler->OnAuthenticationFailed(authenticationMsg);
-
-    if (baseConnection->IsValid()) {
-        baseConnection->DeregisterFDEvenHandler();
-        baseConnection->CloseConn();
-    }
-
-    stopped = true;
-
-    pollController->StopPolling();
 }
 
 void
@@ -518,7 +436,6 @@ Sdk::HandleSessionRemoteForwardingSucceeded(protocol::tReqId reqId, tForwardingI
     if (elem != pendingRemoteForwardingRequestMap.end()) {
 
         if (state >= SdkState_ForwardingAccepted) {
-            pollController->StopPolling();
             ABORT_WITH_MSG("Received multiple primary forwarding");
             return;
         }
@@ -542,12 +459,23 @@ Sdk::HandleSessionRemoteForwardingSucceeded(protocol::tReqId reqId, tForwardingI
         if (pendingRemoteForwardingRequestMap.size() > 0)
             return;
 
-        state = SdkState_ForwardingAccepted;
+        state = SdkState_ForwardingSucceeded;
 
-        // tunnelInitiated();
-        // Probably 5 second is not a lot. But, we want it to fail soon.
-        primaryForwardingCompleted();
+        if (eventHandler) {
+            if (reconnectMode) {
+                eventHandler->OnReconnectionCompleted(urls);
+            } else {
+                eventHandler->OnForwardingSucceeded(urls);
+            }
+        }
+
+        reconnectMode = sdkConfig->autoReconnect;
+        reconnectCounter = 0;
+        // reconnectionState = SdkState_Reconnect_Forwarded;
+
         LOGD("Primary forwarding done");
+
+        keepAliveTask = pollController->SetInterval(5 * SECOND, thisPtr, &Sdk::sendKeepAlive);
 
         return;
     }
@@ -570,7 +498,7 @@ Sdk::HandleSessionRemoteForwardingSucceeded(protocol::tReqId reqId, tForwardingI
 
     updateForwardMap(remoteForwardings);
 
-    if (eventHandler && !reconnectNow) {
+    if (eventHandler && !reconnectMode) {
         eventHandler->OnAdditionalForwardingSucceeded(forwarding->origBindingUrl, forwarding->origForwardTo, forwarding->origForwardingType);
     }
 }
@@ -590,7 +518,16 @@ Sdk::HandleSessionRemoteForwardingFailed(protocol::tReqId reqId, tString error)
             return;
         }
 
-        handlePrimaryForwardingFailed(error);
+        state = SdkState_ForwardingFailed;
+        // reconnectionState = SdkState_Reconnect_Failed;
+        releaseBaseConnection();
+
+        reconnectOrStopLoop();
+
+        if (eventHandler && !reconnectMode) {
+            eventHandler->OnForwardingFailed(error);
+        }
+
         return;
     }
 
@@ -603,7 +540,7 @@ Sdk::HandleSessionRemoteForwardingFailed(protocol::tReqId reqId, tString error)
     // auto [bindAddress, forwardTo] = pendingAdditionalRemoteForwardingMap[reqId];
     auto forwarding = pendingAdditionalRemoteForwardingMap[reqId];
     pendingAdditionalRemoteForwardingMap.erase(reqId);
-    if (eventHandler && !reconnectNow) {
+    if (eventHandler) {
         eventHandler->OnAdditionalForwardingFailed(forwarding->origBindingUrl, forwarding->origForwardTo, forwarding->origForwardingType, error);
     }
 }
@@ -683,6 +620,7 @@ Sdk::HandleSessionKeepAliveResponseReceived(tUint64 tick)
 void
 Sdk::HandleSessionDisconnection(tString reason)
 {
+    LOGD("Disconnection: ", reason);
     lastError = reason;
     if (!session)
         return;
@@ -690,36 +628,37 @@ Sdk::HandleSessionDisconnection(tString reason)
     // if (eventHandler)
     //     eventHandler->OnDisconnected(reason, {reason});
 
-    // cleanup();
-    cleanupNow = true;
-    cleanupReason = reason;
+    releaseBaseConnection();
+
+    reconnectOrStopLoop();
 }
 
 void
 Sdk::HandleSessionConnectionReset()
 {
+    LOGD("Connection Reset");
     //Nothing much to do. just stop the poll controller if possible.
     baseConnection = nullptr; //it would be closed by sessios once this function returns.
 
     // if (eventHandler)
     //     eventHandler->OnDisconnected("Connection reset", {"Connection reset"});
 
-    // cleanup();
-    cleanupNow = true;
-    // stopped = true;
-    cleanupReason = "Connection reset";
+    releaseBaseConnection();
+
+    reconnectOrStopLoop();
 }
 
 void
 Sdk::HandleSessionError(tUint32 errorNo, tString what, tBool recoverable)
 {
+    LOGD("Session error occured: ", what);
     if (eventHandler)
         eventHandler->OnHandleError(errorNo, what, recoverable);
 
     if (!recoverable) {
-        // cleanup();
-        cleanupNow = true;
-        cleanupReason = what;
+        releaseBaseConnection();
+
+        reconnectOrStopLoop();
     }
 }
 
@@ -836,73 +775,6 @@ Sdk::HandleConnectionFailed(net::NetworkConnectionImplPtr netConn)
 void
 Sdk::ChannelDataReceived(protocol::ChannelPtr channel)
 {
-    // if (channel == usageChannel) {
-    //     auto [len, data] = usageChannel->Recv(4096);
-    //     if (len > 0) {
-    //         if (eventHandler && usagesRunning) {
-    //             lastUsagesUpdate = data->ToString();
-    //             try {
-    //                 json jd = json::parse(lastUsagesUpdate);
-    //                 if (jd.contains("elaspedTime") && !jd.contains("elapsedTime"))
-    //                     jd["elapsedTime"] = jd["elaspedTime"];
-    //                 lastUsagesUpdate = jd.dump();
-    //             } catch(...) {
-    //             }
-    //             eventHandler->OnUsageUpdate(lastUsagesUpdate);
-    //         }
-    //     }
-    //     return;
-    // }
-    // auto tag = channel->GetUserTag();
-    // if (tag == PORT_CONF) {
-    //     auto data = NewRawDataPtr();
-    //     while (channel->HaveDataToRead()) {
-    //         auto [len, newData] = channel->Recv(4096);
-    //         if (len <= 0) {
-    //             channel->Close();
-    //             break;
-    //         }
-    //         data->AddData(newData);
-    //     }
-    //     try {
-    //         json jdata = json::parse(data->ToString());
-    //         auto portConfigPtr = NewSpecialPortConfigPtr();
-    //         PINGGY_NLOHMANN_JSON_TO_PTR_VAR1(jdata, portConfigPtr,
-    //                                         SPECIAL_PORT_BASIC_FIELDS
-    //                                     )
-    //         thisPtr->portConfig = portConfigPtr;
-
-    //         if (!usageChannel) {
-    //             initiateContinousUsages();
-    //         }
-    //         setupLocalChannelNGetData(portConfig->GreetingMsgTCP, GREETING_MSG_TAG);
-    //     } catch(...) {
-    //         LOGE("Some error while parsing port config");
-    //     }
-    // } else if (tag == GREETING_MSG_TAG) {
-    //     auto data = NewRawDataPtr();
-    //     while (channel->HaveDataToRead()) {
-    //         auto [len, newData] = channel->Recv(4096);
-    //         if (len <= 0) {
-    //             channel->Close();
-    //             break;
-    //         }
-    //         data->AddData(newData);
-    //     }
-    //     if (data->Len) {
-    //         try {
-    //             json jdata = json::parse(data->ToString());
-    //             if (jdata.contains("Msgs")) {
-    //                 greetingMsgs = jdata["Msgs"].dump();
-    //             }
-    //             LOGD("greeting received");
-    //             primaryForwardingCompleted();
-    //         } catch(...) {
-    //             LOGE("Some error while parsing greeting msg");
-    //         }
-    //     }
-    //     return;
-    // }
     channel->Close();
 }
 
@@ -920,13 +792,6 @@ Sdk::ChannelError(protocol::ChannelPtr channel, protocol::tError errorCode, tStr
 void
 Sdk::ChannelCleanup(protocol::ChannelPtr channel)
 {
-    // if (channel == usageChannel) {
-    //     channel->Close();
-    //     usageChannel = nullptr;
-    //     //TODO reinitiate channel
-    //     pollController->SetTimeout(SECOND, thisPtr, &Sdk::initiateContinousUsages);
-    // }
-
     channel->Close();
 }
 
@@ -940,7 +805,7 @@ void
 Sdk::authenticate()
 {
     if (state != SdkState_SessionInitiated)
-        ABORT_WITH_MSG("You are not connected, how did you managed to call this?");
+        throw SdkException("You are not connected, how did you managed to call this?");
 
     state = SdkState_Authenticating;
 
@@ -948,25 +813,14 @@ Sdk::authenticate()
     LOGT("Authentication sent");
 }
 
-// void
-// Sdk::tunnelInitiated()
-// {
-//     if (!session->IsImplicitGreeting()){
-//         initiateContinousUsages();
-//         return;
-//     }
-
-//     if (!primaryForwardingCheckTimeout)
-//         primaryForwardingCheckTimeout = pollController->SetTimeout(5 * SECOND, thisPtr, &Sdk::handlePrimaryForwardingFailed, tString("could not fetch greetingmsg"));
-
-//     auto channel = session->CreateChannel(4, "localhost", 4300, "localhost");
-//     channel->RegisterEventHandler(thisPtr);
-//     channel->SetUserTag(PORT_CONF);
-//     channel->Connect();
-// }
-
-bool Sdk::internalConnect(bool block)
+void
+Sdk::internalConnect()
 {
+    if (state >= SdkState_Connecting)
+        return;
+
+    state = SdkState_Connecting;
+
     //TODO Change both the connect to non-blocking
     try {
         auto serverAddress = sdkConfig->serverAddress;
@@ -980,11 +834,12 @@ bool Sdk::internalConnect(bool block)
         }
     } catch (const std::exception &e) {
         LOGE("Exception occured: ", e.what());
-        return false;
+        reconnectOrStopLoop();
+        return;
     }
 
     if (!baseConnection)
-        return false;
+        return;
 
     state = SdkState_Connected;
 
@@ -995,18 +850,9 @@ bool Sdk::internalConnect(bool block)
     session->Start(thisPtr);
     LOGT("Session Started");
 
-    keepAliveTask = pollController->SetInterval(5 * SECOND, thisPtr, &Sdk::sendKeepAlive);
-
     initiateNotificationChannel();
 
     state = SdkState_SessionInitiating;
-
-    if (!block)
-        return true;
-
-    startPollingInCurrentThread();
-
-    return state==SdkState_Authenticated; // It would disrupt state is different for what ever reason.
 }
 
 bool
@@ -1043,7 +889,6 @@ Sdk::throwWrongThreadException(tString funcname)
 void
 Sdk::cleanup()
 {
-    if (stopped) return;
     if (keepAliveTask) {
         keepAliveTask->DisArm();
         keepAliveTask = nullptr;
@@ -1074,7 +919,8 @@ Sdk::cleanup()
     if (eventHandler) {
         eventHandler = nullptr;
     }
-    stopped = true;
+    // stopped = true;
+    state = SdkState_Stopped;
 }
 
 void
@@ -1096,22 +942,16 @@ Sdk::keepAliveTimeout(tUint64 tick)
             keepAliveTask->DisArm();
             keepAliveTask = nullptr;
         }
-        if (sdkConfig->autoReconnect) {
-            reconnectNow = true;
-            reconnectionState = SdkState_Reconnect_Failed;
-            lastError = "Tunnel seems unresponsive. Reconnecting";
-            if (eventHandler)
-                eventHandler->OnWillReconnect("Connection Reset", {"Reconnecting"});
-        } else {
-            // Stop();
-            HandleSessionConnectionReset();
-        }
+        releaseBaseConnection();
+        lastError = "Tunnel seems unresponsive. Reconnecting";
+        reconnectOrStopLoop();
     } else {
         session->ResetIncomingActivities();
     }
 }
 
-void Sdk::stopWebDebugger()
+void
+Sdk::stopWebDebugger()
 {
     if (webDebugListener && webDebugListener->IsListening()) {
         webDebugListener->DeregisterFDEvenHandler();
@@ -1120,7 +960,8 @@ void Sdk::stopWebDebugger()
     }
 }
 
-void Sdk::cleanupForReconnection()
+void
+Sdk::cleanupForReconnection()
 {
     if (_notificateMonitorConn)
         _notificateMonitorConn->SetPollController(nullptr);
@@ -1134,12 +975,14 @@ void Sdk::cleanupForReconnection()
     initPollController();
     if  (_notificateMonitorConn)
         _notificateMonitorConn->SetPollController(pollController)->RegisterFDEvenHandler(thisPtr, NOTIFICATION_FD);
-    LOGI("Reconnecting Now");
-    if (eventHandler)
-        eventHandler->OnReconnecting(reconnectCounter);
+
+    state = SdkState_Reconnecting;
+
+    pollController->SetTimeout(sdkConfig->autoReconnectInterval * SECOND, thisPtr, &Sdk::initiateReconnection);
 }
 
-void Sdk::initPollController()
+void
+Sdk::initPollController()
 {
 #ifdef __WINDOWS_OS__
     auto pollController = common::NewPollControllerGenericPtr();
@@ -1152,7 +995,8 @@ void Sdk::initPollController()
 
 bool
 Sdk::resumeWithLock(tString funcName, tInt32 timeout)
-{   auto ret = pollController->PollOnce(timeout);
+{
+    auto ret = pollController->PollOnce(timeout);
     auto success = (ret < 0 && app_get_errno() != EINTR ? false : true);
     return success;
 }
@@ -1166,42 +1010,8 @@ Sdk::setupLocalChannelNGetData(port_t port, tString tag)
     channel->Connect();
 }
 
-void
-Sdk::handlePrimaryForwardingFailed(tString reason)
-{
-    DEFER({pollController->StopPolling();});
-    state = SdkState_ForwardingFailed;
-    reconnectionState = SdkState_Reconnect_Failed;
-
-    if (notificationConn && notificationConn->IsValid()) {
-        notificationConn->CloseConn();
-        notificationConn = nullptr;
-        _notificateMonitorConn = nullptr;
-    }
-
-    if (eventHandler && !reconnectNow)
-        eventHandler->OnForwardingFailed(reason);
-
-    if (baseConnection->IsValid()) {
-        baseConnection->DeregisterFDEvenHandler();
-        baseConnection->CloseConn();
-    }
-    stopped = true;
-    LOGD(reason);
-}
-
-void
-Sdk::primaryForwardingCompleted()
-{
-    if (eventHandler && !reconnectNow)
-        eventHandler->OnForwardingSucceeded(urls);
-    state = SdkState_ForwardingSucceeded;
-    reconnectionState = SdkState_Reconnect_Forwarded;
-    pollController->StopPolling();
-}
-
 bool
-Sdk::internalRequestPrimaryRemoteForwarding(bool block)
+Sdk::internalRequestForwarding()
 {
     if (state < SdkState_Authenticated) {
         throw SdkException("Kindly login first");
@@ -1211,7 +1021,6 @@ Sdk::internalRequestPrimaryRemoteForwarding(bool block)
         return true;
     }
 
-    // primaryReverseForwardingInitiated = true;
     state = SdkState_ForwardingInitiated;
 
     for (auto forwarding : sdkConfig->sdkForwardingList) {
@@ -1220,15 +1029,16 @@ Sdk::internalRequestPrimaryRemoteForwarding(bool block)
         pendingRemoteForwardingRequestMap[reqId] = forwarding;
     }
 
-    if (!block)
-        return true;
+    if (additionalForwardings.size() > 0) {
+        for (auto forwarding : additionalForwardings) { // yes we are starting additional forwarding right here.
+            auto reqId = session->SendRemoteForwardRequest(forwarding->bindingPort, forwarding->bindingDomain,
+                                                            forwarding->fwdToPort, forwarding->fwdToHost, forwarding->mode);
+            pendingRemoteForwardingRequestMap[reqId] = forwarding;
+        }
+    }
 
-    startPollingInCurrentThread();
-
-    if (cleanupNow)
-        cleanup();
-
-    return state == SdkState_ForwardingSucceeded ;
+    // if (!block)
+    return true;
 }
 
 void
@@ -1279,6 +1089,40 @@ Sdk::updateForwardMap(std::vector<RemoteForwardingPtr> remoteForwardings)
         } catch(...) {
         }
         eventHandler->OnForwardingChanged(changedUrls);
+    }
+}
+
+void
+Sdk::reconnectOrStopLoop()
+{
+    if (reconnectMode) {
+        state = SdkState_Restart;
+
+        if (reconnectCounter == 0 && eventHandler) {
+            LOGD("Reconnecting");
+            eventHandler->OnWillReconnect("Connection Reset", {"Reconnecting"});
+        }
+    } else {
+        state = SdkState_Stopped;
+    }
+}
+
+void
+Sdk::initiateReconnection()
+{
+    LOGI("Reconnecting Now");
+    if (eventHandler)
+        eventHandler->OnReconnecting(reconnectCounter);
+    internalConnect();
+}
+
+void
+Sdk::releaseBaseConnection()
+{
+    if (pollController && baseConnection) {
+        baseConnection->DeregisterFDEvenHandler();
+        baseConnection->CloseConn();
+        baseConnection = nullptr;
     }
 }
 

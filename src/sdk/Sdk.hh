@@ -31,18 +31,21 @@ namespace sdk
 
 enum SdkState {
     SdkState_Invalid = 0,
-    SdkState_AuthenticationFailed,
-    SdkState_ForwardingFailed,
 
     SdkState_Initial,
+    SdkState_Started,
+    SdkState_Restart,
+    SdkState_Reconnecting,
     SdkState_Connecting,
     SdkState_Connected,
     SdkState_SessionInitiating,
     SdkState_SessionInitiated,
     SdkState_Authenticating,
+    SdkState_AuthenticationFailed,
     SdkState_Authenticated,
     SdkState_ForwardingInitiated,
     SdkState_ForwardingAccepted,
+    SdkState_ForwardingFailed,
     SdkState_ForwardingSucceeded,
 
     SdkState_Disconnected,
@@ -52,6 +55,8 @@ enum SdkState {
     SdkState_Reconnect_Connected,
     SdkState_Reconnect_Forwarded,
     SdkState_ReconnectWaiting,
+
+    SdkState_Stopped,
 };
 
 abstract class SdkEventHandler: virtual public pinggy::SharedObject
@@ -141,7 +146,7 @@ public:
     Connect(bool block = false);
 
     bool
-    Start();
+    Start(bool block = true);
 
     bool
     Stop();
@@ -177,7 +182,7 @@ public:
     RequestAdditionalForwarding(tString forwardTo);
 
     bool
-    IsTunnelActive()            { return (state >= SdkState_Authenticating && (!stopped)); }
+    IsTunnelActive()            { return (state >= SdkState_Started && state < SdkState_Stopped); }
 
     void
     StartUsagesUpdate()         { usagesRunning = true; }
@@ -283,11 +288,8 @@ private:
     void
     authenticate();
 
-    // void
-    // tunnelInitiated();
-
-    bool
-    internalConnect(bool block);
+    void
+    internalConnect();
 
     bool
     startPollingInCurrentThread();
@@ -316,9 +318,6 @@ private:
     void
     initPollController();
 
-    // void
-    // initiateContinousUsages();
-
     bool
     resumeWithLock(tString funcName, tInt32 timeout);
 
@@ -328,18 +327,8 @@ private:
     void
     setState(SdkState s)        { state = s; }
 
-    void
-    setReconnectionState(SdkState s)
-                                { reconnectionState = s; }
-
-    void
-    handlePrimaryForwardingFailed(tString reason);
-
-    void
-    primaryForwardingCompleted();
-
     bool
-    internalRequestPrimaryRemoteForwarding(bool block = false);
+    internalRequestForwarding();
 
     void
     acquireAccessLock(bool block = false);
@@ -353,13 +342,19 @@ private:
     void
     updateForwardMap(std::vector<RemoteForwardingPtr> remoteForwardings);
 
+    void
+    reconnectOrStopLoop();
+
+    void
+    initiateReconnection();
+
+    void
+    releaseBaseConnection();
+
     net::NetworkConnectionPtr   baseConnection;
     common::PollControllerPtr   pollController;
     protocol::SessionPtr        session;
-
     bool                        running;
-
-    // protocol::tReqId            primaryForwardingReqId;
 
     std::vector<tString>        authenticationMsg;
     std::vector<tString>        urls;
@@ -379,40 +374,28 @@ private:
     net::NetworkConnectionPtr   notificationConn;
     net::NetworkConnectionPtr   _notificateMonitorConn;
 
-    bool                        stopped;
-    bool                        reconnectNow;
-    bool                        cleanupNow;
-
     tUint64                     lastKeepAliveTickReceived;
     SdkState                    state;
-    SdkState                    reconnectionState;
 
     std::map<protocol::tReqId, SdkForwardingPtr> // pendingReqId [remote binding address to localBinding address]
                                 pendingAdditionalRemoteForwardingMap;
     std::map<protocol::tReqId, SdkForwardingPtr>
                                 pendingRemoteForwardingRequestMap;
-    // std::map<std::tuple<tString, port_t>, std::tuple<tString, port_t>>
     std::map<tForwardingId, SdkForwardingPtr>
                                 sdkForwardings;
 
     common::PollableTaskPtr     keepAliveTask;
     tInt16                      reconnectCounter;
 
-    // protocol::ChannelPtr        usageChannel;
     bool                        usagesRunning;
     tString                     greetingMsgs;
     tString                     lastUsagesUpdate;
-    // common::PollableTaskPtr     primaryForwardingCheckTimeout;
 
     std::map<tString, tString>  forwardingMap;
-
     std::vector<SdkForwardingPtr>
                                 additionalForwardings;
-
     bool                        appHandlesNewChannel;
-
-    UrlPtr                      tcpForwardTo; //default
-    UrlPtr                      udpForwardTo; //default
+    bool                        reconnectMode;
 
     tString                     cleanupReason;
 
