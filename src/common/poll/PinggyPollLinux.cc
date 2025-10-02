@@ -33,7 +33,7 @@ namespace common {
 #define PPOLLIN EPOLLIN
 #define PPOLLOUT EPOLLOUT
 
-#include <poll/PinggyPollCommon.hh>
+#include "PinggyPollCommon.hh"
 
 PollControllerLinux::PollControllerLinux():
             reinit(true), pollEvents(NULL), numEvents(0),
