@@ -481,8 +481,8 @@ main(int argc, char* argv[])
 
         sdk->StartUsagesUpdate();
 
-        sdk->Connect(true);
-        sdk->StartForwarding(true);
+        // sdk->Connect(true);
+        // sdk->StartForwarding(true);
         // for (auto x : config->forwardings) {
         //     sdk->RequestAdditionalForwarding(x.first, x.second);
         // }
