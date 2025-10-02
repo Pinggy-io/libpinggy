@@ -162,6 +162,7 @@ typedef enum TunnelState {
     TunnelState_ForwardingInitiated,
     TunnelState_ForwardingSucceeded,
     TunnelState_Stopped,
+    TunnelState_Ended,
 } pinggy_tunnel_state_t;
 
 /**
@@ -209,8 +210,8 @@ pinggy_is_interrupted();
  * @param user_data  User-defined pointer passed during callback registration.
  * @param tunnel_ref Reference to the tunnel object.
  */
-typedef pinggy_void_t (*pinggy_on_connected_cb_t)                               \
-                            (pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref);
+// typedef pinggy_void_t (*pinggy_on_connected_cb_t)                               \
+//                             (pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref);
 
 /**
  * @typedef pinggy_on_authenticated_cb_t
@@ -224,8 +225,8 @@ typedef pinggy_void_t (*pinggy_on_connected_cb_t)                               
  * @param user_data  User-defined pointer passed during callback registration.
  * @param tunnel_ref Reference to the tunnel object.
  */
-typedef pinggy_void_t (*pinggy_on_authenticated_cb_t)                           \
-                            (pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref);
+// typedef pinggy_void_t (*pinggy_on_authenticated_cb_t)                           \
+//                             (pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref);
 
 /**
  * @typedef pinggy_on_authentication_failed_cb_t
@@ -235,11 +236,11 @@ typedef pinggy_void_t (*pinggy_on_authenticated_cb_t)                           
  * @param num_reasons Size of the `reasons` array.
  * @param reasons Array of strings describing reasons for failure.
  */
-typedef pinggy_void_t (*pinggy_on_authentication_failed_cb_t)                   \
-                            (pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_len_t num_reasons, pinggy_char_p_p_t reasons);
+// typedef pinggy_void_t (*pinggy_on_authentication_failed_cb_t)                   \
+//                             (pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_len_t num_reasons, pinggy_char_p_p_t reasons);
 
 /**
- * @typedef pinggy_on_forwarding_succeeded_cb_t
+ * @typedef pinggy_on_tunnel_established_cb_t
  * @brief Callback for when primary forwarding is successfully established.
  *
  * This callback can arrive only when the app has requested primary forwarding using
@@ -251,18 +252,18 @@ typedef pinggy_void_t (*pinggy_on_authentication_failed_cb_t)                   
  * @param num_urls Size of the `urls` array.
  * @param urls Array of URLs as strings.
  */
-typedef pinggy_void_t (*pinggy_on_forwarding_succeeded_cb_t)            \
+typedef pinggy_void_t (*pinggy_on_tunnel_established_cb_t)            \
                             (pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_len_t num_urls, pinggy_char_p_p_t urls);
 
 /**
- * @typedef pinggy_on_forwarding_failed_cb_t
+ * @typedef pinggy_on_tunnel_failed_cb_t
  * @brief Callback for when primary forwarding fails. The context is the same as
- * `pinggy_on_forwarding_succeeded_cb_t`.
+ * `pinggy_on_tunnel_established_cb_t`.
  * @param user_data  User-defined pointer passed during callback registration.
  * @param tunnel_ref Reference to the tunnel object.
  * @param msg Error message string.
  */
-typedef pinggy_void_t (*pinggy_on_forwarding_failed_cb_t)               \
+typedef pinggy_void_t (*pinggy_on_tunnel_failed_cb_t)               \
                             (pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_const_char_p_t msg);
 
 /**
@@ -816,6 +817,12 @@ pinggy_config_set_allow_preflight(pinggy_ref_t config, pinggy_bool_t allow_prefl
 PINGGY_EXPORT pinggy_void_t
 pinggy_config_set_local_server_tls(pinggy_ref_t config, pinggy_const_char_p_t local_server_tls);
 
+PINGGY_EXPORT pinggy_void_t
+pinggy_config_set_webdebugger_port(pinggy_ref_t config, pinggy_uint16_t port);
+
+PINGGY_EXPORT pinggy_void_t
+pinggy_config_set_webdebugger(pinggy_ref_t config, pinggy_bool_t enable);
+
 //==============================
 
 /**
@@ -1127,6 +1134,12 @@ pinggy_config_get_local_server_tls(pinggy_ref_t config, pinggy_capa_t buffer_len
 PINGGY_EXPORT pinggy_const_int_t
 pinggy_config_get_local_server_tls_len(pinggy_ref_t config, pinggy_capa_t buffer_len, pinggy_char_p_t buffer, pinggy_capa_p_t max_len);
 
+PINGGY_EXPORT pinggy_uint16_t
+pinggy_config_get_webdebugger_port(pinggy_ref_t config);
+
+PINGGY_EXPORT pinggy_bool_t
+pinggy_config_get_webdebugger(pinggy_ref_t config);
+
 //====================================
 
 /**
@@ -1348,8 +1361,8 @@ pinggy_tunnel_get_state(pinggy_ref_t tunnel);
  * @param user_data User data to be passed to the callback.
  * @return          pinggy_true on success, pinggy_false on failure.
  */
-PINGGY_EXPORT pinggy_bool_t
-pinggy_tunnel_set_on_connected_callback(pinggy_ref_t tunnel, pinggy_on_connected_cb_t connected, pinggy_void_p_t user_data);
+// PINGGY_EXPORT pinggy_bool_t
+// pinggy_tunnel_set_on_connected_callback(pinggy_ref_t tunnel, pinggy_on_connected_cb_t connected, pinggy_void_p_t user_data);
 
 /**
  * @brief Registers a callback for when the tunnel is authenticated.
@@ -1359,8 +1372,8 @@ pinggy_tunnel_set_on_connected_callback(pinggy_ref_t tunnel, pinggy_on_connected
  * @param user_data      User data to be passed to the callback.
  * @return               pinggy_true on success, pinggy_false on failure.
  */
-PINGGY_EXPORT pinggy_bool_t
-pinggy_tunnel_set_on_authenticated_callback(pinggy_ref_t tunnel, pinggy_on_authenticated_cb_t authenticated, pinggy_void_p_t user_data);
+// PINGGY_EXPORT pinggy_bool_t
+// pinggy_tunnel_set_on_authenticated_callback(pinggy_ref_t tunnel, pinggy_on_authenticated_cb_t authenticated, pinggy_void_p_t user_data);
 
 /**
  * @brief Registers a callback for when tunnel authentication fails.
@@ -1370,8 +1383,8 @@ pinggy_tunnel_set_on_authenticated_callback(pinggy_ref_t tunnel, pinggy_on_authe
  * @param user_data             User data to be passed to the callback.
  * @return                      pinggy_true on success, pinggy_false on failure.
  */
-PINGGY_EXPORT pinggy_bool_t
-pinggy_tunnel_set_on_authentication_failed_callback(pinggy_ref_t tunnel, pinggy_on_authentication_failed_cb_t authentication_failed, pinggy_void_p_t user_data);
+// PINGGY_EXPORT pinggy_bool_t
+// pinggy_tunnel_set_on_authentication_failed_callback(pinggy_ref_t tunnel, pinggy_on_authentication_failed_cb_t authentication_failed, pinggy_void_p_t user_data);
 
 /**
  * @brief Registers a callback for when primary forwarding is successfully established.
@@ -1382,7 +1395,7 @@ pinggy_tunnel_set_on_authentication_failed_callback(pinggy_ref_t tunnel, pinggy_
  * @return                               pinggy_true on success, pinggy_false on failure.
  */
 PINGGY_EXPORT pinggy_bool_t
-pinggy_tunnel_set_on_forwarding_succeeded_callback(pinggy_ref_t tunnel, pinggy_on_forwarding_succeeded_cb_t, pinggy_void_p_t user_data);
+pinggy_tunnel_set_on_tunnel_established_callback(pinggy_ref_t tunnel, pinggy_on_tunnel_established_cb_t, pinggy_void_p_t user_data);
 
 /**
  * @brief Registers a callback for when primary forwarding fails.
@@ -1393,7 +1406,7 @@ pinggy_tunnel_set_on_forwarding_succeeded_callback(pinggy_ref_t tunnel, pinggy_o
  * @return                             pinggy_true on success, pinggy_false on failure.
  */
 PINGGY_EXPORT pinggy_bool_t
-pinggy_tunnel_set_on_forwarding_failed_callback(pinggy_ref_t tunnel, pinggy_on_forwarding_failed_cb_t, pinggy_void_p_t user_data);
+pinggy_tunnel_set_on_tunnel_failed_callback(pinggy_ref_t tunnel, pinggy_on_tunnel_failed_cb_t, pinggy_void_p_t user_data);
 
 /**
  * @brief Registers a callback for when additional forwarding is successfully established.
@@ -1848,35 +1861,6 @@ pinggy_build_os(pinggy_capa_t capa, pinggy_char_p_t val);
 PINGGY_EXPORT pinggy_const_int_t
 pinggy_build_os_len(pinggy_capa_t capa, pinggy_char_p_t val, pinggy_capa_p_t max_len);
 //==============================================================
-
-//==========================================
-// FORWARD COMPATIBILITY
-//==========================================
-#define pinggy_connected_cb_t                                       pinggy_on_connected_cb_t
-#define pinggy_authenticated_cb_t                                   pinggy_on_authenticated_cb_t
-#define pinggy_authentication_failed_cb_t                           pinggy_on_authentication_failed_cb_t
-#define pinggy_forwarding_succeeded_cb_t                            pinggy_on_forwarding_succeeded_cb_t
-#define pinggy_forwarding_failed_cb_t                               pinggy_on_forwarding_failed_cb_t
-#define pinggy_additional_forwarding_succeeded_cb_t                 pinggy_on_additional_forwarding_succeeded_cb_t
-#define pinggy_additional_forwarding_failed_cb_t                    pinggy_on_additional_forwarding_failed_cb_t
-#define pinggy_disconnected_cb_t                                    pinggy_on_disconnected_cb_t
-#define pinggy_tunnel_error_cb_t                                    pinggy_on_tunnel_error_cb_t
-#define pinggy_new_channel_cb_t                                     pinggy_on_new_channel_cb_t
-#define pinggy_raise_exception_cb_t                                 pinggy_on_raise_exception_cb_t
-
-#define pinggy_set_exception_callback                               pinggy_set_on_exception_callback
-#define pinggy_tunnel_set_connected_callback                        pinggy_tunnel_set_on_connected_callback
-#define pinggy_tunnel_set_authenticated_callback                    pinggy_tunnel_set_on_authenticated_callback
-#define pinggy_tunnel_set_authentication_failed_callback            pinggy_tunnel_set_on_authentication_failed_callback
-#define pinggy_tunnel_set_forwarding_succeeded_callback             pinggy_tunnel_set_on_forwarding_succeeded_callback
-#define pinggy_tunnel_set_forwarding_failed_callback                pinggy_tunnel_set_on_forwarding_failed_callback
-#define pinggy_tunnel_set_additional_forwarding_succeeded_callback  pinggy_tunnel_set_on_additional_forwarding_succeeded_callback
-#define pinggy_tunnel_set_additional_forwarding_failed_callback     pinggy_tunnel_set_on_additional_forwarding_failed_callback
-#define pinggy_tunnel_set_disconnected_callback                     pinggy_tunnel_set_on_disconnected_callback
-#define pinggy_tunnel_set_tunnel_error_callback                     pinggy_tunnel_set_on_tunnel_error_callback
-#define pinggy_tunnel_set_new_channel_callback                      pinggy_tunnel_set_on_new_channel_callback
-
-
 
 #ifdef __cplusplus
 }

@@ -121,14 +121,6 @@ Sdk::~Sdk()
     cleanup();
 }
 
-bool PINGGY_LIFE_CYCLE_FUNC
-Sdk::Connect(bool block)
-{
-    throw SdkException("Function obsoleted");
-
-    return false;
-}
-
 bool PINGGY_LIFE_CYCLE_WRAPPER_FUNC
 Sdk::Start(bool block)
 {
@@ -163,11 +155,13 @@ bool PINGGY_ATTRIBUTE_FUNC
 Sdk::Stop()
 {
     auto lock = LockIfDifferentThread();
-    if (state == SdkState::Stopped)
+    if (state >= SdkState::Stopped)
         return false;
 
-    if (session) {
-        session->End("Connection close");
+    if (state >= SdkState::SessionInitiated && state < SdkState::Stopped) {
+        if (session) {
+            session->End("Connection close");
+        }
     }
 
     state = SdkState::Stopped;
@@ -180,8 +174,14 @@ Sdk::ResumeTunnel(tInt32 timeout)
     if (state == SdkState::Initial) {
         throw SdkException("Tunnel not started yet");
     }
+
+    if (state == SdkState::Ended) {
+        return false;
+    }
+
     if (state == SdkState::Stopped) {
-        throw SdkException("Tunnel has been stopped");
+        cleanup();
+        return false;
     }
 
     acquireAccessLock();
@@ -203,11 +203,6 @@ Sdk::ResumeTunnel(tInt32 timeout)
         return true;
     }
 
-    if (state == SdkState::Stopped) {
-        cleanup();
-        return false;
-    }
-
     auto success = resumeWithLock(__func__, timeout);
     return success;
 }
@@ -219,7 +214,7 @@ Sdk::GetUrls()
         LOGE("Tunnel is not running");
         return {};
     }
-    if (state == SdkState::Stopped)
+    if (state >= SdkState::Stopped)
         return {};
     LOGD("Returning urls");
     return urls;
@@ -261,8 +256,8 @@ Sdk::LockIfDifferentThread()
 port_t PINGGY_ATTRIBUTE_FUNC
 Sdk::StartWebDebugging(port_t port)
 {
-    if (state == SdkState::Stopped) {
-        throw SdkException("tunnel is stopped");
+    if (state >= SdkState::Stopped) {
+        throw SdkException("Tunnel is stopped. Cannot start webDebugger");
     }
 
     if (state < SdkState::Authenticated) {
@@ -270,40 +265,27 @@ Sdk::StartWebDebugging(port_t port)
     }
 
     auto lock = LockIfDifferentThread();
-    if (webDebugListener) {
-        throw WebDebuggerException("Web debugger is running already for this tunnel");
-    }
-
-    webDebugListener = net::NewConnectionListenerImplPtr(port, false);
     if (!webDebugListener) {
-        throw WebDebuggerException("Webdebug listener could not listen. ignoring");
-    }
+        webDebugListener = net::NewConnectionListenerImplPtr(port, false);
+        if (!webDebugListener) {
+            throw WebDebuggerException("Webdebug listener could not listen. ignoring");
+        }
 
-    if (!webDebugListener->StartListening()) {
-        webDebugListener = nullptr; //we don't have to close as it will be closed automatically
-        throw WebDebuggerException("Something wrong with the webdebug listener.");
-    }
+        if (!webDebugListener->StartListening()) {
+            webDebugListener = nullptr; //we don't have to close as it will be closed automatically
+            throw WebDebuggerException("Something wrong with the webdebug listener.");
+        }
 
-    webDebugListener->RegisterListenerHandler(pollController, thisPtr, 1);
+        webDebugListener->RegisterListenerHandler(pollController, thisPtr, 1);
+    }
 
     return webDebugListener->GetListeningPort();
-}
-
-#define PRIMARY_REMOTE_FORWARDING_HOST "LOCALHOST"
-#define PRIMARY_REMOTE_FORWARDING_PORT 0
-
-bool PINGGY_LIFE_CYCLE_FUNC
-Sdk::StartForwarding(bool block)
-{
-    throw RemoteForwardingException("Function obsoleted");
-
-    return true;
 }
 
 void PINGGY_ATTRIBUTE_FUNC
 Sdk::RequestAdditionalForwarding(tString forwardingType, tString bindingUrl, tString forwardTo)
 {
-    if (state == SdkState::Stopped) {
+    if (state >= SdkState::Stopped) {
         throw RemoteForwardingException("tunnel is stopped");
     }
 
@@ -326,7 +308,7 @@ Sdk::RequestAdditionalForwarding(tString forwardingType, tString bindingUrl, tSt
 void
 Sdk::RequestAdditionalForwarding(tString forwardTo)
 {
-    if (state == SdkState::Stopped) {
+    if (state >= SdkState::Stopped) {
         throw RemoteForwardingException("tunnel is stopped");
     }
 
@@ -349,7 +331,10 @@ Sdk::RequestAdditionalForwarding(tString forwardTo)
 SdkState
 Sdk::GetTunnelState()
 {
-    if (reconnectMode && (state < SdkState::ForwardingSucceeded && state >= SdkState::ReconnectInitiated)) {
+    if (    reconnectMode
+         && (    state < SdkState::ForwardingSucceeded
+              && state >= SdkState::ReconnectInitiated))
+    {
         return SdkState::Reconnecting;
     }
     return state;
@@ -380,9 +365,6 @@ Sdk::HandleSessionInitiated()
         return;
     }
 
-    if (eventHandler && !reconnectMode)
-        eventHandler->OnConnected();
-
     authenticate();
 }
 
@@ -398,8 +380,6 @@ Sdk::HandleSessionAuthenticatedAsClient(std::vector<tString> messages, TunnelInf
         greetingMsgs = j.dump();
         portConfig = info->PortConfig;
     }
-    if (eventHandler && !reconnectMode)
-        eventHandler->OnAuthenticated();
 
     internalRequestForwarding();
 }
@@ -416,7 +396,7 @@ Sdk::HandleSessionAuthenticationFailed(tString error, std::vector<tString> authe
     reconnectOrStopLoop();
 
     if (eventHandler && !reconnectMode) {
-            eventHandler->OnAuthenticationFailed(authenticationMsg);
+            eventHandler->OnTunnelFailed(JoinString(authenticationMsg, "\n"));
     }
 }
 
@@ -459,7 +439,7 @@ Sdk::HandleSessionRemoteForwardingSucceeded(protocol::tReqId reqId, tForwardingI
             if (reconnectMode) {
                 eventHandler->OnReconnectionCompleted(urls);
             } else {
-                eventHandler->OnForwardingSucceeded(urls);
+                eventHandler->OnTunnelEstablished(urls);
             }
         }
 
@@ -473,6 +453,13 @@ Sdk::HandleSessionRemoteForwardingSucceeded(protocol::tReqId reqId, tForwardingI
         for (auto forwarding : additionalForwardings) { // yes we are starting additional forwarding right here.
             forwarding->newFlag = false;
             internalRequestAdditionalRemoteForwarding(forwarding);
+        }
+
+        if (sdkConfig->webDebug) {
+            if (webDebugListener && webDebugListener->IsListening())
+                webDebugListener->RegisterListenerHandler(pollController, thisPtr, 1);
+            else
+                StartWebDebugging(sdkConfig->webDebugPort);
         }
 
         return;
@@ -521,7 +508,7 @@ Sdk::HandleSessionRemoteForwardingFailed(protocol::tReqId reqId, tString error)
         reconnectOrStopLoop();
 
         if (eventHandler && !reconnectMode) {
-            eventHandler->OnForwardingFailed(error);
+            eventHandler->OnTunnelFailed(error);
         }
 
         return;
@@ -622,12 +609,12 @@ Sdk::HandleSessionDisconnection(tString reason)
     if (!session)
         return;
 
-    // if (eventHandler)
-    //     eventHandler->OnDisconnected(reason, {reason});
-
     releaseBaseConnection();
 
     reconnectOrStopLoop();
+
+    if (eventHandler && !reconnectMode)
+        eventHandler->OnDisconnected(reason, {reason});
 }
 
 void
@@ -637,26 +624,27 @@ Sdk::HandleSessionConnectionReset()
     //Nothing much to do. just stop the poll controller if possible.
     baseConnection = nullptr; //it would be closed by sessios once this function returns.
 
-    // if (eventHandler)
-    //     eventHandler->OnDisconnected("Connection reset", {"Connection reset"});
-
     releaseBaseConnection();
 
     reconnectOrStopLoop();
+
+    if (eventHandler && !reconnectMode)
+        eventHandler->OnDisconnected("Connection reset", {"Connection reset"});
 }
 
 void
 Sdk::HandleSessionError(tUint32 errorNo, tString what, tBool recoverable)
 {
     LOGD("Session error occured: ", what);
-    if (eventHandler)
-        eventHandler->OnHandleError(errorNo, what, recoverable);
 
     if (!recoverable) {
         releaseBaseConnection();
 
         reconnectOrStopLoop();
     }
+
+    if (eventHandler)
+        eventHandler->OnHandleError(errorNo, what, recoverable);
 }
 
 void
@@ -675,6 +663,10 @@ void
 Sdk::NewVisitor(net::NetworkConnectionPtr netConn) //Webdebugges
 {
     auto addr = netConn->GetPeerAddress();
+    if (state != SdkState::ForwardingSucceeded) {
+        netConn->CloseConn();
+        return;
+    }
     auto peerHost = addr->IsUds() ? "localhost" : addr->GetIp();
     auto peerPort = addr->IsUds() ? 1234 : addr->GetPort();
     auto channel = session->CreateChannel(4300, "localhost", peerPort, peerHost);

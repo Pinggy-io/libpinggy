@@ -265,6 +265,8 @@ SDKConfigPtr SDKConfig::clone()
     PLAIN_COPY(originalRequestUrl);
     PLAIN_COPY(allowPreflight);
     PLAIN_COPY(localServerTls);
+    PLAIN_COPY(webDebug);
+    PLAIN_COPY(webDebugPort);
 
 #define URLPTR_COPY(x) newConfig->x = x->Clone()
 

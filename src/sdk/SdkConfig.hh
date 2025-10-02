@@ -151,7 +151,7 @@ struct SDKConfig: virtual public pinggy::SharedObject
 
 
     bool
-    IsWebDebug()                { return  webDebug; }
+    IsWebDebug()                { return webDebug; }
 
     tPort
     GetWebDebugPort()           { return webDebugPort; }
@@ -262,7 +262,7 @@ struct SDKConfig: virtual public pinggy::SharedObject
                                 { localServerTls = val; }
 
     void
-    SetWebDebugger(bool val)    { webDebug = val; }
+    SetWebDebug(bool val)       { webDebug = val; }
 
     void
     SetWebDebugPort(tPort val)  { webDebugPort = val; webDebug = val>0; }

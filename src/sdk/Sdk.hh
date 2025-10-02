@@ -46,6 +46,7 @@ enum class SdkState {
     ForwardingSucceeded,
 
     Stopped,
+    Ended,
 };
 
 abstract class SdkEventHandler: virtual public pinggy::SharedObject
@@ -55,21 +56,11 @@ public:
     ~SdkEventHandler()          { }
 
     virtual void
-    OnConnected()                 { }
-
-    virtual void
-    OnAuthenticated()             { } //Not important;
-
-    virtual void
-    OnAuthenticationFailed(std::vector<tString> why)
+    OnTunnelEstablished(std::vector<tString> urls)
                                 { }
 
     virtual void
-    OnForwardingSucceeded(std::vector<tString> urls)
-                                { }
-
-    virtual void
-    OnForwardingFailed(tString) { }
+    OnTunnelFailed(tString) { }
 
     virtual void
     OnAdditionalForwardingSucceeded(tString bindAddress, tString forwardTo, tString forwardingType)
@@ -132,9 +123,6 @@ public:
     ~Sdk();
 
     bool
-    Connect(bool block = false);
-
-    bool
     Start(bool block = true);
 
     bool
@@ -160,9 +148,6 @@ public:
 
     port_t
     StartWebDebugging(port_t port=4300);
-
-    bool
-    StartForwarding(bool block = false);
 
     void
     RequestAdditionalForwarding(tString forwardingType, tString bindingUrl, tString forwardTo);
