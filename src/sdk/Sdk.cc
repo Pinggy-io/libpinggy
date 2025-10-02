@@ -104,12 +104,8 @@ Sdk::Sdk(SDKConfigPtr config, SdkEventHandlerPtr _eventHandler):
             sdkConfig(config),
             eventHandler(_eventHandler),
             semaphore(NewSemaphorePtr(1)),
-            // stopped(false),
-            // reconnectNow(false),
-            // cleanupNow(false),
             lastKeepAliveTickReceived(0),
-            state(SdkState_Initial),
-            // reconnectionState(SdkState_Initial),
+            state(SdkState::Initial),
             reconnectCounter(0),
             usagesRunning(false),
             appHandlesNewChannel(false),
@@ -137,11 +133,11 @@ bool PINGGY_LIFE_CYCLE_WRAPPER_FUNC
 Sdk::Start(bool block)
 {
     //==== Setup =========
-    if (state == SdkState_Initial) // Make sure that SdkInitial is not set again
+    if (state == SdkState::Initial) // Make sure that SdkInitial is not set again
     {
         acquireAccessLock();
 
-        state = SdkState_Started;
+        state = SdkState::Started;
 
         sdkConfig = sdkConfig->clone();
         sdkConfig->validate();
@@ -152,56 +148,52 @@ Sdk::Start(bool block)
         releaseAccessLock();
     }
 
-    if (!block)
-        return true;
+    bool ret = true;
+    do {
+        ret = ResumeTunnel();
+    } while(block && ret && state < SdkState::Stopped);
 
-    while(state < SdkState_Stopped) {
-        auto ret = ResumeTunnel();
-        if (!ret)
-            break;
-    }
+    if (!ret)
+        state = SdkState::Stopped;
 
-    state = SdkState_Stopped;
-
-    return true;
+    return ret;
 }
 
 bool PINGGY_ATTRIBUTE_FUNC
 Sdk::Stop()
 {
     auto lock = LockIfDifferentThread();
-    if (state == SdkState_Stopped)
+    if (state == SdkState::Stopped)
         return false;
+
     if (session) {
         session->End("Connection close");
-        // session = nullptr;
     }
 
-    // releaseBaseConnection();
-    state = SdkState_Stopped;
+    state = SdkState::Stopped;
     return true;
 }
 
 bool PINGGY_LIFE_CYCLE_FUNC
 Sdk::ResumeTunnel()
 {
-    if (state == SdkState_Initial) {
+    if (state == SdkState::Initial) {
         throw SdkException("Tunnel not started yet");
     }
-    if (state == SdkState_Stopped) {
+    if (state == SdkState::Stopped) {
         throw SdkException("Tunnel has been stopped");
     }
 
     acquireAccessLock();
     DEFER({releaseAccessLock();});
 
-    if (state == SdkState_Restart) {
+    if (state == SdkState::ReconnectInitiated) {
         if (    reconnectCounter >= sdkConfig->maxReconnectAttempts
              && sdkConfig->maxReconnectAttempts != 0) {
             lastError = "Maximum reconnection attempts reached. Exiting.";
             if (eventHandler)
                 eventHandler->OnReconnectionFailed(reconnectCounter);
-            state = SdkState_Stopped;
+            state = SdkState::Stopped;
             return false;
         }
 
@@ -211,7 +203,7 @@ Sdk::ResumeTunnel()
         return true;
     }
 
-    if (state == SdkState_Stopped) {
+    if (state == SdkState::Stopped) {
         cleanup();
         return false;
     }
@@ -223,11 +215,11 @@ Sdk::ResumeTunnel()
 std::vector<tString> PINGGY_ATTRIBUTE_FUNC
 Sdk::GetUrls()
 {
-    if (state < SdkState_ForwardingSucceeded) {
+    if (state < SdkState::ForwardingSucceeded) {
         LOGE("Tunnel is not running");
         return {};
     }
-    if (state == SdkState_Stopped)
+    if (state == SdkState::Stopped)
         return {};
     LOGD("Returning urls");
     return urls;
@@ -269,11 +261,11 @@ Sdk::LockIfDifferentThread()
 port_t PINGGY_ATTRIBUTE_FUNC
 Sdk::StartWebDebugging(port_t port)
 {
-    if (state == SdkState_Stopped) {
+    if (state == SdkState::Stopped) {
         throw SdkException("tunnel is stopped");
     }
 
-    if (state < SdkState_Authenticated) {
+    if (state < SdkState::Authenticated) {
         throw WebDebuggerException("You are not logged in. How did you managed to come here?" );
     }
 
@@ -311,18 +303,18 @@ Sdk::StartForwarding(bool block)
 void PINGGY_ATTRIBUTE_FUNC
 Sdk::RequestAdditionalForwarding(tString forwardingType, tString bindingUrl, tString forwardTo)
 {
-    if (state == SdkState_Stopped) {
+    if (state == SdkState::Stopped) {
         throw RemoteForwardingException("tunnel is stopped");
     }
 
-    if (state < SdkState_Authenticated) {
+    if (state < SdkState::Authenticated) {
         RemoteForwardingException("You are not logged in. How did you managed to come here?" );
     }
 
     auto forwarding = SDKConfig::parseForwarding(forwardingType, bindingUrl, forwardTo);
 
     auto lock = LockIfDifferentThread();
-    if (state < SdkState_ForwardingSucceeded) {
+    if (state < SdkState::ForwardingSucceeded) {
         throw RemoteForwardingException("primary reverse forwarding for this tunnel");
     }
 
@@ -334,18 +326,18 @@ Sdk::RequestAdditionalForwarding(tString forwardingType, tString bindingUrl, tSt
 void
 Sdk::RequestAdditionalForwarding(tString forwardTo)
 {
-    if (state == SdkState_Stopped) {
+    if (state == SdkState::Stopped) {
         throw RemoteForwardingException("tunnel is stopped");
     }
 
-    if (state < SdkState_Authenticated) {
+    if (state < SdkState::Authenticated) {
         RemoteForwardingException("You are not logged in. How did you managed to come here?" );
     }
 
     auto forwarding = SDKConfig::parseForwarding(forwardTo);
 
     auto lock = LockIfDifferentThread();
-    if (state < SdkState_ForwardingSucceeded) {
+    if (state < SdkState::ForwardingSucceeded) {
         throw RemoteForwardingException("primary reverse forwarding for this tunnel");
     }
 
@@ -354,22 +346,27 @@ Sdk::RequestAdditionalForwarding(tString forwardTo)
     internalRequestAdditionalRemoteForwarding(forwarding);
 }
 
+SdkState
+Sdk::GetTunnelState()
+{
+    if (reconnectMode && (state < SdkState::ForwardingSucceeded && state >= SdkState::ReconnectInitiated)) {
+        return SdkState::Reconnecting;
+    }
+    return state;
+}
+
 //==============
 void
 Sdk::HandleSessionInitiated()
 {
     LOGD("Initiated");
 
-    if (state != SdkState_SessionInitiating)
+    if (state != SdkState::SessionInitiating)
         return;
 
-    state = SdkState_SessionInitiated;
+    state = SdkState::SessionInitiated;
 
-    //TODO verify if primary mode allowed or not.
     if (session->GetSessionVersion() < PINGGY_SESSION_VERSION_1_02) {
-        // // cleanup();
-        // state = SdkState_Stopped;
-        // releaseBaseConnection();
         LOGE("Not authenticating for sdk version mismatch. Server is older that the sdk.");
         HandleSessionAuthenticationFailed("Incompatible SDK. Kindly upgrade", {"Incompatible SDK. Kindly upgrade"});
         return;
@@ -385,7 +382,7 @@ void
 Sdk::HandleSessionAuthenticatedAsClient(std::vector<tString> messages, TunnelInfoPtr info)
 {
     authenticationMsg = messages;
-    state = SdkState_Authenticated;
+    state = SdkState::Authenticated;
 
     LOGD("OnAuthenticated");
     if (info) {
@@ -402,10 +399,7 @@ Sdk::HandleSessionAuthenticatedAsClient(std::vector<tString> messages, TunnelInf
 void
 Sdk::HandleSessionAuthenticationFailed(tString error, std::vector<tString> authenticationFailed)
 {
-    // authenticated = false;
     authenticationMsg = authenticationFailed;
-    state = SdkState_AuthenticationFailed;
-    // reconnectionState = SdkState_Reconnect_Failed;
     lastError = JoinString(authenticationFailed, "\r\n");
     LOGE("Authentication Failed");
 
@@ -427,7 +421,7 @@ Sdk::HandleSessionRemoteForwardingSucceeded(protocol::tReqId reqId, tForwardingI
     auto elem = pendingRemoteForwardingRequestMap.find(reqId);
     if (elem != pendingRemoteForwardingRequestMap.end()) {
 
-        if (state >= SdkState_ForwardingAccepted) {
+        if (state > SdkState::ForwardingInitiated) {
             ABORT_WITH_MSG("Received multiple primary forwarding");
             return;
         }
@@ -451,7 +445,7 @@ Sdk::HandleSessionRemoteForwardingSucceeded(protocol::tReqId reqId, tForwardingI
         if (pendingRemoteForwardingRequestMap.size() > 0)
             return;
 
-        state = SdkState_ForwardingSucceeded;
+        state = SdkState::ForwardingSucceeded;
 
         if (eventHandler) {
             if (reconnectMode) {
@@ -463,11 +457,15 @@ Sdk::HandleSessionRemoteForwardingSucceeded(protocol::tReqId reqId, tForwardingI
 
         reconnectMode = sdkConfig->autoReconnect;
         reconnectCounter = 0;
-        // reconnectionState = SdkState_Reconnect_Forwarded;
 
         LOGD("Primary forwarding done");
 
         keepAliveTask = pollController->SetInterval(5 * SECOND, thisPtr, &Sdk::sendKeepAlive);
+
+        for (auto forwarding : additionalForwardings) { // yes we are starting additional forwarding right here.
+            forwarding->newFlag = false;
+            internalRequestAdditionalRemoteForwarding(forwarding);
+        }
 
         return;
     }
@@ -490,7 +488,7 @@ Sdk::HandleSessionRemoteForwardingSucceeded(protocol::tReqId reqId, tForwardingI
 
     updateForwardMap(remoteForwardings);
 
-    if (eventHandler && !reconnectMode) {
+    if (eventHandler && forwarding->newFlag) {
         eventHandler->OnAdditionalForwardingSucceeded(forwarding->origBindingUrl, forwarding->origForwardTo, forwarding->origForwardingType);
     }
 }
@@ -505,13 +503,11 @@ Sdk::HandleSessionRemoteForwardingFailed(protocol::tReqId reqId, tString error)
     auto elem = pendingRemoteForwardingRequestMap.find(reqId);
     if (elem != pendingRemoteForwardingRequestMap.end()) {
         DEFER({pollController->StopPolling();});
-        if (state >= SdkState_ForwardingAccepted) {
+        if (state > SdkState::ForwardingInitiated) {
             ABORT_WITH_MSG("Received multiple primary forwarding");
             return;
         }
 
-        state = SdkState_ForwardingFailed;
-        // reconnectionState = SdkState_Reconnect_Failed;
         releaseBaseConnection();
 
         reconnectOrStopLoop();
@@ -532,7 +528,8 @@ Sdk::HandleSessionRemoteForwardingFailed(protocol::tReqId reqId, tString error)
     // auto [bindAddress, forwardTo] = pendingAdditionalRemoteForwardingMap[reqId];
     auto forwarding = pendingAdditionalRemoteForwardingMap[reqId];
     pendingAdditionalRemoteForwardingMap.erase(reqId);
-    if (eventHandler) {
+
+    if (eventHandler && forwarding->newFlag) {
         eventHandler->OnAdditionalForwardingFailed(forwarding->origBindingUrl, forwarding->origForwardTo, forwarding->origForwardingType, error);
     }
 }
@@ -796,10 +793,10 @@ Sdk::ChannelRejected(protocol::ChannelPtr channel, tString reason)
 void
 Sdk::authenticate()
 {
-    if (state != SdkState_SessionInitiated)
+    if (state != SdkState::SessionInitiated)
         throw SdkException("You are not connected, how did you managed to call this?");
 
-    state = SdkState_Authenticating;
+    state = SdkState::Authenticating;
 
     session->AuthenticateAsClient(sdkConfig->getUser(), sdkConfig->GetArguments(), sdkConfig->advancedParsing);
     LOGT("Authentication sent");
@@ -808,10 +805,10 @@ Sdk::authenticate()
 void
 Sdk::internalConnect()
 {
-    if (state >= SdkState_Connecting)
+    if (state >= SdkState::Connecting)
         return;
 
-    state = SdkState_Connecting;
+    state = SdkState::Connecting;
 
     //TODO Change both the connect to non-blocking
     try {
@@ -833,7 +830,7 @@ Sdk::internalConnect()
     if (!baseConnection)
         return;
 
-    state = SdkState_Connected;
+    state = SdkState::Connected;
 
     baseConnection->SetPollController(pollController);
 
@@ -844,7 +841,7 @@ Sdk::internalConnect()
 
     initiateNotificationChannel();
 
-    state = SdkState_SessionInitiating;
+    state = SdkState::SessionInitiating;
 }
 
 bool
@@ -909,7 +906,7 @@ Sdk::cleanup()
         eventHandler = nullptr;
     }
     // stopped = true;
-    state = SdkState_Stopped;
+    state = SdkState::Stopped;
 }
 
 void
@@ -965,7 +962,7 @@ Sdk::cleanupForReconnection()
     if  (_notificateMonitorConn)
         _notificateMonitorConn->SetPollController(pollController)->RegisterFDEvenHandler(thisPtr, NOTIFICATION_FD);
 
-    state = SdkState_Reconnecting;
+    state = SdkState::Reconnecting;
 
     pollController->SetTimeout(sdkConfig->autoReconnectInterval * SECOND, thisPtr, &Sdk::initiateReconnection);
 }
@@ -1002,28 +999,20 @@ Sdk::setupLocalChannelNGetData(port_t port, tString tag)
 bool
 Sdk::internalRequestForwarding()
 {
-    if (state < SdkState_Authenticated) {
+    if (state < SdkState::Authenticated) {
         throw SdkException("Kindly login first");
     }
 
-    if (state > SdkState_Authenticated) {
+    if (state > SdkState::Authenticated) {
         return true;
     }
 
-    state = SdkState_ForwardingInitiated;
+    state = SdkState::ForwardingInitiated;
 
     for (auto forwarding : sdkConfig->sdkForwardingList) {
         auto reqId = session->SendRemoteForwardRequest(forwarding->bindingPort, forwarding->bindingDomain,
                                                         forwarding->fwdToPort, forwarding->fwdToHost, forwarding->mode);
         pendingRemoteForwardingRequestMap[reqId] = forwarding;
-    }
-
-    if (additionalForwardings.size() > 0) {
-        for (auto forwarding : additionalForwardings) { // yes we are starting additional forwarding right here.
-            auto reqId = session->SendRemoteForwardRequest(forwarding->bindingPort, forwarding->bindingDomain,
-                                                            forwarding->fwdToPort, forwarding->fwdToHost, forwarding->mode);
-            pendingRemoteForwardingRequestMap[reqId] = forwarding;
-        }
     }
 
     // if (!block)
@@ -1077,7 +1066,7 @@ Sdk::updateForwardMap(std::vector<RemoteForwardingPtr> remoteForwardings)
             changedUrls = j.dump();
         } catch(...) {
         }
-        eventHandler->OnForwardingChanged(changedUrls);
+        eventHandler->OnForwardingsChanged(changedUrls);
     }
 }
 
@@ -1085,14 +1074,14 @@ void
 Sdk::reconnectOrStopLoop()
 {
     if (reconnectMode) {
-        state = SdkState_Restart;
+        state = SdkState::ReconnectInitiated;
 
         if (reconnectCounter == 0 && eventHandler) {
             LOGD("Reconnecting");
             eventHandler->OnWillReconnect("Connection Reset", {"Reconnecting"});
         }
     } else {
-        state = SdkState_Stopped;
+        state = SdkState::Stopped;
     }
 }
 

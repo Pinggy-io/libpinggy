@@ -146,6 +146,23 @@ typedef int32_t                 pinggy_raw_len_t;
 #define pinggy_true 1
 #define pinggy_false 0
 
+typedef enum TunnelState {
+    TunnelState_Invalid = 0,
+    TunnelState_Initial,
+    TunnelState_Started,
+    TunnelState_ReconnectInitiated,
+    TunnelState_Reconnecting,
+    TunnelState_Connecting,
+    TunnelState_Connected,
+    TunnelState_SessionInitiating,
+    TunnelState_SessionInitiated,
+    TunnelState_Authenticating,
+    TunnelState_Authenticated,
+    TunnelState_ForwardingInitiated,
+    TunnelState_ForwardingSucceeded,
+    TunnelState_Stopped,
+} pinggy_tunnel_state_t;
+
 /**
  * PINGGY_TYPETEST_ENABLED is a type enforcer for code. It make sure that all the code
  * Implementation used exactly same data as the declaration function.
@@ -275,7 +292,7 @@ typedef pinggy_void_t (*pinggy_on_additional_forwarding_failed_cb_t)            
                             (pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_const_char_p_t bind_addr, pinggy_const_char_p_t forward_to_addr, pinggy_const_char_p_t forwarding_type, pinggy_const_char_p_t error);
 
 /**
- * @typedef pinggy_on_forwarding_changed_cb_t
+ * @typedef pinggy_on_forwardings_changed_cb_t
  * @brief Callback for when the forwarding map changes.
  *
  * The app should expect this call at any time as long as the tunnel is running.
@@ -287,7 +304,7 @@ typedef pinggy_void_t (*pinggy_on_additional_forwarding_failed_cb_t)            
  * @param tunnel_ref Reference to the tunnel object.
  * @param url_map JSON string describing the new forwarding map.
  */
-typedef pinggy_void_t (*pinggy_on_forwarding_changed_cb_t)                      \
+typedef pinggy_void_t (*pinggy_on_forwardings_changed_cb_t)                      \
                             (pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_const_char_p_t url_map);
 
 /**
@@ -1132,6 +1149,15 @@ PINGGY_EXPORT pinggy_bool_t
 pinggy_tunnel_start(pinggy_ref_t tunnel);
 
 /**
+ * @brief It is similar to resume. However, it also start the the tunnel if not started.
+ *
+ * @param tunnel Reference to the tunnel object.
+ * @return      pinggy_true on success, pinggy_false on failure.
+ */
+PINGGY_EXPORT pinggy_bool_t
+pinggy_tunnel_start_non_blocking(pinggy_ref_t tunnel);
+
+/**
  * @brief Connects and authenticates the tunnel.
  *
  * This function triggers the authentication process and calls the appropriate callbacks if set. After completion, the application must call pinggy_tunnel_resume in a loop to until it receives authentication callbacks.
@@ -1139,8 +1165,8 @@ pinggy_tunnel_start(pinggy_ref_t tunnel);
  * @param tunnel Reference to the tunnel object.
  * @return      pinggy_true if authentication succeeded, pinggy_false otherwise.
  */
-PINGGY_EXPORT pinggy_bool_t
-pinggy_tunnel_connect(pinggy_ref_t tunnel);
+// PINGGY_EXPORT pinggy_bool_t
+// pinggy_tunnel_connect(pinggy_ref_t tunnel);
 
 
 /**
@@ -1151,8 +1177,8 @@ pinggy_tunnel_connect(pinggy_ref_t tunnel);
  * @param tunnel Reference to the tunnel object.
  * @return      pinggy_true if authentication succeeded, pinggy_false otherwise.
  */
-PINGGY_EXPORT pinggy_bool_t
-pinggy_tunnel_connect_blocking(pinggy_ref_t tunnel);
+// PINGGY_EXPORT pinggy_bool_t
+// pinggy_tunnel_connect_blocking(pinggy_ref_t tunnel);
 
 /**
  * @brief Resumes tunnel operation after connect.
@@ -1202,8 +1228,8 @@ pinggy_tunnel_start_web_debugging(pinggy_ref_t tunnel, pinggy_uint16_t listening
  *
  * @param tunnel Reference to the tunnel object.
  */
-PINGGY_EXPORT pinggy_void_t
-pinggy_tunnel_start_forwarding(pinggy_ref_t tunnel);
+// PINGGY_EXPORT pinggy_void_t
+// pinggy_tunnel_start_forwarding(pinggy_ref_t tunnel);
 
 
 /**
@@ -1213,8 +1239,8 @@ pinggy_tunnel_start_forwarding(pinggy_ref_t tunnel);
  *
  * @param tunnel Reference to the tunnel object.
  */
-PINGGY_EXPORT pinggy_void_t
-pinggy_tunnel_start_forwarding_blocking(pinggy_ref_t tunnel);
+// PINGGY_EXPORT pinggy_void_t
+// pinggy_tunnel_start_forwarding_blocking(pinggy_ref_t tunnel);
 
 /**
  * @brief Requests additional remote forwarding from the server.
@@ -1289,6 +1315,9 @@ pinggy_tunnel_get_greeting_msgs(pinggy_ref_t tunnel, pinggy_capa_t capa, pinggy_
 PINGGY_EXPORT pinggy_const_int_t
 pinggy_tunnel_get_greeting_msgs_len(pinggy_ref_t tunnel, pinggy_capa_t capa, pinggy_char_p_t val, pinggy_capa_p_t max_len);
 
+
+PINGGY_EXPORT pinggy_tunnel_state_t
+pinggy_tunnel_get_state(pinggy_ref_t tunnel);
 
 
 //=====================================
@@ -1381,7 +1410,7 @@ pinggy_tunnel_set_on_additional_forwarding_failed_callback(pinggy_ref_t tunnel, 
  * @return                   pinggy_true on success, pinggy_false on failure.
  */
 PINGGY_EXPORT pinggy_bool_t
-pinggy_tunnel_set_on_forwarding_changed_callback(pinggy_ref_t tunnel, pinggy_on_forwarding_changed_cb_t forwarding_changed, pinggy_void_p_t user_data);
+pinggy_tunnel_set_on_forwardings_changed_callback(pinggy_ref_t tunnel, pinggy_on_forwardings_changed_cb_t forwarding_changed, pinggy_void_p_t user_data);
 
 /**
  * @brief Registers a callback for when the tunnel is disconnected.
