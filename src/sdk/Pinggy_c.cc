@@ -198,7 +198,7 @@ public:
                                 onAdditionalForwardingSucceededCB;
     pinggy_on_additional_forwarding_failed_cb_t
                                 onAdditionalForwardingFailedCB;
-    pinggy_on_forwarding_changed_cb_t
+    pinggy_on_forwardings_changed_cb_t
                                 onForwardingChangedCB;
     pinggy_on_disconnected_cb_t onDisconnectedCB;
     pinggy_on_will_reconnect_cb_t
@@ -328,7 +328,7 @@ public:
         onAdditionalForwardingFailedCB(onAdditionalForwardingFailedUserData, sdk, bindAddress.c_str(), forwardTo.c_str(), forwardingType.c_str(), cError.c_str());
     }
     virtual pinggy_void_t
-    OnForwardingChanged(tString changedMap) override
+    OnForwardingsChanged(tString changedMap) override
     {
         if (!onForwardingChangedCB) return;
         onForwardingChangedCB(onForwardingChangedUserData, sdk, changedMap.c_str());
@@ -1125,68 +1125,80 @@ pinggy_tunnel_initiate(pinggy_ref_t ref)
     return sdkRef;
 }
 
+pinggy_bool_t
+pinggy_tunnel_start_isblocking(pinggy_ref_t ref, bool blocking)
+{
+    auto sdk =  getSdk(ref);
+    if (sdk == nullptr) {
+        LOGE("null sdk");
+        return pinggy_false;
+    }
+    try {
+        if (!sdk->Start(blocking)) {
+            LOGI("Didn't work");
+            return pinggy_false;
+        }
+    } catch (const std::exception &e) {
+        if (exception_callback) {
+            exception_callback("CPP exception:", e.what());
+        } else {
+            LOGE("No exception handler found");
+        }
+        return pinggy_false;
+    }
+
+    return pinggy_true;
+}
+
 PINGGY_EXPORT pinggy_bool_t
 pinggy_tunnel_start(pinggy_ref_t ref)
 {
-    auto sdk =  getSdk(ref);
-    if (sdk == nullptr) {
-        LOGE("null sdk");
-        return pinggy_false;
-    }
-    try {
-        if (!sdk->Start()) {
-            LOGI("Didn't work");
-            return pinggy_false;
-        }
-    } catch (const std::exception &e) {
-        if (exception_callback) {
-            exception_callback("CPP exception:", e.what());
-        } else {
-            LOGE("No exception handler found");
-        }
-        return pinggy_false;
-    }
-
-    return pinggy_true;
-}
-
-static pinggy_bool_t
-pinggy_tunnel_connect_v2(pinggy_ref_t ref, pinggy_bool_t blocking)
-{
-    auto sdk =  getSdk(ref);
-    if (sdk == nullptr) {
-        LOGE("null sdk");
-        return pinggy_false;
-    }
-
-    try {
-        if (!sdk->Connect(blocking == pinggy_true)) {
-            LOGI("Didn't work");
-            return pinggy_false;
-        }
-    } catch (const std::exception &e) {
-        if (exception_callback) {
-            exception_callback("CPP exception:", e.what());
-        } else {
-            LOGE("No exception handler found");
-        }
-        return pinggy_false;
-    }
-
-    return pinggy_true;
+    return pinggy_tunnel_start_isblocking(ref, true);
 }
 
 PINGGY_EXPORT pinggy_bool_t
-pinggy_tunnel_connect(pinggy_ref_t ref)
+pinggy_tunnel_start_non_blocking(pinggy_ref_t ref)
 {
-    return pinggy_tunnel_connect_v2(ref, pinggy_false);
+    return pinggy_tunnel_start_isblocking(ref, false);
 }
 
-PINGGY_EXPORT pinggy_bool_t
-pinggy_tunnel_connect_blocking(pinggy_ref_t ref)
-{
-    return pinggy_tunnel_connect_v2(ref, pinggy_true);
-}
+// static pinggy_bool_t
+// pinggy_tunnel_connect_v2(pinggy_ref_t ref, pinggy_bool_t blocking)
+// {
+//     auto sdk =  getSdk(ref);
+//     if (sdk == nullptr) {
+//         LOGE("null sdk");
+//         return pinggy_false;
+//     }
+
+//     try {
+//         if (!sdk->Connect(blocking == pinggy_true)) {
+//             LOGI("Didn't work");
+//             return pinggy_false;
+//         }
+//     } catch (const std::exception &e) {
+//         if (exception_callback) {
+//             exception_callback("CPP exception:", e.what());
+//         } else {
+//             LOGE("No exception handler found");
+//         }
+//         return pinggy_false;
+//     }
+
+//     return pinggy_true;
+// }
+
+// PINGGY_EXPORT pinggy_bool_t
+// pinggy_tunnel_connect(pinggy_ref_t ref)
+// {
+//     return pinggy_tunnel_connect_v2(ref, pinggy_false);
+// }
+
+// PINGGY_EXPORT pinggy_bool_t
+// pinggy_tunnel_connect_blocking(pinggy_ref_t ref)
+// {
+//     return pinggy_tunnel_connect_v2(ref, pinggy_true);
+// }
 
 PINGGY_EXPORT pinggy_bool_t
 pinggy_tunnel_resume(pinggy_ref_t ref)
@@ -1274,38 +1286,38 @@ pinggy_tunnel_start_web_debugging(pinggy_ref_t ref, pinggy_uint16_t port)
     }
 }
 
-static pinggy_void_t
-pinggy_tunnel_start_forwarding_v2(pinggy_ref_t ref, pinggy_bool_t blocking)
-{
-    auto sdk =  getSdk(ref);
-    if (sdk == nullptr) {
-        LOGE("null sdk");
-        return;
-    }
-    try {
-        sdk->StartForwarding(blocking==pinggy_true);
-        return;
-    } catch (const std::exception &e) {
-        if (exception_callback) {
-            exception_callback("CPP exception:", e.what());
-        } else {
-            LOGE("No exception handler found");
-        }
-        return;
-    }
-}
+// static pinggy_void_t
+// pinggy_tunnel_start_forwarding_v2(pinggy_ref_t ref, pinggy_bool_t blocking)
+// {
+//     auto sdk =  getSdk(ref);
+//     if (sdk == nullptr) {
+//         LOGE("null sdk");
+//         return;
+//     }
+//     try {
+//         sdk->StartForwarding(blocking==pinggy_true);
+//         return;
+//     } catch (const std::exception &e) {
+//         if (exception_callback) {
+//             exception_callback("CPP exception:", e.what());
+//         } else {
+//             LOGE("No exception handler found");
+//         }
+//         return;
+//     }
+// }
 
-PINGGY_EXPORT pinggy_void_t
-pinggy_tunnel_start_forwarding(pinggy_ref_t ref)
-{
-    pinggy_tunnel_start_forwarding_v2(ref, pinggy_false);
-}
+// PINGGY_EXPORT pinggy_void_t
+// pinggy_tunnel_start_forwarding(pinggy_ref_t ref)
+// {
+//     pinggy_tunnel_start_forwarding_v2(ref, pinggy_false);
+// }
 
-PINGGY_EXPORT pinggy_void_t
-pinggy_tunnel_start_forwarding_blocking(pinggy_ref_t ref)
-{
-    pinggy_tunnel_start_forwarding_v2(ref, pinggy_true);
-}
+// PINGGY_EXPORT pinggy_void_t
+// pinggy_tunnel_start_forwarding_blocking(pinggy_ref_t ref)
+// {
+//     pinggy_tunnel_start_forwarding_v2(ref, pinggy_true);
+// }
 
 PINGGY_EXPORT pinggy_void_t
 pinggy_tunnel_request_additional_forwarding(pinggy_ref_t ref, pinggy_const_char_p_t bindingAddr, pinggy_const_char_p_t forwardTo, pinggy_const_char_p_t forwarding_type)
@@ -1422,6 +1434,38 @@ pinggy_tunnel_get_webdebugging_port(pinggy_ref_t ref)
     return 0;
 }
 
+PINGGY_EXPORT pinggy_tunnel_state_t
+pinggy_tunnel_get_state(pinggy_ref_t ref)
+{
+    auto sdk =  getSdk(ref);
+    if (sdk == nullptr) {
+        LOGE("null sdk");
+        return TunnelState_Invalid;
+    }
+    auto state = sdk->GetTunnelState();
+#define SdkStateToTunnelState(x,y) \
+            case x: return y
+    switch(state) {
+        SdkStateToTunnelState(sdk::SdkState::Invalid,                TunnelState_Invalid);
+        SdkStateToTunnelState(sdk::SdkState::Initial,                TunnelState_Initial);
+        SdkStateToTunnelState(sdk::SdkState::Started,                TunnelState_Started);
+        SdkStateToTunnelState(sdk::SdkState::ReconnectInitiated,     TunnelState_ReconnectInitiated);
+        SdkStateToTunnelState(sdk::SdkState::Reconnecting,           TunnelState_Reconnecting);
+        SdkStateToTunnelState(sdk::SdkState::Connecting,             TunnelState_Connecting);
+        SdkStateToTunnelState(sdk::SdkState::Connected,              TunnelState_Connected);
+        SdkStateToTunnelState(sdk::SdkState::SessionInitiating,      TunnelState_SessionInitiating);
+        SdkStateToTunnelState(sdk::SdkState::SessionInitiated,       TunnelState_SessionInitiated);
+        SdkStateToTunnelState(sdk::SdkState::Authenticating,         TunnelState_Authenticating);
+        SdkStateToTunnelState(sdk::SdkState::Authenticated,          TunnelState_Authenticated);
+        SdkStateToTunnelState(sdk::SdkState::ForwardingInitiated,    TunnelState_ForwardingInitiated);
+        SdkStateToTunnelState(sdk::SdkState::ForwardingSucceeded,    TunnelState_ForwardingSucceeded);
+        SdkStateToTunnelState(sdk::SdkState::Stopped,                TunnelState_Stopped);
+        default:
+            return TunnelState_Invalid;
+    }
+#undef SdkStateToTunnelState
+}
+
 //===============================
 #define GetEventHandlerFromSdkRef(sdkRef, aev)                  \
     auto sdk =  getSdk(sdkRef);                                 \
@@ -1504,7 +1548,7 @@ pinggy_tunnel_set_on_additional_forwarding_failed_callback(pinggy_ref_t sdkRef, 
 }
 
 PINGGY_EXPORT pinggy_bool_t
-pinggy_tunnel_set_on_forwarding_changed_callback(pinggy_ref_t sdkRef, pinggy_on_forwarding_changed_cb_t forwarding_changed, pinggy_void_p_t user_data)
+pinggy_tunnel_set_on_forwardings_changed_callback(pinggy_ref_t sdkRef, pinggy_on_forwardings_changed_cb_t forwarding_changed, pinggy_void_p_t user_data)
 {
     GetEventHandlerFromSdkRef(sdkRef, aev);
     aev->onForwardingChangedCB = forwarding_changed;

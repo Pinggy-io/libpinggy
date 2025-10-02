@@ -45,11 +45,12 @@ struct SdkForwarding: virtual public pinggy::SharedObject
     tString                     bindingDomain;
     tPort                       fwdToPort;
     tString                     fwdToHost;
-    bool                        localServerTls;
+    bool                        localServerTls = false;
 
     tString                     origForwardTo;
     tString                     origBindingUrl;
     tString                     origForwardingType;
+    bool                        newFlag = true;
 
     SdkForwardingPtr
     Clone();

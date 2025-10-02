@@ -423,7 +423,7 @@ struct ClientSdkEventHandler : virtual public sdk::SdkEventHandler
     }
 
     virtual void
-    OnForwardingChanged(tString urlMap) override
+    OnForwardingsChanged(tString urlMap) override
     {
         std::cout << urlMap << std::endl;
     }

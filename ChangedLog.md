@@ -16,6 +16,10 @@
     1. pinggy_config_get_tcp_forward_to_len
     1. pinggy_config_get_udp_forward_to
     1. pinggy_config_get_udp_forward_to_len
+    1. pinggy_tunnel_connect
+    1. pinggy_tunnel_connect_blocking
+    1. pinggy_tunnel_start_forwarding
+    1. pinggy_tunnel_start_forwarding_blocking
 * Functions added:
     1. pinggy_config_add_forwarding
     1. pinggy_config_add_forwarding_simple
@@ -23,12 +27,18 @@
     1. pinggy_config_reset_forwardings
     1. pinggy_config_get_forwardings
     1. pinggy_config_get_forwardings_len
+    1. pinggy_tunnel_start_non_blocking
+    1. pinggy_tunnel_get_state
 * Functions renamed:
     1. pinggy_tunnel_request_primary_forwarding_blocking -> pinggy_tunnel_start_forwarding_blocking
     1. pinggy_tunnel_request_primary_forwarding -> pinggy_tunnel_start_forwarding
+    1. pinggy_tunnel_set_primary_forwarding_succeeded_callback -> pinggy_tunnel_set_on_forwarding_succeeded_callback
+    1. pinggy_tunnel_set_primary_forwarding_failed_callback -> pinggy_tunnel_set_on_forwarding_failed_callback
+    1. pinggy_tunnel_set_on_forwarding_changed_callback -> pinggy_tunnel_set_on_forwardings_changed_callback
 * Modified callback signature:
     1. pinggy_on_additional_forwarding_succeeded_cb_t
     1. pinggy_on_additional_forwarding_failed_cb_t
 * Renamed callback signature:
     1. pinggy_on_primary_forwarding_succeeded_cb_t -> pinggy_on_forwarding_succeeded_cb_t
     1. pinggy_on_primary_forwarding_failed_cb_t -> pinggy_on_forwarding_failed_cb_t
+    1. pinggy_on_forwarding_changed_cb_t -> pinggy_on_forwardings_changed_cb_t

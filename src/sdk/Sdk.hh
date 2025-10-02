@@ -29,34 +29,23 @@
 namespace sdk
 {
 
-enum SdkState {
-    SdkState_Invalid = 0,
+enum class SdkState {
+    Invalid = 0,
 
-    SdkState_Initial,
-    SdkState_Started,
-    SdkState_Restart,
-    SdkState_Reconnecting,
-    SdkState_Connecting,
-    SdkState_Connected,
-    SdkState_SessionInitiating,
-    SdkState_SessionInitiated,
-    SdkState_Authenticating,
-    SdkState_AuthenticationFailed,
-    SdkState_Authenticated,
-    SdkState_ForwardingInitiated,
-    SdkState_ForwardingAccepted,
-    SdkState_ForwardingFailed,
-    SdkState_ForwardingSucceeded,
+    Initial,
+    Started,
+    ReconnectInitiated,
+    Reconnecting,
+    Connecting,
+    Connected,
+    SessionInitiating,
+    SessionInitiated,
+    Authenticating,
+    Authenticated,
+    ForwardingInitiated,
+    ForwardingSucceeded,
 
-    SdkState_Disconnected,
-
-    SdkState_Reconnect_Failed,
-    SdkState_Reconnect_Initiated,
-    SdkState_Reconnect_Connected,
-    SdkState_Reconnect_Forwarded,
-    SdkState_ReconnectWaiting,
-
-    SdkState_Stopped,
+    Stopped,
 };
 
 abstract class SdkEventHandler: virtual public pinggy::SharedObject
@@ -91,7 +80,7 @@ public:
                                 { }
 
     virtual void
-    OnForwardingChanged(tString changedJson)
+    OnForwardingsChanged(tString changedJson)
                                 { }
 
     virtual void
@@ -155,7 +144,7 @@ public:
     ResumeTunnel(tInt32 timeout = -1);
 
     bool
-    IsAuthenticated()           {return state >= SdkState_Authenticated;}
+    IsAuthenticated()           {return state >= SdkState::Authenticated;}
 
     std::vector<tString>
     GetUrls();
@@ -182,7 +171,10 @@ public:
     RequestAdditionalForwarding(tString forwardTo);
 
     bool
-    IsTunnelActive()            { return (state >= SdkState_Started && state < SdkState_Stopped); }
+    IsTunnelActive()            { return (state >= SdkState::Started && state < SdkState::Stopped); }
+
+    SdkState
+    GetTunnelState();
 
     void
     StartUsagesUpdate()         { usagesRunning = true; }
