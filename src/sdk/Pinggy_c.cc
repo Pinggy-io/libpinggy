@@ -18,6 +18,7 @@
 #include "Sdk.hh"
 #include <shared_mutex>
 #include <exception>
+#include <platform/app_foreach_macro.h>
 
 #define PINGGY_TYPETEST_ENABLED
 
@@ -184,16 +185,16 @@ DefineMakeSharedPtr(ApiChannelEventHandler)
 struct ApiEventHandler: virtual public sdk::SdkEventHandler
 {
 public:
-    pinggy_on_authenticated_cb_t
-                                onConnectedCB;
-    pinggy_on_authenticated_cb_t
-                                onAuthenticatedCB;
-    pinggy_on_authentication_failed_cb_t
-                                onAuthenticationFailedCB;
-    pinggy_on_forwarding_succeeded_cb_t
-                                onForwardingSucceededCB;
-    pinggy_on_forwarding_failed_cb_t
-                                onForwardingFailedCB;
+    // pinggy_on_authenticated_cb_t
+    //                             onConnectedCB;
+    // pinggy_on_authenticated_cb_t
+    //                             onAuthenticatedCB;
+    // pinggy_on_authentication_failed_cb_t
+    //                             onAuthenticationFailedCB;
+    pinggy_on_tunnel_established_cb_t
+                                onTunnelEstablishedCB;
+    pinggy_on_tunnel_failed_cb_t
+                                onTunnelFailedCB;
     pinggy_on_additional_forwarding_succeeded_cb_t
                                 onAdditionalForwardingSucceededCB;
     pinggy_on_additional_forwarding_failed_cb_t
@@ -212,11 +213,11 @@ public:
     pinggy_on_new_channel_cb_t  onNewChannelCB;
     pinggy_on_usage_update_cb_t onUsageUpdateCB;
 
-    pinggy_void_p_t             onConnectedUserData;
-    pinggy_void_p_t             onAuthenticatedUserData;
-    pinggy_void_p_t             onAuthenticationFailedUserData;
-    pinggy_void_p_t             onForwardingSucceededUserData;
-    pinggy_void_p_t             onForwardingFailedUserData;
+    // pinggy_void_p_t             onConnectedUserData;
+    // pinggy_void_p_t             onAuthenticatedUserData;
+    // pinggy_void_p_t             onAuthenticationFailedUserData;
+    pinggy_void_p_t             onTunnelEstablishedUserData;
+    pinggy_void_p_t             onTunnelFailedUserData;
     pinggy_void_p_t             onAdditionalForwardingSucceededUserData;
     pinggy_void_p_t             onAdditionalForwardingFailedUserData;
     pinggy_void_p_t             onForwardingChangedUserData;
@@ -232,11 +233,11 @@ public:
     pinggy_ref_t                sdk;
 
     ApiEventHandler():
-                        onConnectedCB(NULL),
-                        onAuthenticatedCB(NULL),
-                        onAuthenticationFailedCB(NULL),
-                        onForwardingSucceededCB(NULL),
-                        onForwardingFailedCB(NULL),
+                        // onConnectedCB(NULL),
+                        // onAuthenticatedCB(NULL),
+                        // onAuthenticationFailedCB(NULL),
+                        onTunnelEstablishedCB(NULL),
+                        onTunnelFailedCB(NULL),
                         onAdditionalForwardingSucceededCB(NULL),
                         onAdditionalForwardingFailedCB(NULL),
                         onForwardingChangedCB(NULL),
@@ -248,10 +249,10 @@ public:
                         onNewChannelCB(NULL),
                         onUsageUpdateCB(NULL),
 
-                        onAuthenticatedUserData(NULL),
-                        onAuthenticationFailedUserData(NULL),
-                        onForwardingSucceededUserData(NULL),
-                        onForwardingFailedUserData(NULL),
+                        // onAuthenticatedUserData(NULL),
+                        // onAuthenticationFailedUserData(NULL),
+                        onTunnelEstablishedUserData(NULL),
+                        onTunnelFailedUserData(NULL),
                         onAdditionalForwardingSucceededUserData(NULL),
                         onAdditionalForwardingFailedUserData(NULL),
                         onForwardingChangedUserData(NULL),
@@ -279,40 +280,40 @@ public:
             delete[] cVec[i];                                   \
         delete[] cVec;                                          \
 
+    // virtual pinggy_void_t
+    // OnConnected() override
+    // {
+    //     if (onConnectedCB) onConnectedCB(onConnectedUserData, sdk);
+    // }
+    // virtual pinggy_void_t
+    // OnAuthenticated() override
+    // {
+    //     if (onAuthenticatedCB) onAuthenticatedCB(onAuthenticatedUserData, sdk);
+    // }
+    // virtual pinggy_void_t
+    // OnAuthenticationFailed(std::vector<tString> why) override
+    // {
+    //     if (!onAuthenticationFailedCB) return;
+    //     GetCStringArray(cWhy, why)
+    //     onAuthenticationFailedCB(onAuthenticationFailedUserData, sdk, why.size(), cWhy);
+    //     ReleaseCStringArray(cWhy, why);
+    // }
     virtual pinggy_void_t
-    OnConnected() override
+    OnTunnelEstablished(std::vector<tString> urls) override
     {
-        if (onConnectedCB) onConnectedCB(onConnectedUserData, sdk);
-    }
-    virtual pinggy_void_t
-    OnAuthenticated() override
-    {
-        if (onAuthenticatedCB) onAuthenticatedCB(onAuthenticatedUserData, sdk);
-    }
-    virtual pinggy_void_t
-    OnAuthenticationFailed(std::vector<tString> why) override
-    {
-        if (!onAuthenticationFailedCB) return;
-        GetCStringArray(cWhy, why)
-        onAuthenticationFailedCB(onAuthenticationFailedUserData, sdk, why.size(), cWhy);
-        ReleaseCStringArray(cWhy, why);
-    }
-    virtual pinggy_void_t
-    OnForwardingSucceeded(std::vector<tString> urls) override
-    {
-        if (!onForwardingSucceededCB) {
-            LOGD("onForwardingSucceededCB does not exists");
+        if (!onTunnelEstablishedCB) {
+            LOGD("onTunnelEstablishedCB does not exists");
             return;
         }
         GetCStringArray(cUrls, urls);
-        onForwardingSucceededCB(onForwardingSucceededUserData, sdk, urls.size(), cUrls);
+        onTunnelEstablishedCB(onTunnelEstablishedUserData, sdk, urls.size(), cUrls);
         ReleaseCStringArray(cUrls, urls);
     }
     virtual pinggy_void_t
-    OnForwardingFailed(tString message) override
+    OnTunnelFailed(tString message) override
     {
-        if (!onForwardingFailedCB) return;
-        onForwardingFailedCB(onForwardingFailedUserData, sdk, message.c_str());
+        if (!onTunnelFailedCB) return;
+        onTunnelFailedCB(onTunnelFailedUserData, sdk, message.c_str());
     }
     virtual pinggy_void_t
     OnAdditionalForwardingSucceeded(tString bindAddress, tString forwardTo, tString forwardingType) override
@@ -796,6 +797,31 @@ pinggy_config_set_local_server_tls(pinggy_ref_t ref, pinggy_const_char_p_t local
     );
 }
 
+PINGGY_EXPORT pinggy_void_t
+pinggy_config_set_webdebugger_port(pinggy_ref_t ref, pinggy_uint16_t port)
+{
+    auto sdkConf = getSDKConfig(ref);
+    if (!sdkConf) {
+        LOGE("No sdkConf found for the ref:", ref);
+        return;
+    }
+    ExpectException(
+        sdkConf->SetWebDebugPort(port);
+    );
+}
+
+PINGGY_EXPORT pinggy_void_t
+pinggy_config_set_webdebugger(pinggy_ref_t ref, pinggy_bool_t enable)
+{
+    auto sdkConf = getSDKConfig(ref);
+    if (!sdkConf) {
+        LOGE("No sdkConf found for the ref:", ref);
+        return;
+    }
+    ExpectException(
+        sdkConf->SetWebDebug(enable == pinggy_true ? true : false);
+    );
+}
 
 
 #define SdkConfigCopyStringToOutputLen(capa_, val_, str_, len_)                 \
@@ -1101,6 +1127,28 @@ PINGGY_EXPORT pinggy_const_int_t
 pinggy_config_get_local_server_tls_len(pinggy_ref_t ref, pinggy_capa_t capa, pinggy_char_p_t val, pinggy_capa_p_t max_len)
 {
     SdkConfigCopyStringToOutputLen(capa, val, GetLocalServerTls(), max_len);
+}
+
+PINGGY_EXPORT pinggy_uint16_t
+pinggy_config_get_webdebugger_port(pinggy_ref_t ref)
+{
+    auto sdkConf = getSDKConfig(ref);
+    if (!sdkConf) {
+        LOGE("No sdkConf found for the ref:", ref);
+        return pinggy_false;
+    }
+    return sdkConf->GetWebDebugPort();
+}
+
+PINGGY_EXPORT pinggy_bool_t
+pinggy_config_get_webdebugger(pinggy_ref_t ref)
+{
+    auto sdkConf = getSDKConfig(ref);
+    if (!sdkConf) {
+        LOGE("No sdkConf found for the ref:", ref);
+        return pinggy_false;
+    }
+    return sdkConf->IsWebDebug() ? pinggy_true : pinggy_false;
 }
 
 #undef SdkConfigCopyStringToOutput
@@ -1443,23 +1491,24 @@ pinggy_tunnel_get_state(pinggy_ref_t ref)
         return TunnelState_Invalid;
     }
     auto state = sdk->GetTunnelState();
-#define SdkStateToTunnelState(x,y) \
-            case x: return y
+#define SdkStateToTunnelState(x) \
+            case sdk::SdkState:: x : return APP_MACRO_PASTE(TunnelState_, x)
     switch(state) {
-        SdkStateToTunnelState(sdk::SdkState::Invalid,                TunnelState_Invalid);
-        SdkStateToTunnelState(sdk::SdkState::Initial,                TunnelState_Initial);
-        SdkStateToTunnelState(sdk::SdkState::Started,                TunnelState_Started);
-        SdkStateToTunnelState(sdk::SdkState::ReconnectInitiated,     TunnelState_ReconnectInitiated);
-        SdkStateToTunnelState(sdk::SdkState::Reconnecting,           TunnelState_Reconnecting);
-        SdkStateToTunnelState(sdk::SdkState::Connecting,             TunnelState_Connecting);
-        SdkStateToTunnelState(sdk::SdkState::Connected,              TunnelState_Connected);
-        SdkStateToTunnelState(sdk::SdkState::SessionInitiating,      TunnelState_SessionInitiating);
-        SdkStateToTunnelState(sdk::SdkState::SessionInitiated,       TunnelState_SessionInitiated);
-        SdkStateToTunnelState(sdk::SdkState::Authenticating,         TunnelState_Authenticating);
-        SdkStateToTunnelState(sdk::SdkState::Authenticated,          TunnelState_Authenticated);
-        SdkStateToTunnelState(sdk::SdkState::ForwardingInitiated,    TunnelState_ForwardingInitiated);
-        SdkStateToTunnelState(sdk::SdkState::ForwardingSucceeded,    TunnelState_ForwardingSucceeded);
-        SdkStateToTunnelState(sdk::SdkState::Stopped,                TunnelState_Stopped);
+        SdkStateToTunnelState(Invalid);
+        SdkStateToTunnelState(Initial);
+        SdkStateToTunnelState(Started);
+        SdkStateToTunnelState(ReconnectInitiated);
+        SdkStateToTunnelState(Reconnecting);
+        SdkStateToTunnelState(Connecting);
+        SdkStateToTunnelState(Connected);
+        SdkStateToTunnelState(SessionInitiating);
+        SdkStateToTunnelState(SessionInitiated);
+        SdkStateToTunnelState(Authenticating);
+        SdkStateToTunnelState(Authenticated);
+        SdkStateToTunnelState(ForwardingInitiated);
+        SdkStateToTunnelState(ForwardingSucceeded);
+        SdkStateToTunnelState(Stopped);
+        SdkStateToTunnelState(Ended);
         default:
             return TunnelState_Invalid;
     }
@@ -1484,48 +1533,48 @@ pinggy_tunnel_get_state(pinggy_ref_t ref)
         return pinggy_false;                                    \
     }
 
+// PINGGY_EXPORT pinggy_bool_t
+// pinggy_tunnel_set_on_connected_callback(pinggy_ref_t sdkRef, pinggy_on_connected_cb_t connected, pinggy_void_p_t user_data)
+// {
+//     GetEventHandlerFromSdkRef(sdkRef, aev);
+//     aev->onConnectedCB = connected;
+//     aev->onConnectedUserData = user_data;
+//     return pinggy_true;
+// }
+
+// PINGGY_EXPORT pinggy_bool_t
+// pinggy_tunnel_set_on_authenticated_callback(pinggy_ref_t sdkRef, pinggy_on_authenticated_cb_t authenticated, pinggy_void_p_t user_data)
+// {
+//     GetEventHandlerFromSdkRef(sdkRef, aev);
+//     aev->onAuthenticatedCB = authenticated;
+//     aev->onAuthenticatedUserData = user_data;
+//     return pinggy_true;
+// }
+
+// PINGGY_EXPORT pinggy_bool_t
+// pinggy_tunnel_set_on_authentication_failed_callback(pinggy_ref_t sdkRef, pinggy_on_authentication_failed_cb_t authenticationFailed, pinggy_void_p_t user_data)
+// {
+//     GetEventHandlerFromSdkRef(sdkRef, aev);
+//     aev->onAuthenticationFailedCB = authenticationFailed;
+//     aev->onAuthenticationFailedUserData = user_data;
+//     return pinggy_true;
+// }
+
 PINGGY_EXPORT pinggy_bool_t
-pinggy_tunnel_set_on_connected_callback(pinggy_ref_t sdkRef, pinggy_on_connected_cb_t connected, pinggy_void_p_t user_data)
+pinggy_tunnel_set_on_tunnel_established_callback(pinggy_ref_t sdkRef, pinggy_on_tunnel_established_cb_t tunnel_initiated, pinggy_void_p_t user_data)
 {
     GetEventHandlerFromSdkRef(sdkRef, aev);
-    aev->onConnectedCB = connected;
-    aev->onConnectedUserData = user_data;
+    aev->onTunnelEstablishedCB = tunnel_initiated;
+    aev->onTunnelEstablishedUserData = user_data;
     return pinggy_true;
 }
 
 PINGGY_EXPORT pinggy_bool_t
-pinggy_tunnel_set_on_authenticated_callback(pinggy_ref_t sdkRef, pinggy_on_authenticated_cb_t authenticated, pinggy_void_p_t user_data)
+pinggy_tunnel_set_on_tunnel_failed_callback(pinggy_ref_t sdkRef, pinggy_on_tunnel_failed_cb_t tunnel_initiation_failed, pinggy_void_p_t user_data)
 {
     GetEventHandlerFromSdkRef(sdkRef, aev);
-    aev->onAuthenticatedCB = authenticated;
-    aev->onAuthenticatedUserData = user_data;
-    return pinggy_true;
-}
-
-PINGGY_EXPORT pinggy_bool_t
-pinggy_tunnel_set_on_authentication_failed_callback(pinggy_ref_t sdkRef, pinggy_on_authentication_failed_cb_t authenticationFailed, pinggy_void_p_t user_data)
-{
-    GetEventHandlerFromSdkRef(sdkRef, aev);
-    aev->onAuthenticationFailedCB = authenticationFailed;
-    aev->onAuthenticationFailedUserData = user_data;
-    return pinggy_true;
-}
-
-PINGGY_EXPORT pinggy_bool_t
-pinggy_tunnel_set_on_forwarding_succeeded_callback(pinggy_ref_t sdkRef, pinggy_on_forwarding_succeeded_cb_t tunnel_initiated, pinggy_void_p_t user_data)
-{
-    GetEventHandlerFromSdkRef(sdkRef, aev);
-    aev->onForwardingSucceededCB = tunnel_initiated;
-    aev->onForwardingSucceededUserData = user_data;
-    return pinggy_true;
-}
-
-PINGGY_EXPORT pinggy_bool_t
-pinggy_tunnel_set_forwarding_failed_callback(pinggy_ref_t sdkRef, pinggy_on_forwarding_failed_cb_t tunnel_initiation_failed, pinggy_void_p_t user_data)
-{
-    GetEventHandlerFromSdkRef(sdkRef, aev);
-    aev->onForwardingFailedCB = tunnel_initiation_failed;
-    aev->onForwardingFailedUserData = user_data;
+    aev->onTunnelFailedCB = tunnel_initiation_failed;
+    aev->onTunnelFailedUserData = user_data;
     return pinggy_true;
 }
 
