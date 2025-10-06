@@ -2,7 +2,7 @@
 
 setlocal enabledelayedexpansion
 
-REM Check if MY_ARRAY is set, else use default values
+REM Check if NATIVE_RUNTIMES is set, else use default values
 if "%NATIVE_RUNTIMES%"=="" (
     set "NATIVE_RUNTIMES=MT,MTd,MDd,MD"
     echo No environment variable passed. Using default array: %NATIVE_RUNTIMES%

@@ -37,8 +37,24 @@ if exist "%OPENSSL_SOURCE_DIR%" (
     rmdir /s /q "%OPENSSL_SOURCE_DIR%"
 )
 
-for %%i in (x86_64 i686 aarch64 armv7) do (
-    for %%j in (MTd MT MDd MD) do (
+REM Check if NATIVE_RUNTIMES is set, else use default values
+if "%NATIVE_RUNTIMES%"=="" (
+    set "NATIVE_RUNTIMES=MT,MTd,MDd,MD"
+    echo No environment variable passed. Using default array: %NATIVE_RUNTIMES%
+) else (
+    echo Environment variable found: %NATIVE_RUNTIMES%
+)
+
+if "%NATIVE_ARCHES%"=="" (
+    set "NATIVE_ARCHES=x86_64,i686,aarch64,armv7"
+    echo No environment variable passed. Using default array: %NATIVE_RUNTIMES%
+) else (
+    echo Environment variable found: %NATIVE_ARCHES%
+)
+
+
+for %%i in (%NATIVE_ARCHES%) do (
+    for %%j in (%NATIVE_ARCHES%) do (
 
         cd "%PROJECT_ROOT%"
 
