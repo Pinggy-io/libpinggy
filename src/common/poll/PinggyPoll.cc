@@ -18,7 +18,7 @@
 
 namespace common {
 
-PollController::PollController() : pollTime(GetCurrentTimeInNS()), waitForTask(true)
+PollController::PollController() : pollTime(GetCurrentTimeInMS()), waitForTask(true)
 {
 }
 
@@ -54,8 +54,9 @@ PollController::AddFutureTask(tDuration timeout, tDuration align, bool repeat, T
     return pollableTask;
 }
 
-tDuration PollController::GetNextTaskTimeout()
+tDuration PollController::GetNextTaskTimeout(int argTimeout)
 {
+    argTimeout = argTimeout < -1 ? -1 : argTimeout;
     if (taskQueue.size() == 0)
         return 0;
 
@@ -63,15 +64,26 @@ tDuration PollController::GetNextTaskTimeout()
 
     // LOGT("Get Next Task Timeout", task->deadline - pollTime, task->deadline, pollTime);
 
-    Assert(task->deadline > pollTime);
+    if (task->deadline <= pollTime) //task already pending. Need to execute immidiately.
+        return 0;
 
-    return task->deadline - pollTime;
+    auto timeout = task->deadline - pollTime;
+    if (argTimeout < 0)
+        return timeout;
+    if (argTimeout == 0)
+        return 0;
+    tDuration expectedTimeout = ((tUint) argTimeout) * MILLISECOND;
+
+    if (timeout > expectedTimeout)
+        timeout = expectedTimeout;
+
+    return timeout;
 }
 
 void
 PollController::ExecuteCurrentTasks()
 {
-    pollTime = GetCurrentTimeInNS();
+    pollTime = GetCurrentTimeInMS();
 
     while (taskQueue.size() > 0) {
         auto task = taskQueue.top();
@@ -79,7 +91,7 @@ PollController::ExecuteCurrentTasks()
         // LOGT("ExecuteCurrentTasks", (task->deadline > pollTime ? "notnow" : "now"), (tInt64)(task->deadline - pollTime), task->deadline, pollTime, taskQueue.size());
         if (task->deadline > pollTime)
             return;
-        Assert(task->deadline <= pollTime);
+        Assert(task->deadline <= pollTime); //This is okay
 
         taskQueue.pop();
 

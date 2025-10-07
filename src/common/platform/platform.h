@@ -118,6 +118,7 @@ typedef int16_t         tLen;
 typedef uint16_t        tChanId;
 
 typedef int             tInt;
+typedef unsigned int    tUint;
 typedef int8_t          tInt8;
 typedef int16_t         tInt16;
 typedef int32_t         tInt32;

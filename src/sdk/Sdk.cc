@@ -188,7 +188,7 @@ Sdk::Stop()
 }
 
 bool PINGGY_LIFE_CYCLE_FUNC
-Sdk::ResumeTunnel()
+Sdk::ResumeTunnel(tInt timeout)
 {
     if (stopped)
         return false;
@@ -200,7 +200,7 @@ Sdk::ResumeTunnel()
         switch (reconnectionState) {
             case SdkState_ReconnectWaiting:
                 { //Ongoing reconnection
-                    return resumeWithLock(__func__);
+                    return resumeWithLock(__func__, timeout);
                 }
                 break;
 
@@ -277,7 +277,7 @@ Sdk::ResumeTunnel()
     if (stopped)
         return false;
 
-    auto success = resumeWithLock(__func__);
+    auto success = resumeWithLock(__func__, timeout);
     return success;
 }
 
@@ -1109,8 +1109,8 @@ Sdk::initiateContinousUsages()
 }
 
 bool
-Sdk::resumeWithLock(tString funcName)
-{   auto ret = pollController->PollOnce();
+Sdk::resumeWithLock(tString funcName, tInt timeout)
+{   auto ret = pollController->PollOnce(timeout);
     auto success = (ret < 0 && app_get_errno() != EINTR ? false : true);
     return success;
 }

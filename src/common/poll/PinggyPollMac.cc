@@ -66,9 +66,9 @@ PollControllerLinux::PollControllerLinux():
     registerNotificationFd();
 }
 
-tInt PollControllerLinux::PollOnce()
+tInt PollControllerLinux::PollOnce(tInt argTimeout)
 {
-    if(fds.size() == 0 && nonPollables.size() == 0 && HaveFutureTasks() == false) {
+    if(fds.size() == 0 && nonPollables.size() == 0 && HaveFutureTasks(argTimeout) == false) {
         app_set_errno(EINVAL);
         return -1;
     }
@@ -93,8 +93,8 @@ tInt PollControllerLinux::PollOnce()
     }
 
     struct timespec localTimeSpec, *localTimeSpecPtr = NULL;
-    if (HaveFutureTasks()) {
-        auto timeout = GetNextTaskTimeout();
+    if (HaveFutureTasks(argTimeout)) {
+        auto timeout = GetNextTaskTimeout(argTimeout);
         localTimeSpec = timespec{
                             .tv_sec  = (time_t)(timeout / SECOND),
                             .tv_nsec = (time_t)(timeout % SECOND),

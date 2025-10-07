@@ -280,7 +280,7 @@ void PollControllerGeneric::StartPolling()
     polling = false;
 }
 
-tInt PollControllerGeneric::PollOnce()
+tInt PollControllerGeneric::PollOnce(tInt argTimeout)
 {
     if(fds.size() == 0 && nonPollables.size() == 0 && HaveFutureTasks() == false) {
         app_set_errno(EINVAL);
@@ -313,10 +313,9 @@ tInt PollControllerGeneric::PollOnce()
             pollEventsForIterator[i] = pollEvents[i];
         reinit = false;
     }
-
-    int timeout = 1000; //1 second by default
-    if (HaveFutureTasks()) {
-        timeout = (int)(GetNextTaskTimeout()/MILLISECOND);
+    int timeout = 1000; //1 second by default for windows
+    if (HaveFutureTasks(argTimeout)) {
+        timeout = (int)(GetNextTaskTimeout(argTimeout)/MILLISECOND);
     }
 
     int ret = poll(pollEventsForIterator, numPollEventsForIterator, timeout);

@@ -66,9 +66,9 @@ PollControllerLinux::PollControllerLinux():
     registerNotificationFd();
 }
 
-tInt PollControllerLinux::PollOnce()
+tInt PollControllerLinux::PollOnce(tInt argTimeout)
 {
-    if(fds.size() == 0 && nonPollables.size() == 0 && HaveFutureTasks() == false) {
+    if(fds.size() == 0 && nonPollables.size() == 0 && HaveFutureTasks(argTimeout) == false) {
         app_set_errno(EINVAL);
         return -1;
     }
@@ -93,8 +93,8 @@ tInt PollControllerLinux::PollOnce()
     }
 
     int timeout = -1;
-    if (HaveFutureTasks()) {
-        timeout = (int)(GetNextTaskTimeout()/MILLISECOND);
+    if (HaveFutureTasks(argTimeout)) {
+        timeout = (int)(GetNextTaskTimeout(argTimeout)/MILLISECOND);
     }
 
     auto nfds = epoll_wait(pollfd, pollEvents, numEvents, timeout);

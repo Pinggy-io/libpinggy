@@ -1227,13 +1227,19 @@ pinggy_tunnel_connect_blocking(pinggy_ref_t ref)
 PINGGY_EXPORT pinggy_bool_t
 pinggy_tunnel_resume(pinggy_ref_t ref)
 {
+    return pinggy_tunnel_resume_timeout(ref, -1);
+}
+
+PINGGY_EXPORT pinggy_bool_t
+pinggy_tunnel_resume_timeout(pinggy_ref_t ref, pinggy_int_t timeout)
+{
     auto sdk =  getSdk(ref);
     if (sdk == nullptr) {
         LOGE("null sdk");
         return pinggy_false;
     }
     try {
-        return sdk->ResumeTunnel() ? pinggy_true : pinggy_false;
+        return sdk->ResumeTunnel(timeout) ? pinggy_true : pinggy_false;
     } catch (const std::exception &e) {
         if (exception_callback) {
             exception_callback("CPP exception:", e.what());

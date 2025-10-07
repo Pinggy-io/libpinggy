@@ -92,14 +92,18 @@ DeclareSharedPtr(PollState);
     (std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count())
 #define GetCurrentTimeInMS() \
     (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count())
+
+//Pinggy works on millisecond scale only, primarily because of the poll, epoll's behavior. It is meaning less to use microsecond or nanosecond
+#if 0
 #define GetCurrentTimeInUS() \
     (std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count())
 #define GetCurrentTimeInNS() \
     (std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch()).count())
+#endif
 
-#define  NANOSECOND         ((uint64_t)1)
-#define  MICROSECOND        (1000*NANOSECOND)
-#define  MILLISECOND        (1000*MICROSECOND)
+#define  NANOSECOND         #ERROR "Nano second is not usable. use millisecond" // ((uint64_t)1)
+#define  MICROSECOND        #ERROR "Micro second is not usable. use millisecond" //(1000*NANOSECOND)
+#define  MILLISECOND        ((uint64_t)1) //(1000*MICROSECOND)
 #define  SECOND             (1000*MILLISECOND)
 #define  MINUTE             (60*SECOND)
 #define  HOUR               (60*MINUTE)
@@ -178,7 +182,7 @@ public:
     StartPolling() = 0;
 
     virtual tInt
-    PollOnce() = 0;
+    PollOnce(int timeout = -1) = 0;
 
     virtual sock_t
     GetFd() = 0;
@@ -234,11 +238,13 @@ public:
                                 { this->waitForTask = waitForTask; }
 
 protected:
+
+    // returns 0 or positive. 0 means immediate
     virtual tDuration
-    GetNextTaskTimeout() final; //zero if no deadline
+    GetNextTaskTimeout(int timeout = -1) final; //zero if no deadline
 
     virtual bool
-    HaveFutureTasks() final { return taskQueue.size() > 0; }
+    HaveFutureTasks(int timeout = -1) final { return taskQueue.size() > 0 || timeout > -1; }
 
     virtual bool
     WaitForFutureTask() final
