@@ -1170,6 +1170,19 @@ PINGGY_EXPORT pinggy_bool_t
 pinggy_tunnel_resume(pinggy_ref_t tunnel);
 
 /**
+ * @brief Resumes tunnel operation after connect.
+ *
+ * Applications should call this function in a loop after pinggy_tunnel_connect and pinggy_tunnel_request_primary_forwarding to keep the tunnel active. Returns false when the tunnel should stop.
+ * This function also takes a timeout which defines, howlong the sdk may wait. This is the maximum wait time.
+ *
+ * @param tunnel  Reference to the tunnel object.
+ * @param timeout Timeout in ms for the event. negative means it might hold indefinitely. Zero means, it would timeout immediately.
+ * @return        pinggy_true to continue, pinggy_false to stop.
+ */
+PINGGY_EXPORT pinggy_bool_t
+pinggy_tunnel_resume_timeout(pinggy_ref_t tunnel, pinggy_int_t timeout);
+
+/**
  * @brief Stops the running tunnel.
  *
  * This function can be called from a different thread or from within callbacks.

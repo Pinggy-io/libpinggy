@@ -148,7 +148,7 @@ public:
     Stop();
 
     bool
-    ResumeTunnel();
+    ResumeTunnel(tInt timeout = -1);
 
     bool
     IsAuthenticated()           {return state >= SdkState_Authenticated;}
@@ -314,7 +314,7 @@ private:
     initiateContinousUsages();
 
     bool
-    resumeWithLock(tString funcName);
+    resumeWithLock(tString funcName, tInt timeout);
 
     void
     setupLocalChannelNGetData(port_t port, tString tag);

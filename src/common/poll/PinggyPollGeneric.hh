@@ -46,7 +46,7 @@ public:
     virtual void RestoreState(PollEventHandlerPtr handler, PollStatePtr state) override;
     virtual void DeregisterAllHandlers() override;
     virtual void StartPolling() override;
-    virtual tInt PollOnce() override;
+    virtual tInt PollOnce(tInt timeout = -1) override;
     virtual sock_t GetFd() override;
     virtual void CleanupAfterFork() override;
     virtual void StopPolling() override {stopPolling = true;}
