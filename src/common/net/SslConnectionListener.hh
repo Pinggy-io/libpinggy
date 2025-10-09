@@ -81,6 +81,9 @@ public:
     virtual tString
     GetListeningPath() override;
 
+    virtual SocketAddressPtr
+    GetListeningAddress() override;
+
     virtual void
     SetRecvTimeoutms(uint16_t timeout) override {connectionListener->SetRecvTimeoutms(timeout);}
 

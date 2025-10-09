@@ -146,8 +146,8 @@ public:
     ThreadLockPtr
     LockIfDifferentThread();
 
-    port_t
-    StartWebDebugging(port_t port=4300);
+    tString
+    StartWebDebugging(tString addr);
 
     void
     RequestAdditionalForwarding(tString forwardingType, tString bindingUrl, tString forwardTo);
@@ -175,6 +175,9 @@ public:
 
     const tString&
     GetGreetingMsg()            { return greetingMsgs; }
+
+    tString
+    GetWebDebuggerListeningAddress();
 
     tPort
     GetWebDebugListeningPort();
