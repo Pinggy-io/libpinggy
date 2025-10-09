@@ -94,6 +94,9 @@ public:
     virtual tString
     GetListeningPath() = 0;
 
+    virtual SocketAddressPtr
+    GetListeningAddress() = 0;
+
     virtual void
     SetFlagsForChild(uint32_t flags) = 0;
 
@@ -152,6 +155,7 @@ public:
     ConnectionListenerImpl(sock_t fd);
     ConnectionListenerImpl(tString path);
     ConnectionListenerImpl(port_t port, bool ipv6);
+    ConnectionListenerImpl(tString host, tPort port);
 
     virtual
     ~ConnectionListenerImpl();
@@ -176,6 +180,10 @@ public:
 
     virtual tString
     GetListeningPath() override { return socketPath; }
+
+    virtual SocketAddressPtr
+    GetListeningAddress() override
+                                { return sockAddr; }
 
     virtual bool
     IsListening() override      { return IsValidSocket(fd); }
@@ -222,10 +230,12 @@ private:
     sock_t                      fd;
     port_t                      port;
     tString                     socketPath;
+    tString                     host;
     uint32_t                    flagsForChild;
     bool                        ipv6;
     bool                        blocking;
     bool                        tryAgain;
+    SocketAddressPtr            sockAddr;
 };
 
 DefineMakeSharedPtr(ConnectionListenerImpl);

@@ -695,6 +695,13 @@ SslConnectionListener::GetListeningPath()
     return "";
 }
 
+SocketAddressPtr SslConnectionListener::GetListeningAddress()
+{
+    if (connectionListener)
+        connectionListener->GetListeningAddress();
+    return nullptr;
+}
+
 void
 SslConnectionListener::RegisterAcceptSslHandler(
         common::PollControllerPtr pollController, SslAcceptEventHandlerPtr handler,

@@ -44,7 +44,6 @@ struct ClientConfig: virtual public pinggy::SharedObject
 {
     ClientConfig() :
             SdkConfig(sdk::NewSDKConfigPtr()),
-            WebDebuggerPort(4300),
             EnableWebDebugger(false)
                                 {}
 
@@ -52,7 +51,7 @@ struct ClientConfig: virtual public pinggy::SharedObject
 
     std::vector<tString>        forwardings;
     sdk::SDKConfigPtr           SdkConfig;
-    port_t                      WebDebuggerPort;
+    tString                     WebDebuggerAddr = "localhost:4300";
     bool                        EnableWebDebugger;
     tString                     mode;
 };
@@ -169,7 +168,7 @@ parseForwardTunnel(ClientConfigPtr config, tString value)
     }
 
     try {
-        config->WebDebuggerPort = std::stoi(values[values.size() - 1]);
+        config->WebDebuggerAddr = values[values.size() - 2] + ":" + values[values.size() - 1];
         config->EnableWebDebugger = true;
     } catch(...) {
         return false;
@@ -483,7 +482,7 @@ ClientSdkEventHandler::OnTunnelEstablished(std::vector<std::string> urls)
     }
 
     std::cout << "Greeting: " << sdk.lock()->GetGreetingMsg() << std::endl;
-    if (config->EnableWebDebugger && config->WebDebuggerPort > 0) {
-        thisPtr->sdk.lock()->StartWebDebugging(config->WebDebuggerPort);
+    if (config->EnableWebDebugger && !config->WebDebuggerAddr.empty()) {
+        thisPtr->sdk.lock()->StartWebDebugging(config->WebDebuggerAddr);
     }
 }

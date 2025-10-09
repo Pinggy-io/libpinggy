@@ -179,9 +179,10 @@ int send_fd(sock_t unix_sock, sock_t fd);
 #define app_tcp_listener(_x) (app_tcp_listener_ip(htonl(INADDR_ANY), _x ))
 sock_t app_tcp_listener_ip(in_addr_t ip, port_t port );
 
-
 #define app_tcp6_listener(_x) (app_tcp6_listener_ip(IN6ADDR_ANY_INIT, _x ))
 sock_t app_tcp6_listener_ip(struct in6_addr ip, port_t port );
+
+sock_t app_tcp_listener_host(const char *host, const char *port);
 
 #define app_udp_listener_str(_x, _y) (app_udp_listener_ip(inet_addr(_x), _y))
 #define app_udp_listener(_x) (app_udp_listener_ip(htonl(INADDR_ANY), _x))

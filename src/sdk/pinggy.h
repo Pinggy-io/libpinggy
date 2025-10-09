@@ -204,42 +204,6 @@ pinggy_is_interrupted();
 
 //================
 /**
- * @typedef pinggy_on_connected_cb_t
- * @brief Callback for when the tunnel is successfully connected to the server.
- * This is an informational callback only and most apps do not need to implement this.
- * @param user_data  User-defined pointer passed during callback registration.
- * @param tunnel_ref Reference to the tunnel object.
- */
-// typedef pinggy_void_t (*pinggy_on_connected_cb_t)                               \
-//                             (pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref);
-
-/**
- * @typedef pinggy_on_authenticated_cb_t
- * @brief Callback for when the tunnel is authenticated.
- * Here, authentication means the tunnel is allowed to be set up.
- *
- * This callback can arrive only when the tunnel is being connected, i.e.,
- * `pinggy_tunnel_connect_blocking` is working or `pinggy_tunnel_connect` is
- * called and the app is waiting for an event by calling `pinggy_tunnel_resume`.
- *
- * @param user_data  User-defined pointer passed during callback registration.
- * @param tunnel_ref Reference to the tunnel object.
- */
-// typedef pinggy_void_t (*pinggy_on_authenticated_cb_t)                           \
-//                             (pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref);
-
-/**
- * @typedef pinggy_on_authentication_failed_cb_t
- * @brief Callback for when tunnel authentication fails. It is similar to `pinggy_on_authenticated_cb_t`.
- * @param user_data  User-defined pointer passed during callback registration.
- * @param tunnel_ref Reference to the tunnel object.
- * @param num_reasons Size of the `reasons` array.
- * @param reasons Array of strings describing reasons for failure.
- */
-// typedef pinggy_void_t (*pinggy_on_authentication_failed_cb_t)                   \
-//                             (pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_len_t num_reasons, pinggy_char_p_p_t reasons);
-
-/**
  * @typedef pinggy_on_tunnel_established_cb_t
  * @brief Callback for when primary forwarding is successfully established.
  *
@@ -817,9 +781,27 @@ pinggy_config_set_allow_preflight(pinggy_ref_t config, pinggy_bool_t allow_prefl
 PINGGY_EXPORT pinggy_void_t
 pinggy_config_set_local_server_tls(pinggy_ref_t config, pinggy_const_char_p_t local_server_tls);
 
+/**
+ * @brief Sets the port for the web debugger.
+ *
+ * This function configures the port on which the web debugger will listen.
+ * The web debugger provides a web interface for monitoring and debugging the tunnel.
+ *
+ * @param config Reference to the tunnel config object.
+ * @param addr   Address to use for the web debugger.
+ */
 PINGGY_EXPORT pinggy_void_t
-pinggy_config_set_webdebugger_port(pinggy_ref_t config, pinggy_uint16_t port);
+pinggy_config_set_webdebugger_addr(pinggy_ref_t ref, pinggy_const_char_p_t addr);
 
+/**
+ * @brief Enables or disables the web debugger for the tunnel.
+ *
+ * This function controls whether the web debugger is active.
+ * When enabled, the web debugger provides a web interface for monitoring and debugging the tunnel.
+ *
+ * @param config Reference to the tunnel config object.
+ * @param enable Set to pinggy_true to enable the web debugger, or pinggy_false to disable it.
+ */
 PINGGY_EXPORT pinggy_void_t
 pinggy_config_set_webdebugger(pinggy_ref_t config, pinggy_bool_t enable);
 
@@ -1134,9 +1116,32 @@ pinggy_config_get_local_server_tls(pinggy_ref_t config, pinggy_capa_t buffer_len
 PINGGY_EXPORT pinggy_const_int_t
 pinggy_config_get_local_server_tls_len(pinggy_ref_t config, pinggy_capa_t buffer_len, pinggy_char_p_t buffer, pinggy_capa_p_t max_len);
 
-PINGGY_EXPORT pinggy_uint16_t
-pinggy_config_get_webdebugger_port(pinggy_ref_t config);
+/**
+ * @brief Retrieves the web debugger bindaddress from the tunnel config.
+ * @param config  Reference to the tunnel config object.
+ * @param buffer_len  Length of the buffer provided for the web-debugger address.
+ * @param buffer      Pointer to a character array where the web-debugger address string will be copied.
+ * @return            Number of bytes copied to the buffer (excluding null terminator).
+ */
+PINGGY_EXPORT pinggy_const_int_t
+pinggy_config_get_webdebugger_addr(pinggy_ref_t config, pinggy_capa_t buffer_len, pinggy_char_p_t buffer);
 
+/**
+ * @brief Retrieves the web debugger bindaddress from the tunnel config.
+ * @param config  Reference to the tunnel config object.
+ * @param buffer_len  Length of the buffer provided for the web-debugger address.
+ * @param buffer      Pointer to a character array where the web-debugger string will be copied.
+ * @param max_len     Pointer to a variable that will be set to the total length required to hold the full web-debugger address string (including null terminator).
+ * @return            Number of bytes copied to the buffer (excluding null terminator).
+ */
+PINGGY_EXPORT pinggy_const_int_t
+pinggy_config_get_webdebugger_addr_len(pinggy_ref_t config, pinggy_capa_t buffer_len, pinggy_char_p_t buffer, pinggy_capa_p_t max_len);
+
+/**
+ * @brief Checks whether the web debugger is enabled in the tunnel config.
+ * @param config  Reference to the tunnel config object.
+ * @return        pinggy_true if the web debugger is enabled, otherwise pinggy_false.
+ */
 PINGGY_EXPORT pinggy_bool_t
 pinggy_config_get_webdebugger(pinggy_ref_t config);
 
@@ -1170,29 +1175,6 @@ pinggy_tunnel_start(pinggy_ref_t tunnel);
  */
 PINGGY_EXPORT pinggy_bool_t
 pinggy_tunnel_start_non_blocking(pinggy_ref_t tunnel);
-
-/**
- * @brief Connects and authenticates the tunnel.
- *
- * This function triggers the authentication process and calls the appropriate callbacks if set. After completion, the application must call pinggy_tunnel_resume in a loop to until it receives authentication callbacks.
- *
- * @param tunnel Reference to the tunnel object.
- * @return      pinggy_true if authentication succeeded, pinggy_false otherwise.
- */
-// PINGGY_EXPORT pinggy_bool_t
-// pinggy_tunnel_connect(pinggy_ref_t tunnel);
-
-
-/**
- * @brief Connects and authenticates the tunnel (blocking).
- *
- * This function triggers the authentication process and calls the appropriate callbacks if set. Unlike pinggy_tunnel_connect, the application does not need to call pinggy_tunnel_resume after this call.
- *
- * @param tunnel Reference to the tunnel object.
- * @return      pinggy_true if authentication succeeded, pinggy_false otherwise.
- */
-// PINGGY_EXPORT pinggy_bool_t
-// pinggy_tunnel_connect_blocking(pinggy_ref_t tunnel);
 
 /**
  * @brief Resumes tunnel operation after connect.
@@ -1242,32 +1224,11 @@ pinggy_tunnel_is_active(pinggy_ref_t tunnel);
  * @brief Starts a web debugging server managed by the tunnel.
  *
  * @param tunnel         Reference to the tunnel object.
- * @param listening_port Port number to listen on for debugging.
- * @return              The port number actually used for debugging.
+ * @param listening_addr listening addr for the webDebugger. Keep it empty for automatic selection.
+ * @return              The listening addr.
  */
-PINGGY_EXPORT pinggy_uint16_t
-pinggy_tunnel_start_web_debugging(pinggy_ref_t tunnel, pinggy_uint16_t listening_port);
-
-/**
- * @brief Requests remote forwarding from the server.
- *
- * The server will provide a domain name and call the appropriate callbacks. The application must call pinggy_tunnel_resume to receive these callbacks.
- *
- * @param tunnel Reference to the tunnel object.
- */
-// PINGGY_EXPORT pinggy_void_t
-// pinggy_tunnel_start_forwarding(pinggy_ref_t tunnel);
-
-
-/**
- * @brief Requests remote forwarding from the server (blocking).
- *
- * The server will provide a domain name and call the appropriate callbacks. The application does not need to call pinggy_tunnel_resume to receive these callbacks.
- *
- * @param tunnel Reference to the tunnel object.
- */
-// PINGGY_EXPORT pinggy_void_t
-// pinggy_tunnel_start_forwarding_blocking(pinggy_ref_t tunnel);
+PINGGY_EXPORT pinggy_bool_t
+pinggy_tunnel_start_web_debugging(pinggy_ref_t tunnel, pinggy_const_char_p_t listening_addr);
 
 /**
  * @brief Requests additional remote forwarding from the server.
@@ -1342,9 +1303,56 @@ pinggy_tunnel_get_greeting_msgs(pinggy_ref_t tunnel, pinggy_capa_t capa, pinggy_
 PINGGY_EXPORT pinggy_const_int_t
 pinggy_tunnel_get_greeting_msgs_len(pinggy_ref_t tunnel, pinggy_capa_t capa, pinggy_char_p_t val, pinggy_capa_p_t max_len);
 
+/**
+ * @brief Retrieves the web debugging port from the tunnel.
+ *
+ * This function retrieves the port on which the web debugger is listening,
+ * if it has been started for the given tunnel.
+ *
+ * @param tunnel     Reference to the tunnel object.
+ * @return           The listening port.
+ */
 PINGGY_EXPORT pinggy_uint16_t
 pinggy_tunnel_get_webdebugging_port(pinggy_ref_t tunnel);
 
+/**
+ * @brief Retrieves the web debugging address from the tunnel.
+ *
+ * This function retrieves the address on which the web debugger is listening,
+ * if it has been started for the given tunnel.
+ *
+ * @param tunnel     Reference to the tunnel object.
+ * @param capa       Capacity of the provided buffer.
+ * @param val        Pointer to a character buffer to receive the web debugging address string.
+ * @return           Number of bytes copied to the buffer.
+ */
+PINGGY_EXPORT pinggy_const_int_t
+pinggy_tunnel_get_webdebugging_addr(pinggy_ref_t tunnel, pinggy_capa_t capa, pinggy_char_p_t val);
+
+/**
+ * @brief Retrieves the web debugging address from the tunnel.
+ *
+ * This function retrieves the address on which the web debugger is listening,
+ * if it has been started for the given tunnel.
+ *
+ * @param tunnel     Reference to the tunnel object.
+ * @param capa       Capacity of the provided buffer.
+ * @param val        Pointer to a character buffer to receive the web debugging address string.
+ * @param max_len    Pointer to a variable to receive the required buffer size.
+ * @return           Number of bytes copied to the buffer.
+ */
+PINGGY_EXPORT pinggy_const_int_t
+pinggy_tunnel_get_webdebugging_addr_len(pinggy_ref_t tunnel, pinggy_capa_t capa, pinggy_char_p_t val, pinggy_capa_p_t max_len);
+
+/**
+ * @brief Retrieves the internal state of the tunnel.
+ *
+ * This function returns the current operational state of the tunnel,
+ * which can be used to monitor its lifecycle and progress.
+ *
+ * @param tunnel Reference to the tunnel object.
+ * @return      A `pinggy_tunnel_state_t` enum value representing the current state of the tunnel.
+ */
 PINGGY_EXPORT pinggy_tunnel_state_t
 pinggy_tunnel_get_state(pinggy_ref_t tunnel);
 
@@ -1352,39 +1360,6 @@ pinggy_tunnel_get_state(pinggy_ref_t tunnel);
 //=====================================
 //      Callbacks
 //=====================================
-
-/**
- * @brief Registers a callback for when the tunnel is successfully connected to the server.
- *
- * @param tunnel    Reference to the tunnel object.
- * @param connected Function pointer for the connected callback.
- * @param user_data User data to be passed to the callback.
- * @return          pinggy_true on success, pinggy_false on failure.
- */
-// PINGGY_EXPORT pinggy_bool_t
-// pinggy_tunnel_set_on_connected_callback(pinggy_ref_t tunnel, pinggy_on_connected_cb_t connected, pinggy_void_p_t user_data);
-
-/**
- * @brief Registers a callback for when the tunnel is authenticated.
- *
- * @param tunnel         Reference to the tunnel object.
- * @param authenticated  Function pointer for the authenticated callback.
- * @param user_data      User data to be passed to the callback.
- * @return               pinggy_true on success, pinggy_false on failure.
- */
-// PINGGY_EXPORT pinggy_bool_t
-// pinggy_tunnel_set_on_authenticated_callback(pinggy_ref_t tunnel, pinggy_on_authenticated_cb_t authenticated, pinggy_void_p_t user_data);
-
-/**
- * @brief Registers a callback for when tunnel authentication fails.
- *
- * @param tunnel                Reference to the tunnel object.
- * @param authentication_failed Function pointer for the authentication failed callback.
- * @param user_data             User data to be passed to the callback.
- * @return                      pinggy_true on success, pinggy_false on failure.
- */
-// PINGGY_EXPORT pinggy_bool_t
-// pinggy_tunnel_set_on_authentication_failed_callback(pinggy_ref_t tunnel, pinggy_on_authentication_failed_cb_t authentication_failed, pinggy_void_p_t user_data);
 
 /**
  * @brief Registers a callback for when primary forwarding is successfully established.
