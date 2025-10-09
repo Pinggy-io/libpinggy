@@ -1305,6 +1305,8 @@ pinggy_tunnel_get_greeting_msgs(pinggy_ref_t tunnel, pinggy_capa_t capa, pinggy_
 PINGGY_EXPORT pinggy_const_int_t
 pinggy_tunnel_get_greeting_msgs_len(pinggy_ref_t tunnel, pinggy_capa_t capa, pinggy_char_p_t val, pinggy_capa_p_t max_len);
 
+PINGGY_EXPORT pinggy_uint16_t
+pinggy_tunnel_get_webdebugging_port(pinggy_ref_t tunnel);
 
 
 //=====================================

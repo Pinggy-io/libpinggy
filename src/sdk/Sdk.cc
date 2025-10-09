@@ -393,6 +393,14 @@ Sdk::RequestAdditionalRemoteForwarding(tString bindAddress, tString forwardTo)
     internalRequestAdditionalRemoteForwarding(bindAddress, forwardTo);
 }
 
+tPort
+Sdk::GetWebDebugListeningPort()
+{
+    if (!webDebugListener || !webDebugListener->IsListening())
+        return 0;
+    return webDebugListener->GetListeningPort();
+}
+
 //==============
 void
 Sdk::HandleSessionInitiated()
