@@ -397,11 +397,6 @@ struct ClientSdkEventHandler : virtual public sdk::SdkEventHandler
     virtual void
     OnTunnelEstablished(std::vector<std::string> urls) override;
 
-    // virtual void
-    // OnAuthenticationFailed(std::vector<tString> why) override
-    // {
-    //     this->error = JoinString(why, " ");
-    // }
 
     virtual void
     OnTunnelFailed(tString error) override
@@ -479,12 +474,6 @@ main(int argc, char* argv[])
         sdkEventHandler->sdk = sdk;
 
         sdk->StartUsagesUpdate();
-
-        // sdk->Connect(true);
-        // sdk->StartForwarding(true);
-        // for (auto x : config->forwardings) {
-        //     sdk->RequestAdditionalForwarding(x.first, x.second);
-        // }
 
         sdk->Start();
 
