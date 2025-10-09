@@ -153,8 +153,8 @@ struct SDKConfig: virtual public pinggy::SharedObject
     bool
     IsWebDebug()                { return webDebug; }
 
-    tPort
-    GetWebDebugPort()           { return webDebugPort; }
+    tString
+    GetWebDebugAddr()           { return webDebugBindAddr; }
 
     //======
 
@@ -265,7 +265,8 @@ struct SDKConfig: virtual public pinggy::SharedObject
     SetWebDebug(bool val)       { webDebug = val; }
 
     void
-    SetWebDebugPort(tPort val)  { webDebugPort = val; webDebug = val>0; }
+    SetWebDebugAddr(tString bindAddr)
+                                { webDebugBindAddr = bindAddr; webDebug = !bindAddr.empty(); }
 
     //===================
 
@@ -339,7 +340,7 @@ private:
                                 sdkForwardingList;
 
     bool                        webDebug = false;
-    tPort                       webDebugPort = 0;
+    tString                     webDebugBindAddr = "localhost:0";
 
     void
     isAllowed()                 { }

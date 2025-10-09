@@ -253,8 +253,8 @@ Sdk::LockIfDifferentThread()
     return threadLock;
 }
 
-port_t PINGGY_ATTRIBUTE_FUNC
-Sdk::StartWebDebugging(port_t port)
+tString PINGGY_ATTRIBUTE_FUNC
+Sdk::StartWebDebugging(tString addr)
 {
     if (state >= SdkState::Stopped) {
         throw SdkException("Tunnel is stopped. Cannot start webDebugger");
@@ -266,7 +266,9 @@ Sdk::StartWebDebugging(port_t port)
 
     auto lock = LockIfDifferentThread();
     if (!webDebugListener) {
-        webDebugListener = net::NewConnectionListenerImplPtr(port, false);
+        auto bindUrl = NewUrlPtr(addr);
+
+        webDebugListener = net::NewConnectionListenerImplPtr(bindUrl->GetRawHost(), bindUrl->GetPort());
         if (!webDebugListener) {
             throw WebDebuggerException("Webdebug listener could not listen. ignoring");
         }
@@ -279,7 +281,8 @@ Sdk::StartWebDebugging(port_t port)
         webDebugListener->RegisterListenerHandler(pollController, thisPtr, 1);
     }
 
-    return webDebugListener->GetListeningPort();
+    auto bindAddr = webDebugListener->GetListeningAddress();
+    return bindAddr ? bindAddr->ToString() : "";
 }
 
 void PINGGY_ATTRIBUTE_FUNC
@@ -338,6 +341,17 @@ Sdk::GetTunnelState()
         return SdkState::Reconnecting;
     }
     return state;
+}
+
+tString
+Sdk::GetWebDebuggerListeningAddress()
+{
+    if (!webDebugListener || !webDebugListener->IsListening())
+        return "";
+    auto addr = webDebugListener->GetListeningAddress();
+    if (!addr)
+        return "";
+    return addr->ToString();
 }
 
 tPort
@@ -459,7 +473,7 @@ Sdk::HandleSessionRemoteForwardingSucceeded(protocol::tReqId reqId, tForwardingI
             if (webDebugListener && webDebugListener->IsListening())
                 webDebugListener->RegisterListenerHandler(pollController, thisPtr, 1);
             else
-                StartWebDebugging(sdkConfig->webDebugPort);
+                StartWebDebugging(sdkConfig->webDebugBindAddr);
         }
 
         return;
