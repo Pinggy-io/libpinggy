@@ -1437,6 +1437,26 @@ pinggy_tunnel_get_greeting_msgs_len(pinggy_ref_t ref, pinggy_capa_t capa, pinggy
     CopyStringToOutputLen(capa, val, sdk->GetGreetingMsg(), max_len);
 }
 
+PINGGY_EXPORT pinggy_uint16_t
+pinggy_tunnel_get_webdebugging_port(pinggy_ref_t ref)
+{
+    auto sdk =  getSdk(ref);
+    if (sdk == nullptr) {
+        LOGE("null sdk");
+        return 0;
+    }
+    try {
+        return sdk->GetWebDebugListeningPort();
+    } catch (const std::exception &e) {
+        if (exception_callback) {
+            exception_callback("CPP exception:", e.what());
+        } else {
+            LOGE("No exception handler found");
+        }
+    }
+    return 0;
+}
+
 //===============================
 #define GetEventHandlerFromSdkRef(sdkRef, aev)                  \
     auto sdk =  getSdk(sdkRef);                                 \

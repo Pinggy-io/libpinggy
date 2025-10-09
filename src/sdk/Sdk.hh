@@ -192,6 +192,9 @@ public:
     const tString&
     GetGreetingMsg()            { return greetingMsgs; }
 
+    tPort
+    GetWebDebugListeningPort();
+
 //protocol::SessionEventHandler
     virtual void
     HandleSessionInitiated() override;
