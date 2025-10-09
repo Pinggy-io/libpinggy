@@ -185,12 +185,6 @@ DefineMakeSharedPtr(ApiChannelEventHandler)
 struct ApiEventHandler: virtual public sdk::SdkEventHandler
 {
 public:
-    // pinggy_on_authenticated_cb_t
-    //                             onConnectedCB;
-    // pinggy_on_authenticated_cb_t
-    //                             onAuthenticatedCB;
-    // pinggy_on_authentication_failed_cb_t
-    //                             onAuthenticationFailedCB;
     pinggy_on_tunnel_established_cb_t
                                 onTunnelEstablishedCB;
     pinggy_on_tunnel_failed_cb_t
@@ -213,9 +207,6 @@ public:
     pinggy_on_new_channel_cb_t  onNewChannelCB;
     pinggy_on_usage_update_cb_t onUsageUpdateCB;
 
-    // pinggy_void_p_t             onConnectedUserData;
-    // pinggy_void_p_t             onAuthenticatedUserData;
-    // pinggy_void_p_t             onAuthenticationFailedUserData;
     pinggy_void_p_t             onTunnelEstablishedUserData;
     pinggy_void_p_t             onTunnelFailedUserData;
     pinggy_void_p_t             onAdditionalForwardingSucceededUserData;
@@ -233,9 +224,6 @@ public:
     pinggy_ref_t                sdk;
 
     ApiEventHandler():
-                        // onConnectedCB(NULL),
-                        // onAuthenticatedCB(NULL),
-                        // onAuthenticationFailedCB(NULL),
                         onTunnelEstablishedCB(NULL),
                         onTunnelFailedCB(NULL),
                         onAdditionalForwardingSucceededCB(NULL),
@@ -249,8 +237,6 @@ public:
                         onNewChannelCB(NULL),
                         onUsageUpdateCB(NULL),
 
-                        // onAuthenticatedUserData(NULL),
-                        // onAuthenticationFailedUserData(NULL),
                         onTunnelEstablishedUserData(NULL),
                         onTunnelFailedUserData(NULL),
                         onAdditionalForwardingSucceededUserData(NULL),

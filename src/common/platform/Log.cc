@@ -45,7 +45,7 @@ GetLogPrefix()
 void
 SetLogPrefix(std::string pref)
 {
-    __PINGGY_LOG_PREFIX__ = "::" +pref;
+    __PINGGY_LOG_PREFIX__ = ":: " + pref;
     __PINGGY_LOG_PID__ = app_getpid();
 }
 
