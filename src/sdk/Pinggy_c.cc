@@ -1593,7 +1593,7 @@ pinggy_tunnel_set_on_tunnel_error_callback(pinggy_ref_t sdkRef, pinggy_on_tunnel
 {
     GetEventHandlerFromSdkRef(sdkRef, aev);
     aev->onErrorCB = error;
-    aev->onDisconnectedUserData = user_data;
+    aev->onErrorUserData = user_data;
     return pinggy_true;
 }
 PINGGY_EXPORT pinggy_bool_t
