@@ -97,7 +97,6 @@ enum tConnType_Prt : tUint8 {
     ConnType_Prt_Uds,
 };
 
-#pragma pack(push, 1)
 union tConnType {
     struct {
         tUint8                  Enabled:1; // 1
@@ -121,7 +120,6 @@ union tConnType {
     };
     tUint64                     Raw;
 };
-#pragma pack(pop)
 
 static_assert(sizeof(tConnType) == 8, "Size of tConnType must be 8 bytes");
 
