@@ -64,12 +64,12 @@ enum ProbedConnType {
 
 extern "C" {
 
-enum tConnType_Handler {
+enum tConnType_Handler : tUint8 {
     ConnType_H_Visitor,
     ConnType_H_Client,
 };
 
-enum tConnType_Src {
+enum tConnType_Src : tUint8 {
     ConnType_Src_Plain,
     ConnType_Src_ConnectProxy,
     ConnType_Src_Relay,
@@ -80,7 +80,7 @@ enum tConnType_Src {
     ConnType_Src_BashUsages,
 };
 
-enum tConnType_Cnt {
+enum tConnType_Cnt : tUint8 {
     ConnType_Cnt_Unknown,
     ConnType_Cnt_Http,        //It is a http connection
     ConnType_Cnt_Tls,         //It is a tls connection
@@ -90,37 +90,40 @@ enum tConnType_Cnt {
     ConnType_Cnt_ConnectProxy,
 };
 
-enum tConnType_Prt {
+enum tConnType_Prt : tUint8 {
     ConnType_Prt_Unknown,
     ConnType_Prt_Tcp,
     ConnType_Prt_Udp,
     ConnType_Prt_Uds,
 };
 
-
+#pragma pack(push, 1)
 union tConnType {
     struct {
-        tUint64                 Enabled:1; // 1
+        tUint8                  Enabled:1; // 1
 
-        tUint64                 padding1:1; // 2
+        tUint8                  padding1:1; // 2
 
         tConnType_Handler       HandlerType:2; // 4
 
-        tUint64                 padding2:4; // 8
+        tUint8                  padding2:4; // 8
 
         tConnType_Src           SourceType:5; // 13
 
-        tUint64                 padding5:3; // 16
+        tUint8                  padding5:3; // 16
 
         tConnType_Cnt           ContentType:5; // 21
 
-        tUint64                 padding6:3; // 24
+        tUint8                  padding6:3; // 24
 
         tConnType_Prt           ProtocolType:4; //28
+
     };
     tUint64                     Raw;
 };
-static_assert(sizeof(tConnType) == 8, "Size of ConnectionType must be 8 bytes");
+#pragma pack(pop)
+
+static_assert(sizeof(tConnType) == 8, "Size of tConnType must be 8 bytes");
 
 #define ADDRESS_METADATA_SIZE           128
 #define NETWORK_METADATA_SIZE           512
