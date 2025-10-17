@@ -649,3 +649,16 @@ operator <<(std::ostream &os, const net::SocketAddressPtr &sa)
     os << sa->ToString();
     return os;
 }
+
+std::ostream &
+operator<<(std::ostream &os, net::tConnType &connType)
+{
+    os << "ConnType{";
+    os << "HandlerType: " << connType.HandlerType << ", ";
+    os << "SourceType: " << connType.SourceType << ", ";
+    os << "ContentType: " << connType.ContentType << ", ";
+    os << "ProtocolType: " << connType.ProtocolType << ", ";
+    os << "Raw: " << connType.Raw;
+    os << "}";
+    return os;
+}

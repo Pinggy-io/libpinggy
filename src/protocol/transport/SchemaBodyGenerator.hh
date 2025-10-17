@@ -384,7 +384,7 @@ Deflate(SerializerPtr serializer, type e)                                       
                         [e](const std::pair<type, type2> &ej_pair) ->           \
                             bool { return ej_pair.first == e; });               \
     auto v = ((it != std::end(m)) ? it : std::begin(m))->second;                \
-    serializer->Serialize("v", v); \
+    serializer->Serialize("v", v);                                              \
 }                                                                               \
 static void                                                                     \
 Inflate(DeserializerPtr deserializer, type &e)                                  \

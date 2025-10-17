@@ -64,51 +64,59 @@ enum ProbedConnType {
 
 extern "C" {
 
+enum tConnType_Handler {
+    ConnType_H_Visitor,
+    ConnType_H_Client,
+};
+
+enum tConnType_Src {
+    ConnType_Src_Plain,
+    ConnType_Src_ConnectProxy,
+    ConnType_Src_Relay,
+    ConnType_Src_SSClient,
+    ConnType_Src_Local,
+    ConnType_Src_Redirect,
+    ConnType_Src_Dashboard,
+    ConnType_Src_BashUsages,
+};
+
+enum tConnType_Cnt {
+    ConnType_Cnt_Unknown,
+    ConnType_Cnt_Http,        //It is a http connection
+    ConnType_Cnt_Tls,         //It is a tls connection
+    ConnType_Cnt_Ssh,         //connection starts with ssh
+    ConnType_Cnt_Pinggy,      //connection starts with PINGGY
+    ConnType_Cnt_Relay,       //connection starts with RLPINGGY
+    ConnType_Cnt_ConnectProxy,
+};
+
+enum tConnType_Prt {
+    ConnType_Prt_Unknown,
+    ConnType_Prt_Tcp,
+    ConnType_Prt_Udp,
+    ConnType_Prt_Uds,
+};
+
+
 union tConnType {
     struct {
         tUint64                 Enabled:1; // 1
 
-
         tUint64                 padding1:1; // 2
 
-        tUint64                 HandlerType:2; // 4
-#define ConnType_H_Visitor      0
-#define ConnType_H_Client       1
+        tConnType_Handler       HandlerType:2; // 4
 
         tUint64                 padding2:4; // 8
 
-        tUint64                 SourceType:5; // 13
-#define ConnType_Src_Plain      0
-#define ConnType_Src_ConnectProxy \
-                                1
-#define ConnType_Src_Relay      2
-#define ConnType_Src_SSClient   3
-#define ConnType_Src_Local      4
-#define ConnType_Src_Redirect   5
-#define ConnType_Src_Dashboard  6
-#define ConnType_Src_BashUsages 7
-
+        tConnType_Src           SourceType:5; // 13
 
         tUint64                 padding5:3; // 16
 
-        tUint64                 ContentType:5; // 21
-#define ConnType_Cnt_Unknown    0
-#define ConnType_Cnt_Http       1 //It is a http connection
-#define ConnType_Cnt_Tls        2 //It is a tls connection
-#define ConnType_Cnt_Ssh        3 //connection starts with ssh
-#define ConnType_Cnt_Pinggy     4 //connection starts with PINGGY
-#define ConnType_Cnt_Relay      5 //connection starts with RLPINGGY
-#define ConnType_Cnt_ConnectProxy \
-                                6
-
+        tConnType_Cnt           ContentType:5; // 21
 
         tUint64                 padding6:3; // 24
 
-        tUint64                 ProtocolType:4; //28
-#define ConnType_Prt_Unknown    0
-#define ConnType_Prt_Tcp        1
-#define ConnType_Prt_Udp        2
-#define ConnType_Prt_Uds        3
+        tConnType_Prt           ProtocolType:4; //28
     };
     tUint64                     Raw;
 };
@@ -583,6 +591,10 @@ DefineMakeSharedPtr(NetworkConnectionImpl);
 std::ostream&
 operator<<(std::ostream& os, const net::SocketAddressPtr& sa);
         //Here call by reference is mandatory
+
+
+std::ostream&
+operator<<(std::ostream& os, net::tConnType& connType);
 
 // std::ostream&
 // operator<<(std::ostream& os, const net::tConnType& ct);
