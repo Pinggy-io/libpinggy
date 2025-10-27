@@ -94,6 +94,9 @@ const tUint64   Uint64_Default  = 0;
 // const tUint128  Uint128_Default = 0;
 const tFloat32  Float32_Default = 0.0;
 const tFloat64  Float64_Default = 0.0;
+const tBool     Bool_Default    = 0;
+
+
 
 enum {
     ValueType_Invalid           = (uint8_t) 0,
@@ -117,24 +120,12 @@ enum {
 };
 
 
+typedef const char*     tCChar;
+const tValueType ValueType_CChar             = (uint8_t)ValueType_String;
+
+
 #define ROOT_PATH_ID 128
 #define RETURN_BACK_PATH_ID 1
-
-
-
-#define FOREACH_ALL_TYPE(f) \
-        f(String) \
-        f(Raw) \
-        f(Int8) \
-        f(Int16) \
-        f(Int32) \
-        f(Int64) \
-        f(Uint8) \
-        f(Uint16) \
-        f(Uint32) \
-        f(Uint64) \
-        f(Float32) \
-        f(Float64)
 
 
 #define FOREACH_LITERALS_TYPE(f) \
@@ -148,5 +139,62 @@ enum {
         f(Uint64) \
         f(Float32) \
         f(Float64)
+
+#define FOREACH_ALL_TYPE(f) \
+        f(String) \
+        f(Raw) \
+        FOREACH_LITERALS_TYPE(f)
+
+#define FOREACH_ANY_TYPE(f) \
+        FOREACH_ALL_TYPE(f) \
+        f(Array) \
+        f(Object)
+
+
+#define FOREACH_LITERALS_TYPE_1(f, x) \
+        f(Int8, x) \
+        f(Int16, x) \
+        f(Int32, x) \
+        f(Int64, x) \
+        f(Uint8, x) \
+        f(Uint16, x) \
+        f(Uint32, x) \
+        f(Uint64, x) \
+        f(Float32, x) \
+        f(Float64, x)
+
+#define FOREACH_ALL_TYPE_1(f, x) \
+        f(String, x) \
+        f(Raw, x) \
+        FOREACH_LITERALS_TYPE_1(f, x)
+
+#define FOREACH_ANY_TYPE_1(f, x) \
+        FOREACH_ALL_TYPE_1(f, x) \
+        f(Array, x) \
+        f(Object, x)
+
+
+
+#define FOREACH_LITERALS_TYPE_2(f, x, y) \
+        f(Int8, x, y) \
+        f(Int16, x, y) \
+        f(Int32, x, y) \
+        f(Int64, x, y) \
+        f(Uint8, x, y) \
+        f(Uint16, x, y) \
+        f(Uint32, x, y) \
+        f(Uint64, x, y) \
+        f(Float32, x, y) \
+        f(Float64, x, y)
+
+#define FOREACH_ALL_TYPE_2(f, x, y) \
+        f(String, x, y) \
+        f(Raw, x, y) \
+        FOREACH_LITERALS_TYPE_2(f, x, y)
+
+#define FOREACH_ANY_TYPE_2(f, x, y) \
+        FOREACH_ALL_TYPE_2(f, x, y) \
+        f(Array, x, y) \
+        f(Object, x, y)
 
 #endif // SRC_CPP_PINGGYTRANSPORT_TRANSPORTCOMMON_HH_

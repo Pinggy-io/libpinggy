@@ -17,6 +17,7 @@
 #include "Deserialization.hh"
 #include <platform/assert_pinggy.h>
 #include <map>
+#include <utils/Utils.hh>
 
 
 const std::map<tValueType, tString> typeToTypeNameMap = {
@@ -86,6 +87,19 @@ public:
                     typeToTypeNameMap.at(from) + "("+std::to_string(from)+")` to `" +
                     typeToTypeNameMap.at(to) + "("+std::to_string(to)+")`";
     }
+
+    // Override the what() method from std::exception
+    virtual const char* what() const noexcept override {
+        return msg.c_str();
+    }
+};
+
+class DecodeException : public std::exception {
+private:
+    tString msg;
+public:
+    // Constructor to initialize the error message
+    DecodeException(const tString msg): msg(msg) { }
 
     // Override the what() method from std::exception
     virtual const char* what() const noexcept override {
@@ -252,12 +266,18 @@ DefineDeserializeLiteralWithType(Float32, Float32)
 //==========================================
 
 Deserializer::Deserializer(bool mismatchedEndianness) :
-            valueType(ValueType_Object), contentType(ValueType_Invalid), mismatchedEndianness(mismatchedEndianness)
+            valueType(ValueType_Object),
+            contentType(ValueType_Invalid),
+            mismatchedEndianness(mismatchedEndianness)
 {
 }
 
 Deserializer::~Deserializer()
 {
+    if (memValue.self) {
+        delete memValue.self;
+        memValue.self = nullptr;
+    }
 }
 
 DeserializerPtr Deserializer::getDeserializer(PathDefinitionPtr pathDef)
@@ -404,6 +424,107 @@ void Deserializer::Parse(RawDataPtr stream, PathRegistryPtr pathRegistry, std::s
         auto pathDef = pathRegistry->GetPathDefForId(pathId);
         parseLit(stream, pathRegistry, pathDef);
     }
+}
+
+#define DefineDecodeLit(x) \
+PinggyValue::PinggyInternalTypePtr \
+Deserializer::decode##x(RawDataPtr stream, PathRegistryPtr pathRegistry) \
+{ \
+    t##x val; \
+    Deserialize_Lit(stream, val, mismatchedEndianness); \
+    return PinggyValue::NewPinggyInternalType_##x##Ptr(val); \
+}
+FOREACH_ALL_TYPE(DefineDecodeLit)
+#undef DefineDecodeLit
+
+PinggyValue::PinggyInternalTypePtr
+Deserializer::decodeArray(RawDataPtr stream, PathRegistryPtr pathRegistry)
+{
+    tUint16 cnt = 0;
+    tUint8  valType = ValueType_Invalid;
+    Deserialize_Lit(stream, cnt, mismatchedEndianness);
+    Deserialize_Lit(stream, valType, mismatchedEndianness);
+    std::vector<PinggyValue::PinggyInternalTypePtr> values;
+    for (tUint16 i = 0; i < cnt; i ++) {
+        auto val = decodeLit(stream, valType, pathRegistry);
+        values.push_back(val);
+    }
+    return PinggyValue::NewPinggyInternalType_ArrayPtr(values);
+}
+
+
+PinggyValue::PinggyInternalTypePtr
+Deserializer::decodeObject(RawDataPtr stream, PathRegistryPtr pathRegistry)
+{
+    auto obj = PinggyValue::NewPinggyInternalType_ObjectPtr();
+    while (true) {
+        tUint16 pathId = 0;
+        Deserialize_Lit(stream, pathId, mismatchedEndianness);
+        if (pathId == RETURN_BACK_PATH_ID)
+            break;
+        auto pathDef = pathRegistry->GetPathDefForId(pathId);
+        auto valType = pathDef->ValType;
+        auto val = decodeLit(stream, valType, pathRegistry);
+        obj = addValueToPath(obj, pathDef, val);
+    }
+    return obj;
+}
+
+PinggyValue::PinggyInternalTypePtr
+Deserializer::decodeLit(RawDataPtr stream, tValueType valType, PathRegistryPtr pathRegistry)
+{
+    PinggyValue::PinggyInternalTypePtr value;
+    switch (valType) {
+#define SwitchCaseAnyType(x) \
+        case ValueType_##x: \
+            value = decode##x(stream, pathRegistry); \
+            break;
+FOREACH_ANY_TYPE(SwitchCaseAnyType)
+#undef SwitchCaseAnyType
+        default:
+            ABORT_WITH_MSG("Unknown msg"); //TODO replace with std::exception
+    }
+    return value;
+}
+
+void
+Deserializer::Decode(RawDataPtr stream, PathRegistryPtr pathRegistry, std::string curPath)
+{
+    auto rootValue = PinggyValue::NewPinggyInternalType_ObjectPtr();
+
+    while(stream && stream->Len) {
+        tPathId pathId;
+        Deserialize_Lit(stream, pathId, mismatchedEndianness);
+        auto pathDef = pathRegistry->GetPathDefForId(pathId);
+        auto value = decodeLit(stream, pathDef->ValType, pathRegistry);
+        rootValue = addValueToPath(rootValue, pathDef, value);
+    }
+    memValue = rootValue;
+}
+
+PinggyValue::PinggyInternalType_ObjectPtr
+Deserializer::addValueToPath(PinggyValue::PinggyInternalType_ObjectPtr root, PathDefinitionPtr pathDef, PinggyValue::PinggyInternalTypePtr value)
+{
+    auto path = pathDef->Path;
+    if (path.size() == 0) {
+        delete root;
+        if (value->Size() != 0) {
+            throw DecodeException("Object cannot be empty here");
+        }
+        auto vptr = dynamic_cast<PinggyValue::PinggyInternalType_ObjectPtr>(value);
+        return vptr;
+    }
+    auto rv = root;
+    std::vector<tString>::size_type i = 0;
+    for (; i < path.size() - 1; i++) {
+        auto ele = rv->Find(path[i]);
+        if (ele == rv->End()) {
+            (*rv)[path[i]] = PinggyValue::NewPinggyInternalType_ObjectPtr();
+        }
+        rv = dynamic_cast<PinggyValue::PinggyInternalType_ObjectPtr>((*rv)[path[i]]);
+    }
+    (*rv)[path[i]] = value;
+    return root;
 }
 
 tString Deserializer::Dump()

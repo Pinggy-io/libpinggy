@@ -10,6 +10,7 @@ set(SOURCES
     transport/PathRegistry.cc
     transport/Serialization.cc
     transport/TransportManager.cc
+    transport/PinggyValue.cc
 )
 
 AddLibrary(protocol
