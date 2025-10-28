@@ -116,7 +116,6 @@ enum tChannelType {
         (tString,                   ConnectToHost,      "",                         1), \
         (tUint16,                   SrcPort,            0,                          1), \
         (tString,                   SrcHost,            "",                         1), \
-        (TunnelMode,                Mode,               TunnelMode::None),              \
         (tInt8,                     ChannelType,        ChannelType_Stream,         1), \
         (tUint32,                   InitialWindowSize,  0,                          1), \
         (tUint32,                   MaxDataSize,        0,                          1)  \

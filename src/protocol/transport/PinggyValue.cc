@@ -381,6 +381,19 @@ PinggyValue::GetValueType()
     return ValueType_Invalid;
 }
 
+bool
+PinggyValue::HasChildWithKey(tString key)
+{
+    if (!self)
+        return false;
+
+    auto ptr = dynamic_cast<PinggyInternalType_ObjectPtr>(self);
+    if (!ptr)
+        return false;
+
+    return ptr->HasChildWithKey(key);
+}
+
 void
 PinggyValue::cleanUp()
 {

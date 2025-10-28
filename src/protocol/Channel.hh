@@ -105,9 +105,6 @@ public:
     tString
     GetSrcHost()                { return srcHost; }
 
-    TunnelMode
-    GetMode()                   { return mode; }
-
     tForwardingId
     GetForwardingId()           { return forwardingId; }
 
@@ -183,7 +180,6 @@ private:
     tString                     destHost;
     tUint16                     srcPort;
     tString                     srcHost;
-    TunnelMode                  mode;
     tForwardingId               forwardingId;
     tChannelType                chanType;
 

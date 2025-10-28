@@ -29,6 +29,7 @@ Session::Session(net::NetworkConnectionPtr netConn, common::PollControllerPtr po
             endSent(false),
             keepAliveSentTick(0),
             incomingActivities(false),
+            enablePinggyValue(false),
             pollController(pollController)
 {
     lastChannelId = 4;
@@ -68,6 +69,8 @@ void Session::Start(SessionEventHandlerPtr eventHandler)
         sendMsg(clientHello);
         state = SessionState_ClientHelloSent;
     }
+    if (enablePinggyValue)
+        transportManager->EnablePinggyValueMode(true);
 }
 
 void
@@ -228,7 +231,15 @@ Session::SendUsages(ClientSpecificUsagesPtr usage)
 }
 
 void
-Session::HandleConnectionReset(net::NetworkConnectionPtr netConn)
+Session::SetEnablePinggyValueMode(bool enable)
+{
+    enablePinggyValue = enable;
+    if (transportManager) {
+        transportManager->EnablePinggyValueMode(enable);
+    }
+}
+
+void Session::HandleConnectionReset(net::NetworkConnectionPtr netConn)
 {
     for (auto ch : channels)
         ch.second->cleanup();
@@ -248,211 +259,19 @@ Session::HandleConnectionReset(net::NetworkConnectionPtr netConn)
 void
 Session::HandleIncomingDeserialize(DeserializerPtr deserializer)
 {
-    ProtoMsgPtr tMsg;// = Deserialize(deserializer);
-    deserializer->Deserialize("msg", tMsg);
-    incomingActivities = true;
-    switch(tMsg->msgType) {
-        case MsgType_ServerHello:
-        {
-            if (state != SessionState_ClientHelloSent)
-                ABORT_WITH_MSG("Not expected state");
+    ProtoMsgPtr msg;// = Deserialize(deserializer);
+    deserializer->Deserialize("msg", msg);
+    handleDeserializedMsg(msg);
+    // LOGD("Handling without using pinggyValue");
+}
 
-            auto msg = tMsg->DynamicPointerCast<ServerHelloMsg>();
-            features->NegotiateVersion(msg->Version);
-            eventHandler->HandleSessionInitiated();
-        }
-        break;
-
-        case MsgType_ClientHello:
-        {
-            if (state != SessionState_ServerHelloSent)
-                ABORT_WITH_MSG("Not expected state");
-
-            auto msg = tMsg->DynamicPointerCast<ClientHelloMsg>();
-            features->NegotiateVersion(msg->Version);
-            eventHandler->HandleSessionInitiated();
-        }
-        break;
-
-        case MsgType_Authenticate:
-        {
-            if (state != SessionState_ServerHelloSent) {
-                ABORT_WITH_MSG("Not expected state");
-            }
-            auto msg = tMsg->DynamicPointerCast<AuthenticateMsg>();
-            state = SessionState_AuthenticationRequestRecved;
-            eventHandler->HandleSessionAuthenticationRequest(msg->Username, msg->Arguments, msg->AdvancedParsing?true:false);
-        }
-        break;
-
-        case MsgType_AuthenticationResponse:
-        {
-            if (state != SessionState_AuthenticationRequestSent) {
-                ABORT_WITH_MSG("Not expected state");
-            }
-            auto msg = tMsg->DynamicPointerCast<AuthenticationResponseMsg>();
-            if (msg->Success) {
-                state = SessionState_AuthenticatedAsClient;
-                eventHandler->HandleSessionAuthenticatedAsClient(msg->Messages, msg->TunnelInfo);
-            } else {
-                state = SessionState_AuthenticationFailed;
-                eventHandler->HandleSessionAuthenticationFailed(msg->Error, msg->Messages);
-            }
-        }
-        break;
-
-        case MsgType_RemoteForwardRequest:
-        {
-            if(state != SessionState_AuthenticatedAsServer) {
-                ABORT_WITH_MSG("Not expected state");
-            }
-            auto msg = tMsg->DynamicPointerCast<RemoteForwardRequestMsg>();
-            eventHandler->HandleSessionRemoteForwardRequest(msg->ReqId, msg->ListeningPort,
-                            msg->Bind, msg->ForwardingPort, msg->ForwardingHost, (TunnelMode)msg->Mode);
-        }
-        break;
-
-        case MsgType_RemoteForwardResponse:
-        {
-            if(state != SessionState_AuthenticatedAsClient) {
-                ABORT_WITH_MSG("Not expected state");
-            }
-            auto msg = tMsg->DynamicPointerCast<RemoteForwardResponseMsg>();
-            handleRemoteForwardResponse(msg->ReqId, msg->Success, msg->ForwardingId, msg->Urls, msg->RemoteForwardings, msg->Error);
-        }
-        break;
-
-        case MsgType_SetupChannel:
-        {
-            if (state != SessionState_AuthenticatedAsClient && state != SessionState_AuthenticatedAsServer)
-                ABORT_WITH_MSG("Not expected state");
-            auto msg = tMsg->DynamicPointerCast<SetupChannelMsg>();
-            handleNewChannel(msg);
-        }
-        break;
-
-        case MsgType_SetupChannelResponse:
-        {
-            if (state != SessionState_AuthenticatedAsClient && state != SessionState_AuthenticatedAsServer)
-                ABORT_WITH_MSG("Not expected state");
-            auto msg = tMsg->DynamicPointerCast<SetupChannelResponseMsg>();
-            if (channels.find(msg->ChannelId) == channels.end()) {
-                // sendWarningMsg(0, "Unknown channel id " + std::to_string(msg->ChannelId) + " " + std::to_string(__LINE__));
-                LOGD("Ignoring channel setup response as it is not registered: ", msg->ChannelId);
-                break;
-            }
-            auto channel = channels.at(msg->ChannelId);
-            channel->handleNewChannelResponse(msg);
-        }
-        break;
-
-        case MsgType_ChannelData:
-        {
-            if (state != SessionState_AuthenticatedAsClient && state != SessionState_AuthenticatedAsServer)
-                ABORT_WITH_MSG("Not expected state");
-            auto msg = tMsg->DynamicPointerCast<ChannelDataMsg>();
-            if (channels.find(msg->ChannelId) == channels.end()) {
-                // sendWarningMsg(0, "Unknown channel id " + std::to_string(msg->ChannelId) + " " + std::to_string(__LINE__));
-                LOGD("Ignoring channel data as it is not registered: ", msg->ChannelId);
-                break;
-            }
-            auto channel = channels.at(msg->ChannelId);
-            channel->handleChannelData(msg);
-        }
-        break;
-
-        case MsgType_ChannelWindowAdjust:
-        {
-            if (state != SessionState_AuthenticatedAsClient && state != SessionState_AuthenticatedAsServer)
-                ABORT_WITH_MSG("Not expected state");
-            auto msg = tMsg->DynamicPointerCast<ChannelWindowAdjustMsg>();
-            if (channels.find(msg->ChannelId) == channels.end()) {
-                LOGD("Ignoring channel window adjust as it is not registered: ", msg->ChannelId);
-                // sendWarningMsg(0, "Unknown channel id " + std::to_string(msg->ChannelId) + " " + std::to_string(__LINE__));
-                break;
-            }
-            auto channel = channels.at(msg->ChannelId);
-            channel->handleChannelWindowAdjust(msg);
-        }
-        break;
-
-        case MsgType_ChannelClose:
-        {
-            if (state != SessionState_AuthenticatedAsClient && state != SessionState_AuthenticatedAsServer)
-                ABORT_WITH_MSG("Not expected state");
-            auto msg = tMsg->DynamicPointerCast<ChannelCloseMsg>();
-            if (channels.find(msg->ChannelId) == channels.end()) {
-                LOGD("Ignoring channel close as it is not registered: ", msg->ChannelId);
-                // sendWarningMsg(0, "Unknown channel id " + std::to_string(msg->ChannelId) + " " + std::to_string(__LINE__));
-                break;
-            }
-            LOGD("Channel close request: ", msg->ChannelId);
-            auto channel = channels.at(msg->ChannelId);
-            channel->handleChannelClose(msg);
-        }
-        break;
-
-        case MsgType_ChannelError:
-        {
-            auto msg = tMsg->DynamicPointerCast<ChannelErrorMsg>();
-            if (channels.find(msg->ChannelId) == channels.end()) {
-                sendWarningMsg(0, "Unknown channel id " + std::to_string(msg->ChannelId) + " " + std::to_string(__LINE__));
-                break;
-            }
-            auto channel = channels.at(msg->ChannelId);
-            channel->handleChannelError(msg);
-        }
-        break;
-
-        case MsgType_Error:
-        {
-            auto msg = tMsg->DynamicPointerCast<ErrorMsg>();
-            eventHandler->HandleSessionError(msg->ErrorNo, msg->What, msg->Recoverable != 0);
-        }
-        break;
-
-        case MsgType_Warning:
-        {
-            auto msg = tMsg->DynamicPointerCast<WarningMsg>();
-            eventHandler->HandleSessionWarning(msg->ErrorNo, msg->What);
-        }
-        break;
-
-        case MsgType_KeepAlive:
-        {
-            auto msg = tMsg->DynamicPointerCast<KeepAliveMsg>();
-            auto newMsg = NewKeepAliveResponseMsgPtr(msg->Tick);
-            // newMsg->ForTick = msg->Tick;
-            sendMsg(newMsg);
-        }
-        break;
-
-        case MsgType_KeepAliveResponse:
-        {
-            auto msg = tMsg->DynamicPointerCast<KeepAliveResponseMsg>();
-            eventHandler->HandleSessionKeepAliveResponseReceived(msg->ForTick);
-        }
-        break;
-
-        case MsgType_Disconnect:
-        {
-            auto msg = tMsg->DynamicPointerCast<DisconnectMsg>();
-            endReason = msg->Reason;
-            eventHandler->HandleSessionDisconnection(msg->Reason);
-        }
-        break;
-
-        case MsgType_Usages:
-        {
-            auto msg = tMsg->DynamicPointerCast<UsagesMsg>();
-            auto usages = msg->Usages;
-            eventHandler->HandleSessionUsages(usages);
-        }
-        break;
-
-        default:
-            ABORT_WITH_MSG("Unhandled msg");
-    }
+void
+Session::HandleIncomingPinggyValue(PinggyValue &pv)
+{
+    ProtoMsgPtr msg;// = Deserialize(deserializer);
+    pv.GetTo("msg", msg);
+    handleDeserializedMsg(msg);
+    // LOGD("Handling using pinggyValue");
 }
 
 void
@@ -472,7 +291,15 @@ Session::HandleReadyToSendBuffer()
 {
     while (!sendQueue.empty()) {
         auto msg = sendQueue.front();
-        auto success = transportManager->GetSerializer()->Serialize("msg", msg)->Send();
+        bool success = false;
+
+        if (enablePinggyValue) {
+            PinggyValue pv;
+            pv.SetFrom("msg", msg);
+            success = transportManager->SendMsg(pv);
+        } else {
+            success = transportManager->GetSerializer()->Serialize("msg", msg)->Send();
+        }
         if (success && msg->msgType == MsgType_Disconnect) {
             transportManager->EndTransport(); //this is not immediate
         }
@@ -533,7 +360,13 @@ Session::sendMsg(ProtoMsgPtr msg, bool queue)
 
     bool success = false;
     if (sendQueue.empty()) {
-        success = transportManager->GetSerializer()->Serialize("msg", msg)->Send();
+        if (enablePinggyValue) {
+            PinggyValue pv;
+            pv.SetFrom("msg", msg);
+            success = transportManager->SendMsg(pv);
+        } else {
+            success = transportManager->GetSerializer()->Serialize("msg", msg)->Send();
+        }
     }
     if (success && msg->msgType == MsgType_Disconnect) {
         transportManager->EndTransport(); //this is not immediate
@@ -633,6 +466,214 @@ Session::setupChannelCloseTimeout(ChannelPtr channel)
     if (!pollController) return nullptr;
 
     return pollController->SetTimeout(10*SECOND, channel, &Channel::closeTimeoutTriggered);
+}
+
+void
+Session::handleDeserializedMsg(ProtoMsgPtr protoMsg)
+{
+    incomingActivities = true;
+    switch(protoMsg->msgType) {
+        case MsgType_ServerHello:
+        {
+            if (state != SessionState_ClientHelloSent)
+                ABORT_WITH_MSG("Not expected state");
+
+            auto msg = protoMsg->DynamicPointerCast<ServerHelloMsg>();
+            features->NegotiateVersion(msg->Version);
+            eventHandler->HandleSessionInitiated();
+        }
+        break;
+
+        case MsgType_ClientHello:
+        {
+            if (state != SessionState_ServerHelloSent)
+                ABORT_WITH_MSG("Not expected state");
+
+            auto msg = protoMsg->DynamicPointerCast<ClientHelloMsg>();
+            features->NegotiateVersion(msg->Version);
+            eventHandler->HandleSessionInitiated();
+        }
+        break;
+
+        case MsgType_Authenticate:
+        {
+            if (state != SessionState_ServerHelloSent) {
+                ABORT_WITH_MSG("Not expected state");
+            }
+            auto msg = protoMsg->DynamicPointerCast<AuthenticateMsg>();
+            state = SessionState_AuthenticationRequestRecved;
+            eventHandler->HandleSessionAuthenticationRequest(msg->Username, msg->Arguments, msg->AdvancedParsing?true:false);
+        }
+        break;
+
+        case MsgType_AuthenticationResponse:
+        {
+            if (state != SessionState_AuthenticationRequestSent) {
+                ABORT_WITH_MSG("Not expected state");
+            }
+            auto msg = protoMsg->DynamicPointerCast<AuthenticationResponseMsg>();
+            if (msg->Success) {
+                state = SessionState_AuthenticatedAsClient;
+                eventHandler->HandleSessionAuthenticatedAsClient(msg->Messages, msg->TunnelInfo);
+            } else {
+                state = SessionState_AuthenticationFailed;
+                eventHandler->HandleSessionAuthenticationFailed(msg->Error, msg->Messages);
+            }
+        }
+        break;
+
+        case MsgType_RemoteForwardRequest:
+        {
+            if(state != SessionState_AuthenticatedAsServer) {
+                ABORT_WITH_MSG("Not expected state");
+            }
+            auto msg = protoMsg->DynamicPointerCast<RemoteForwardRequestMsg>();
+            eventHandler->HandleSessionRemoteForwardRequest(msg->ReqId, msg->ListeningPort,
+                            msg->Bind, msg->ForwardingPort, msg->ForwardingHost, (TunnelMode)msg->Mode);
+        }
+        break;
+
+        case MsgType_RemoteForwardResponse:
+        {
+            if(state != SessionState_AuthenticatedAsClient) {
+                ABORT_WITH_MSG("Not expected state");
+            }
+            auto msg = protoMsg->DynamicPointerCast<RemoteForwardResponseMsg>();
+            handleRemoteForwardResponse(msg->ReqId, msg->Success, msg->ForwardingId, msg->Urls, msg->RemoteForwardings, msg->Error);
+        }
+        break;
+
+        case MsgType_SetupChannel:
+        {
+            if (state != SessionState_AuthenticatedAsClient && state != SessionState_AuthenticatedAsServer)
+                ABORT_WITH_MSG("Not expected state");
+            auto msg = protoMsg->DynamicPointerCast<SetupChannelMsg>();
+            handleNewChannel(msg);
+        }
+        break;
+
+        case MsgType_SetupChannelResponse:
+        {
+            if (state != SessionState_AuthenticatedAsClient && state != SessionState_AuthenticatedAsServer)
+                ABORT_WITH_MSG("Not expected state");
+            auto msg = protoMsg->DynamicPointerCast<SetupChannelResponseMsg>();
+            if (channels.find(msg->ChannelId) == channels.end()) {
+                // sendWarningMsg(0, "Unknown channel id " + std::to_string(msg->ChannelId) + " " + std::to_string(__LINE__));
+                LOGD("Ignoring channel setup response as it is not registered: ", msg->ChannelId);
+                break;
+            }
+            auto channel = channels.at(msg->ChannelId);
+            channel->handleNewChannelResponse(msg);
+        }
+        break;
+
+        case MsgType_ChannelData:
+        {
+            if (state != SessionState_AuthenticatedAsClient && state != SessionState_AuthenticatedAsServer)
+                ABORT_WITH_MSG("Not expected state");
+            auto msg = protoMsg->DynamicPointerCast<ChannelDataMsg>();
+            if (channels.find(msg->ChannelId) == channels.end()) {
+                // sendWarningMsg(0, "Unknown channel id " + std::to_string(msg->ChannelId) + " " + std::to_string(__LINE__));
+                LOGD("Ignoring channel data as it is not registered: ", msg->ChannelId);
+                break;
+            }
+            auto channel = channels.at(msg->ChannelId);
+            channel->handleChannelData(msg);
+        }
+        break;
+
+        case MsgType_ChannelWindowAdjust:
+        {
+            if (state != SessionState_AuthenticatedAsClient && state != SessionState_AuthenticatedAsServer)
+                ABORT_WITH_MSG("Not expected state");
+            auto msg = protoMsg->DynamicPointerCast<ChannelWindowAdjustMsg>();
+            if (channels.find(msg->ChannelId) == channels.end()) {
+                LOGD("Ignoring channel window adjust as it is not registered: ", msg->ChannelId);
+                // sendWarningMsg(0, "Unknown channel id " + std::to_string(msg->ChannelId) + " " + std::to_string(__LINE__));
+                break;
+            }
+            auto channel = channels.at(msg->ChannelId);
+            channel->handleChannelWindowAdjust(msg);
+        }
+        break;
+
+        case MsgType_ChannelClose:
+        {
+            if (state != SessionState_AuthenticatedAsClient && state != SessionState_AuthenticatedAsServer)
+                ABORT_WITH_MSG("Not expected state");
+            auto msg = protoMsg->DynamicPointerCast<ChannelCloseMsg>();
+            if (channels.find(msg->ChannelId) == channels.end()) {
+                LOGD("Ignoring channel close as it is not registered: ", msg->ChannelId);
+                // sendWarningMsg(0, "Unknown channel id " + std::to_string(msg->ChannelId) + " " + std::to_string(__LINE__));
+                break;
+            }
+            LOGD("Channel close request: ", msg->ChannelId);
+            auto channel = channels.at(msg->ChannelId);
+            channel->handleChannelClose(msg);
+        }
+        break;
+
+        case MsgType_ChannelError:
+        {
+            auto msg = protoMsg->DynamicPointerCast<ChannelErrorMsg>();
+            if (channels.find(msg->ChannelId) == channels.end()) {
+                sendWarningMsg(0, "Unknown channel id " + std::to_string(msg->ChannelId) + " " + std::to_string(__LINE__));
+                break;
+            }
+            auto channel = channels.at(msg->ChannelId);
+            channel->handleChannelError(msg);
+        }
+        break;
+
+        case MsgType_Error:
+        {
+            auto msg = protoMsg->DynamicPointerCast<ErrorMsg>();
+            eventHandler->HandleSessionError(msg->ErrorNo, msg->What, msg->Recoverable != 0);
+        }
+        break;
+
+        case MsgType_Warning:
+        {
+            auto msg = protoMsg->DynamicPointerCast<WarningMsg>();
+            eventHandler->HandleSessionWarning(msg->ErrorNo, msg->What);
+        }
+        break;
+
+        case MsgType_KeepAlive:
+        {
+            auto msg = protoMsg->DynamicPointerCast<KeepAliveMsg>();
+            auto newMsg = NewKeepAliveResponseMsgPtr(msg->Tick);
+            // newMsg->ForTick = msg->Tick;
+            sendMsg(newMsg);
+        }
+        break;
+
+        case MsgType_KeepAliveResponse:
+        {
+            auto msg = protoMsg->DynamicPointerCast<KeepAliveResponseMsg>();
+            eventHandler->HandleSessionKeepAliveResponseReceived(msg->ForTick);
+        }
+        break;
+
+        case MsgType_Disconnect:
+        {
+            auto msg = protoMsg->DynamicPointerCast<DisconnectMsg>();
+            endReason = msg->Reason;
+            eventHandler->HandleSessionDisconnection(msg->Reason);
+        }
+        break;
+
+        case MsgType_Usages:
+        {
+            auto msg = protoMsg->DynamicPointerCast<UsagesMsg>();
+            auto usages = msg->Usages;
+            eventHandler->HandleSessionUsages(usages);
+        }
+        break;
+
+        default:
+            ABORT_WITH_MSG("Unhandled msg");
+    }
 }
 
 } // namespace protocol

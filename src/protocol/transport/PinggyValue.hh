@@ -177,6 +177,15 @@ FOREACH_ALL_TYPE(DefineGetTo)
 
     //=========
 
+    template<typename T>
+    void
+    GetTo(tString key, T &val, const T &def);
+
+    bool
+    HasChildWithKey(tString key);
+
+    //=========
+
 #define DeclareSetFrom(x)           \
     void                            \
     SetFrom(const t##x &v);
@@ -257,6 +266,10 @@ private:
         template<typename T>
         void
         GetTo(tString key, T &val);
+
+        template<typename T>
+        void
+        GetTo(tString key, T &val, const T def);
 
     private:
         static std::vector<PinggyInternalTypePtr>
@@ -375,6 +388,15 @@ private:
         void
         GetTo(tString key, T &val);
 
+        template<typename T>
+        void
+        GetTo(tString key, T &val, const T &def);
+
+        inline bool
+        HasChildWithKey(tString key)
+        {
+            return value.find(key) != value.end();
+        }
 
 #define DefineSetFrom(x)                    \
         void                                \
@@ -458,6 +480,16 @@ PinggyValue::PinggyInternalType::GetTo(tString key, T &val)
 
 template <typename T>
 inline void
+PinggyValue::PinggyInternalType::GetTo(tString key, T &val, const T def)
+{
+    auto obj = dynamic_cast<PinggyInternalType_ObjectPtr>(this);
+    if (!obj)
+        throw std::bad_cast();
+    obj->GetTo(key, val, def);
+}
+
+template <typename T>
+inline void
 PinggyValue::PinggyInternalType_Array::GetTo(std::vector<T> &val)
 {
     for (auto elem : value) {
@@ -498,6 +530,18 @@ PinggyValue::PinggyInternalType_Object::GetTo(tString key, T &v)
         elem->second->GetTo(v);
     } else {
         LOGD("Key not found:", key);
+    }
+}
+
+template <typename T>
+inline void
+PinggyValue::PinggyInternalType_Object::GetTo(tString key, T &val, const T &def)
+{
+    auto elem = value.find(key);
+    if (elem != value.end()) {
+        elem->second->GetTo(val);
+    } else {
+        val = def;
     }
 }
 
@@ -560,6 +604,17 @@ PinggyValue::GetTo(tString key, T &val)
         return;
     }
     ptr->GetTo(key, val);
+}
+
+template <typename T>
+inline void
+PinggyValue::GetTo(tString key, T &val, const T &def)
+{
+    auto ptr = dynamic_cast<PinggyInternalType_ObjectPtr>(self);
+    if (!ptr) {
+        return;
+    }
+    ptr->GetTo(key, val, def);
 }
 
 template <typename T>

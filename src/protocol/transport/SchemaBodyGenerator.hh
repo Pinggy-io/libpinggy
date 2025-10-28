@@ -147,6 +147,42 @@ ClassName##ClassSuffix::ClassName##ClassSuffix(                                 
 #define _SCHEMA_BODY_DefineVarDeserializer(x)                                   \
     _SCHEMA_BODY_DefineVarDeserializer_ x
 
+//===========
+#define _SCHEMA_BODY_IfDefaultToPinggy_0(...)
+#define _SCHEMA_BODY_IfDefaultToPinggy_1(val, def, ...) if (val != def)
+#define _SCHEMA_BODY_IfDefaultToPinggy_(x, y, z, ...) x(y, z)
+
+#define _SCHEMA_BODY_IfDefaultToPinggy(val, def, _, isDef, ...)                 \
+    _SCHEMA_BODY_IfDefaultToPinggy_(_SCHEMA_BODY_IfDefaultToPinggy##isDef,      \
+         val, def)
+
+#define _SCHEMA_BODY_DefineVarToPinggyValue_(x, y, ...)                         \
+    APP_EXPAND(_SCHEMA_BODY_IfDefaultToPinggy(clsPtr->y, ##__VA_ARGS__, _1,     \
+         _0, _0))                                                               \
+    pv.SetFrom(#y, clsPtr->y);
+
+#define _SCHEMA_BODY_DefineVarToPinggyValue(x)                                  \
+    _SCHEMA_BODY_DefineVarToPinggyValue_ x
+//===========
+#define _SCHEMA_BODY_IfDefaultFromPinggy_0(typ, val, ...)                       \
+    pv.GetTo(#val, clsPtr->val);
+
+#define _SCHEMA_BODY_IfDefaultFromPinggy_1(typ, val, def, ...)                  \
+    pv.GetTo<typ>(#val, clsPtr->val, def);
+
+#define _SCHEMA_BODY_IfDefaultFromPinggy_(x, y, z, w, ...) x(y, z, w)
+
+#define _SCHEMA_BODY_IfDefaultFromPinggy(typ, val, def, _, isDef, ...)          \
+    _SCHEMA_BODY_IfDefaultFromPinggy_(                                          \
+        _SCHEMA_BODY_IfDefaultFromPinggy##isDef, typ, val, def)
+
+#define _SCHEMA_BODY_DefineVarFromPinggyValue_(x, y, ...)                       \
+    APP_EXPAND(_SCHEMA_BODY_IfDefaultFromPinggy(x, y, ##__VA_ARGS__, _1, _0, _0))
+
+#define _SCHEMA_BODY_DefineVarFromPinggyValue(x)                                \
+    _SCHEMA_BODY_DefineVarFromPinggyValue_ x
+//===========
+
 #define _SCHEMA_BODY_DefineProtocolFunctions_(ClassName, RootClass,             \
     ClassSuffix, ClassSmallSuffix, ...)                                         \
                                                                                 \
@@ -159,6 +195,17 @@ static void Inflate(DeserializerPtr deserializer,                               
     ClassName##ClassSuffix##Ptr &clsPtr)                                        \
 {                                                                               \
     APP_MACRO_FOR_EACH_FORNT(_SCHEMA_BODY_DefineVarDeserializer, __VA_ARGS__)   \
+}                                                                               \
+static void ToPinggyValue(PinggyValue &pv,                                      \
+    const ClassName##ClassSuffix##Ptr &clsPtr)                                  \
+{                                                                               \
+    APP_MACRO_FOR_EACH_FORNT(_SCHEMA_BODY_DefineVarToPinggyValue, __VA_ARGS__)  \
+}                                                                               \
+static void FromPinggyValue(PinggyValue &pv,                                    \
+    ClassName##ClassSuffix##Ptr &clsPtr)                                        \
+{                                                                               \
+    APP_MACRO_FOR_EACH_FORNT(_SCHEMA_BODY_DefineVarFromPinggyValue,             \
+        __VA_ARGS__)                                                            \
 }
 
 #define _SCHEMA_BODY_DefineProtocolFunctions(x, vars, ...)                      \
@@ -211,6 +258,21 @@ static tString _##RootClass##_##ClassSmallSuffix##TypeArray[] = {               
     _SCHEMA_HEADER_StripParenAndExpand(_SCHEMA_BODY_DefineInflate_, ClassName,  \
         _SCHEMA_HEADER_StripParen vars, __VA_ARGS__)
 
+
+#define _SCHEMA_BODY_DefineFromPinggyValue_(ClassName, RootClass, ClassSuffix,  \
+    ClassSmallSuffix, ...)                                                      \
+    case ClassSuffix##Type_##ClassName:                                         \
+    {                                                                           \
+        auto tmp##ClassSuffix = New##ClassName##ClassSuffix##Ptr();             \
+        pv.GetTo(#ClassName, tmp##ClassSuffix);                                 \
+        ClassSmallSuffix = tmp##ClassSuffix;                                    \
+    }                                                                           \
+    break;                                                                      \
+
+#define _SCHEMA_BODY_DefineFromPinggyValue(ClassName, vars, ...)                \
+    _SCHEMA_HEADER_StripParenAndExpand(_SCHEMA_BODY_DefineFromPinggyValue_,     \
+        ClassName, _SCHEMA_HEADER_StripParen vars, __VA_ARGS__)
+
 #define _SCHEMA_BODY_DefineInflateFunction(RootClass, ClassSuffix,              \
     ClassSmallSuffix, Definition)                                               \
 void Inflate(DeserializerPtr deserializer,                                      \
@@ -255,6 +317,50 @@ void Inflate(DeserializerPtr deserializer,                                      
             "Unknown " APP_EXPAND(TO_STR(ClassSmallSuffix##Type)) );            \
         return;                                                                 \
     }                                                                           \
+}                                                                               \
+                                                                                \
+void                                                                            \
+FromPinggyValue(PinggyValue &pv, RootClass##ClassSuffix##Ptr &ClassSmallSuffix) \
+{                                                                               \
+    tUint8 ClassSmallSuffix##Type;                                              \
+    bool found = false;                                                         \
+    pv.GetTo(APP_EXPAND(TO_STR(ClassSmallSuffix##Type)),                        \
+        ClassSmallSuffix##Type);                                                \
+                                                                                \
+    if (ClassSmallSuffix##Type > ClassSuffix##Type_Invalid                      \
+            && ClassSmallSuffix##Type < ClassSuffix##Type_Count) {              \
+        if (pv.HasChildWithKey(                                                 \
+            _##RootClass##_##ClassSmallSuffix##TypeArray[                       \
+                ClassSmallSuffix##Type]))                                       \
+            found = true;                                                       \
+    }                                                                           \
+                                                                                \
+    if (!found) {                                                               \
+        for(tUint8 t = ClassSuffix##Type_Invalid;                               \
+            t < ClassSuffix##Type_Count; t++) {                                 \
+            if (pv.HasChildWithKey(                                             \
+                _##RootClass##_##ClassSmallSuffix##TypeArray[t])) {             \
+                found = true;                                                   \
+                ClassSmallSuffix##Type = t;                                     \
+                break;                                                          \
+            }                                                                   \
+        }                                                                       \
+    }                                                                           \
+                                                                                \
+    if (!found) {                                                               \
+        throw RootClass##ClassSuffix##DeserializationException(                 \
+            APP_EXPAND(TO_STR(ClassSmallSuffix##Type)) " not found");           \
+        return;                                                                 \
+    }                                                                           \
+                                                                                \
+    switch(ClassSmallSuffix##Type) {                                            \
+    Definition(_SCHEMA_BODY_DefineFromPinggyValue, (RootClass,                  \
+        ClassSuffix, ClassSmallSuffix))                                         \
+    default:                                                                    \
+        throw RootClass##ClassSuffix##DeserializationException(                 \
+            "Unknown " APP_EXPAND(TO_STR(ClassSmallSuffix##Type)) );            \
+        return;                                                                 \
+    }                                                                           \
 }
 
 
@@ -278,6 +384,25 @@ void Inflate(DeserializerPtr deserializer,                                      
     _SCHEMA_HEADER_StripParenAndExpand(_SCHEMA_BODY_DefineDeflate_, ClassName,  \
         _SCHEMA_HEADER_StripParen vars, __VA_ARGS__)
 
+//==================
+
+#define _SCHEMA_BODY_DefineToPinggyValue_(ClassName, RootClass,                 \
+    ClassSuffix, ClassSmallSuffix, ...)                                         \
+    case ClassSuffix##Type_##ClassName:                                         \
+    {                                                                           \
+        pv.SetFrom(APP_EXPAND(TO_STR(ClassSmallSuffix##Type)),                  \
+            (uint8_t)ClassSuffix##Type_##ClassName);                            \
+        ClassName##ClassSuffix##Ptr tmp##ClassSuffix =                          \
+            ClassSmallSuffix->DynamicPointerCast<ClassName##ClassSuffix>();     \
+        pv.SetFrom(#ClassName, tmp##ClassSuffix);                               \
+    }                                                                           \
+    break;                                                                      \
+
+#define _SCHEMA_BODY_DefineToPinggyValue(ClassName, vars, ...)                  \
+    _SCHEMA_HEADER_StripParenAndExpand(_SCHEMA_BODY_DefineToPinggyValue_,       \
+        ClassName, _SCHEMA_HEADER_StripParen vars, __VA_ARGS__)
+//==================
+
 #define _SCHEMA_BODY_DefineDeflateFunction(RootClass, ClassSuffix,              \
     ClassSmallSuffix, Definition)                                               \
 void Deflate(SerializerPtr serializer,                                          \
@@ -285,6 +410,18 @@ void Deflate(SerializerPtr serializer,                                          
 {                                                                               \
     switch(ClassSmallSuffix->ClassSmallSuffix##Type) {                          \
 Definition(_SCHEMA_BODY_DefineDeflate, (RootClass,                              \
+    ClassSuffix, ClassSmallSuffix))                                             \
+    default:                                                                    \
+        throw RootClass##ClassSuffix##SerializationException(                   \
+            "Unknown " APP_EXPAND(TO_STR(ClassSmallSuffix##Type)) );            \
+        return;                                                                 \
+    }                                                                           \
+}                                                                               \
+void ToPinggyValue(PinggyValue &pv,                                             \
+    const RootClass##ClassSuffix##Ptr &ClassSmallSuffix)                        \
+{                                                                               \
+    switch(ClassSmallSuffix->ClassSmallSuffix##Type) {                          \
+Definition(_SCHEMA_BODY_DefineToPinggyValue, (RootClass,                        \
     ClassSuffix, ClassSmallSuffix))                                             \
     default:                                                                    \
         throw RootClass##ClassSuffix##SerializationException(                   \
@@ -334,48 +471,106 @@ Definition(_SCHEMA_BODY_DefineDeflate, (RootClass,                              
 #define _TRANSPORT_VAR_DESERIALIZER_PTR_v2(x)                                   \
     _TRANSPORT_VAR_DESERIALIZER_PTR_ x
 
+#define _TRANSPORT_VAR_TOPINGGY_PTR_(x, y)                                      \
+    if (objPtr)                                                                 \
+        pv.SetFrom(#y, objPtr->x);
+
+#define _TRANSPORT_VAR_TOPINGGY_PTR_v1(x)                                       \
+    _TRANSPORT_VAR_TOPINGGY_PTR_(x, x)
+
+#define _TRANSPORT_VAR_TOPINGGY_PTR_v2(x)                                       \
+    _TRANSPORT_VAR_TOPINGGY_PTR_ x
+
+#define _TRANSPORT_VAR_FROMPINGGY_PTR_(x, y)                                    \
+    pv.GetTo(#y, objPtr->x);
+
+#define _TRANSPORT_VAR_FROMPINGGY_PTR_v1(x)                                     \
+    _TRANSPORT_VAR_FROMPINGGY_PTR_(x, x)
+
+#define _TRANSPORT_VAR_FROMPINGGY_PTR_v2(x)                                     \
+    _TRANSPORT_VAR_FROMPINGGY_PTR_ x
+
 #define DEFINE_TRANSPORT_SERIALIZER_DESERIALIZER_PTR_V2(cls, ...)               \
-static void Deflate(SerializerPtr serializer,                                   \
-    cls##Ptr objPtr)                                                            \
+static void                                                                     \
+Deflate(SerializerPtr serializer, cls##Ptr objPtr)                              \
 {                                                                               \
     APP_MACRO_FOR_EACH_FORNT(_TRANSPORT_VAR_SERIALIZER_PTR_v2, __VA_ARGS__)     \
 }                                                                               \
-static void Inflate(DeserializerPtr deserializer,                               \
-    cls##Ptr &objPtr)                                                           \
+static void                                                                     \
+ToPinggyValue(PinggyValue &pv, const cls##Ptr &objPtr)                          \
+{                                                                               \
+    APP_MACRO_FOR_EACH_FORNT(_TRANSPORT_VAR_TOPINGGY_PTR_v2, __VA_ARGS__)       \
+}                                                                               \
+static void                                                                     \
+Inflate(DeserializerPtr deserializer, cls##Ptr &objPtr)                         \
 {                                                                               \
     objPtr = New##cls##Ptr();                                                   \
     APP_MACRO_FOR_EACH_FORNT(_TRANSPORT_VAR_DESERIALIZER_PTR_v2, __VA_ARGS__)   \
+}                                                                               \
+static void                                                                     \
+FromPinggyValue(PinggyValue &pv, cls##Ptr &objPtr)                              \
+{                                                                               \
+    objPtr = New##cls##Ptr();                                                   \
+    APP_MACRO_FOR_EACH_FORNT(_TRANSPORT_VAR_FROMPINGGY_PTR_v2, __VA_ARGS__)     \
 }
 
 #define DEFINE_TRANSPORT_SERIALIZER_DESERIALIZER_PTR_V1(cls, ...)               \
-static void Deflate(SerializerPtr serializer, cls##Ptr objPtr)                  \
+static void                                                                     \
+Deflate(SerializerPtr serializer, cls##Ptr objPtr)                              \
 {                                                                               \
     APP_MACRO_FOR_EACH_FORNT(_TRANSPORT_VAR_SERIALIZER_PTR_v1, __VA_ARGS__)     \
 }                                                                               \
-static void Inflate(DeserializerPtr deserializer, cls##Ptr &objPtr)             \
+static void                                                                     \
+ToPinggyValue(PinggyValue &pv, const cls##Ptr &objPtr)                          \
+{                                                                               \
+    APP_MACRO_FOR_EACH_FORNT(_TRANSPORT_VAR_TOPINGGY_PTR_v1, __VA_ARGS__)       \
+}                                                                               \
+static void                                                                     \
+Inflate(DeserializerPtr deserializer, cls##Ptr &objPtr)                         \
 {                                                                               \
     objPtr = New##cls##Ptr();                                                   \
     APP_MACRO_FOR_EACH_FORNT(_TRANSPORT_VAR_DESERIALIZER_PTR_v1, __VA_ARGS__)   \
+}                                                                               \
+static void                                                                     \
+FromPinggyValue(PinggyValue &pv, cls##Ptr &objPtr)                              \
+{                                                                               \
+    objPtr = New##cls##Ptr();                                                   \
+    APP_MACRO_FOR_EACH_FORNT(_TRANSPORT_VAR_FROMPINGGY_PTR_v1, __VA_ARGS__)     \
 }
 
 
-#define DEFINE_TRANSPORT_SERIALIZER_DESERIALIZER_ENUM_CAST(type, cast, default) \
+#define DEFINE_TRANSPORT_SERIALIZER_DESERIALIZER_ENUM_CAST(type, cast, def)     \
 static void                                                                     \
 Deflate(SerializerPtr serializer, type mode)                                    \
 {                                                                               \
     serializer->Serialize("v", (castTo)mode);                                   \
 }                                                                               \
 static void                                                                     \
+ToPinggyValue(PinggyValue &pv, const type &mode)                                \
+{                                                                               \
+    pv.ToPinggyValue((castTo)mode);                                             \
+}                                                                               \
+static void                                                                     \
 Inflate(DeserializerPtr deserializer, type &mode)                               \
 {                                                                               \
-    castTo v = default;                                                         \
+    castTo v = def;                                                             \
     deserializer->Deserialize("v", v);                                          \
+    mode = (type)v;                                                             \
+}                                                                               \
+static void                                                                     \
+FromPinggyValue(PinggyValue &pv, type &mode)                                    \
+{                                                                               \
+    castTo v = def;                                                             \
+    if (pv.HasChildWithKey("v"))                                                \
+        pv.GetTo("v", v);                                                       \
+    else                                                                        \
+        pv.GetTo(v);                                                            \
     mode = (type)v;                                                             \
 }
 
 
 #define DEFINE_TRANSPORT_SERIALIZER_DESERIALIZER_ENUM_TYPE(type, type2, ...)    \
-static void                                                                     \
+inline void                                                                     \
 Deflate(SerializerPtr serializer, type e)                                       \
 {                                                                               \
     static_assert(std::is_enum<type>::value, TO_STR(type) " must be an enum!"); \
@@ -386,13 +581,39 @@ Deflate(SerializerPtr serializer, type e)                                       
     auto v = ((it != std::end(m)) ? it : std::begin(m))->second;                \
     serializer->Serialize("v", v);                                              \
 }                                                                               \
-static void                                                                     \
+inline void                                                                     \
+ToPinggyValue(PinggyValue &pv, const type &e)                                   \
+{                                                                               \
+    static_assert(std::is_enum<type>::value, TO_STR(type) " must be an enum!"); \
+    static const std::pair<type, type2> m[] = __VA_ARGS__;                      \
+    auto it = std::find_if(std::begin(m), std::end(m),                          \
+                        [e](const std::pair<type, type2> &ej_pair) ->           \
+                            bool { return ej_pair.first == e; });               \
+    auto v = ((it != std::end(m)) ? it : std::begin(m))->second;                \
+    pv.SetFrom(v);                                                              \
+}                                                                               \
+inline void                                                                     \
 Inflate(DeserializerPtr deserializer, type &e)                                  \
 {                                                                               \
     static_assert(std::is_enum<type>::value, TO_STR(type) " must be an enum!"); \
-    type2 v;                                                                    \
-    deserializer->Deserialize("v", v);                                          \
     static const std::pair<type, type2> m[] = __VA_ARGS__;                      \
+    type2 v = std::begin(m)->second;                                            \
+    deserializer->Deserialize("v", v);                                          \
+    auto it = std::find_if(std::begin(m), std::end(m),                          \
+                        [v](const std::pair<type, type2> &ej_pair) ->           \
+                            bool { return ej_pair.second == v; });              \
+    e = ((it != std::end(m)) ? it : std::begin(m))->first;                      \
+}                                                                               \
+inline void                                                                     \
+FromPinggyValue(PinggyValue &pv, type &e)                                       \
+{                                                                               \
+    static_assert(std::is_enum<type>::value, TO_STR(type) " must be an enum!"); \
+    static const std::pair<type, type2> m[] = __VA_ARGS__;                      \
+    type2 v = std::begin(m)->second;                                            \
+    if (pv.HasChildWithKey("v"))                                                \
+        pv.GetTo("v", v);                                                       \
+    else                                                                        \
+        pv.GetTo(v);                                                            \
     auto it = std::find_if(std::begin(m), std::end(m),                          \
                         [v](const std::pair<type, type2> &ej_pair) ->           \
                             bool { return ej_pair.second == v; });              \
@@ -417,11 +638,13 @@ Inflate(DeserializerPtr deserializer, type &e)                                  
         _SCHEMA_HEADER_StripParen vars, __VA_ARGS__)
 
 
+
 #define DEFINE_HANDLING_CLASS(HandlingClassName, RootClass, ClassSuffix,        \
                                         ClassSmallSuffix, Definition)           \
 HandlingClassName::HandlingClassName(net::NetworkConnectionPtr netConn,         \
     HandlingClassName##EventHandlerPtr handlerPtr):                             \
-    netConn(netConn), eventHandler(handlerPtr), running(false)                  \
+    netConn(netConn), eventHandler(handlerPtr), running(false),                 \
+    pinggyValueMode(false)                                                      \
 {                                                                               \
     netConn->SetBlocking(false);                                                \
 }                                                                               \
@@ -437,11 +660,19 @@ HandlingClassName::~HandlingClassName()                                         
     }                                                                           \
 }                                                                               \
                                                                                 \
+void HandlingClassName::EnablePinggyValueMode(bool enable) {                    \
+    pinggyValueMode = enable;                                                   \
+    if (transportManager) {                                                     \
+        transportManager->EnablePinggyValueMode(enable);                        \
+    }                                                                           \
+}                                                                               \
+                                                                                \
 bool HandlingClassName::Start(bool handshakeRequired) {                         \
     transportManager = NewTransportManagerPtr(netConn, thisPtr, false,          \
         handshakeRequired);                                                     \
     netConn->RegisterFDEvenHandler(transportManager);                           \
     running = true;                                                             \
+    if (pinggyValueMode) transportManager->EnablePinggyValueMode(true);         \
     return true;                                                                \
 }                                                                               \
                                                                                 \
@@ -464,8 +695,14 @@ bool HandlingClassName::Send##ClassSuffix(RootClass##ClassSuffix##Ptr           
     bool success = false;                                                       \
     if (sendQueue.empty()) {                                                    \
         try {                                                                   \
-            success = transportManager->GetSerializer()->Serialize(             \
-                TO_STR(ClassSmallSuffix),  ClassSmallSuffix)->Send();           \
+            if (pinggyValueMode) {                                              \
+                PinggyValue pv;                                                 \
+                pv.SetFrom(TO_STR(ClassSmallSuffix), ClassSmallSuffix);         \
+                success = transportManager->SendMsg(pv);                        \
+            } else {                                                            \
+                success = transportManager->GetSerializer()->Serialize(         \
+                    TO_STR(ClassSmallSuffix),  ClassSmallSuffix)->Send();       \
+            }                                                                   \
         } catch(RootClass##ClassSuffix##SerializationException &e){             \
             LOGE("Exception occurred: ", e.what());                             \
             Stop();                                                             \
@@ -500,6 +737,31 @@ void HandlingClassName::HandleIncomingDeserialize(DeserializerPtr deserializer) 
     RootClass##ClassSuffix##Ptr tmp##ClassSuffix;                               \
     try {                                                                       \
         deserializer->Deserialize(TO_STR(ClassSmallSuffix), tmp##ClassSuffix);  \
+    } catch(RootClass##ClassSuffix##DeserializationException &e){               \
+        LOGE("Exception occurred: ", e.what());                                 \
+        Stop();                                                                 \
+        return;                                                                 \
+    }                                                                           \
+    if (!tmp##ClassSuffix) {                                                    \
+        Stop();                                                                 \
+        return;                                                                 \
+    }                                                                           \
+    switch(tmp##ClassSuffix->ClassSmallSuffix##Type) {                          \
+    Definition(_SCHEMA_BODY_HandleIncomingMsg,                                  \
+        (RootClass, ClassSuffix, ClassSmallSuffix))                             \
+        default:                                                                \
+            LOGE("Unknown  " APP_EXPAND(TO_STR(ClassSmallSuffix##Type))         \
+                ". Stoping...");                                                \
+            Stop();                                                             \
+            return;                                                             \
+    }                                                                           \
+}                                                                               \
+                                                                                \
+void HandlingClassName::HandleIncomingPinggyValue(PinggyValue &pv)              \
+{                                                                               \
+    RootClass##ClassSuffix##Ptr tmp##ClassSuffix;                               \
+    try {                                                                       \
+        pv.GetTo(TO_STR(ClassSmallSuffix), tmp##ClassSuffix);                   \
     } catch(RootClass##ClassSuffix##DeserializationException &e){               \
         LOGE("Exception occurred: ", e.what());                                 \
         Stop();                                                                 \

@@ -843,6 +843,7 @@ Sdk::internalConnect()
     baseConnection->SetPollController(pollController);
 
     session = protocol::NewSessionPtr(baseConnection);
+    session->SetEnablePinggyValueMode(true);
     session->SetSessionVersion(PINGGY_SESSION_VERSION_1_02);
     session->Start(thisPtr);
     LOGT("Session Started");

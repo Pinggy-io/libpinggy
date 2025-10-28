@@ -201,12 +201,18 @@ public:
     IsPrimaryForwardingModeEnabled()
                                 { return features->IsPrimaryForwardingModeEnabled();}
 
+    void
+    SetEnablePinggyValueMode(bool enable = true);
+
 // TransportManagerEventHandler
     virtual void
     HandleConnectionReset(net::NetworkConnectionPtr netConn) override;
 
     virtual void
     HandleIncomingDeserialize(DeserializerPtr deserializer) override;
+
+    virtual void
+    HandleIncomingPinggyValue(PinggyValue &) override;
 
     virtual void
     HandleIncompleteHandshake() override;
@@ -249,6 +255,9 @@ private:
     common::PollableTaskPtr
     setupChannelCloseTimeout(ChannelPtr);
 
+    void
+    handleDeserializedMsg(ProtoMsgPtr tMsg);
+
     friend class                Channel;
 
     net::NetworkConnectionPtr   netConn;
@@ -267,9 +276,9 @@ private:
     tString                     endReason;
     tUint64                     keepAliveSentTick;
     bool                        incomingActivities;
+    bool                        enablePinggyValue;
     SessionFeaturesPtr          features;
     common::PollControllerPtr   pollController;
-
 };
 DefineMakeSharedPtr(Session);
 

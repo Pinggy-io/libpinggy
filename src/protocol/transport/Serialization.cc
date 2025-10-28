@@ -189,10 +189,11 @@ Serializer::encode_Array(PinggyValue::PinggyInternalType_ArrayPtr arr, tPathId p
     Serialize_Lit(stream, cnt, mismatchedEndianness);
     if (cnt > 0) {
         contentType = arr->value[0]->GetValueType();
-    } else {
-        return;
     }
     Serialize_Lit(stream, contentType, mismatchedEndianness);
+    if (cnt == 0){
+        return;
+    }
     for (auto t : arr->value) {
         auto newPathId = pathRegistry->RegisterPath("", contentType, parentPathId);
         encodeLiterals(t, newPathId);
