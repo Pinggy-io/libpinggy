@@ -280,7 +280,7 @@ void PollControllerGeneric::StartPolling()
     polling = false;
 }
 
-tInt PollControllerGeneric::PollOnce(tInt argTimeout)
+tInt32 PollControllerGeneric::PollOnce(tInt32 argTimeout)
 {
     if(fds.size() == 0 && nonPollables.size() == 0 && HaveFutureTasks() == false) {
         app_set_errno(EINVAL);

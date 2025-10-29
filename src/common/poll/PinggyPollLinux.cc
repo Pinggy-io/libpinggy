@@ -66,7 +66,7 @@ PollControllerLinux::PollControllerLinux():
     registerNotificationFd();
 }
 
-tInt PollControllerLinux::PollOnce(tInt argTimeout)
+tInt32 PollControllerLinux::PollOnce(tInt32 argTimeout)
 {
     if(fds.size() == 0 && nonPollables.size() == 0 && HaveFutureTasks(argTimeout) == false) {
         app_set_errno(EINVAL);

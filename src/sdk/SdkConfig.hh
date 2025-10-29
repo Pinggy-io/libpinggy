@@ -130,11 +130,11 @@ struct SDKConfig: virtual public pinggy::SharedObject
 
     void
     SetTcpForwardTo(tString tcpForwardTo)
-                                { isAllowed(); this->tcpForwardTo = NewUrlPtr(tcpForwardTo); }
+                                { isAllowed(); this->tcpForwardTo = tcpForwardTo.empty() ? nullptr : NewUrlPtr(tcpForwardTo);  }
 
     void
     SetUdpForwardTo(tString udpForwardTo)
-                                { isAllowed(); this->udpForwardTo = NewUrlPtr(udpForwardTo, 80, "udp"); }
+                                { isAllowed(); this->udpForwardTo = udpForwardTo.empty() ? nullptr : NewUrlPtr(udpForwardTo, 80, "udp"); }
 
     void
     SetForce(bool force)        { isAllowed(); this->force = force; }

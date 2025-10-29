@@ -148,7 +148,7 @@ public:
     Stop();
 
     bool
-    ResumeTunnel(tInt timeout = -1);
+    ResumeTunnel(tInt32 timeout = -1);
 
     bool
     IsAuthenticated()           {return state >= SdkState_Authenticated;}
@@ -317,7 +317,7 @@ private:
     initiateContinousUsages();
 
     bool
-    resumeWithLock(tString funcName, tInt timeout);
+    resumeWithLock(tString funcName, tInt32 timeout);
 
     void
     setupLocalChannelNGetData(port_t port, tString tag);
@@ -410,6 +410,8 @@ private:
 
     UrlPtr                      tcpForwardTo; //default
     UrlPtr                      udpForwardTo; //default
+
+    tString                     cleanupReason;
 
     friend class ThreadLock;
 };

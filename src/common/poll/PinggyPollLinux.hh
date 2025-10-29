@@ -41,7 +41,7 @@ class PollControllerLinux: public PollController
 public:
     PollControllerLinux();
     virtual ~PollControllerLinux();
-    virtual tInt PollOnce(tInt timeout = -1) override;
+    virtual tInt32 PollOnce(tInt32 timeout = -1) override;
     virtual void StartPolling() override;
     virtual void DisableReader(PollEventHandlerPtr handler) override;
     virtual void DeregisterHandler(PollEventHandlerPtr handler) override;

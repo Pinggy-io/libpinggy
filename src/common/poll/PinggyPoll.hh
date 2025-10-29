@@ -181,8 +181,8 @@ public:
     virtual void
     StartPolling() = 0;
 
-    virtual tInt
-    PollOnce(int timeout = -1) = 0;
+    virtual tInt32
+    PollOnce(tInt32 timeout = -1) = 0;
 
     virtual sock_t
     GetFd() = 0;

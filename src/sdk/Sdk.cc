@@ -175,20 +175,19 @@ bool PINGGY_ATTRIBUTE_FUNC
 Sdk::Stop()
 {
     auto lock = LockIfDifferentThread();
-    if (stopped)
+    if (cleanupNow)
         return false;
     if (session) {
         session->End("Connection close");
-        session = nullptr;
     }
 
-    stopWebDebugger();
-    stopped = true;
+    // stopWebDebugger();
+    cleanupNow = true;
     return true;
 }
 
 bool PINGGY_LIFE_CYCLE_FUNC
-Sdk::ResumeTunnel(tInt timeout)
+Sdk::ResumeTunnel(tInt32 timeout)
 {
     if (stopped)
         return false;
@@ -256,6 +255,7 @@ Sdk::ResumeTunnel(tInt timeout)
                         lastError = "Maximum reconnection attempts reached. Exiting.";
                         reconnectNow = false;
                         cleanupNow = true;
+                        cleanupReason = lastError;
                         if (eventHandler)
                             eventHandler->OnReconnectionFailed(reconnectCounter);
                     }
@@ -288,7 +288,7 @@ Sdk::GetUrls()
         LOGE("Tunnel is not running");
         return {};
     }
-    if (stopped)
+    if (cleanupNow)
         return {};
     LOGD("Returning urls");
     return urls;
@@ -379,7 +379,7 @@ Sdk::RequestAdditionalRemoteForwarding(tString bindAddress, tString forwardTo)
         throw RemoteForwardingException("forwardTo cannot be empty");
     }
 
-    if (stopped) {
+    if (stopped || cleanupNow) {
         throw RemoteForwardingException("tunnel stopped");
     }
 
@@ -634,12 +634,12 @@ Sdk::HandleSessionDisconnection(tString reason)
     if (!session)
         return;
 
-    if (eventHandler)
-        eventHandler->OnDisconnected(reason, {reason});
+    // if (eventHandler)
+    //     eventHandler->OnDisconnected(reason, {reason});
 
     // cleanup();
     cleanupNow = true;
-    pollController->StopPolling();
+    cleanupReason = reason;
 }
 
 void
@@ -648,13 +648,13 @@ Sdk::HandleSessionConnectionReset()
     //Nothing much to do. just stop the poll controller if possible.
     baseConnection = nullptr; //it would be closed by sessios once this function returns.
 
-    if (eventHandler)
-        eventHandler->OnDisconnected("Connection reset", {"Connection reset"});
+    // if (eventHandler)
+    //     eventHandler->OnDisconnected("Connection reset", {"Connection reset"});
 
     // cleanup();
     cleanupNow = true;
-    stopped = true;
-    pollController->StopPolling();
+    // stopped = true;
+    cleanupReason = "Connection reset";
 }
 
 void
@@ -666,7 +666,7 @@ Sdk::HandleSessionError(tUint32 errorNo, tString what, tBool recoverable)
     if (!recoverable) {
         // cleanup();
         cleanupNow = true;
-        pollController->StopPolling();
+        cleanupReason = what;
     }
 }
 
@@ -989,6 +989,7 @@ Sdk::throwWrongThreadException(tString funcname)
 void
 Sdk::cleanup()
 {
+    if (stopped) return;
     if (keepAliveTask) {
         keepAliveTask->DisArm();
         keepAliveTask = nullptr;
@@ -1012,6 +1013,9 @@ Sdk::cleanup()
         pollController->DeregisterAllHandlers();
         pollController = nullptr;
     }
+
+    if (eventHandler)
+        eventHandler->OnDisconnected("Ended", {"Ended"});
 
     if (eventHandler) {
         eventHandler = nullptr;
@@ -1045,11 +1049,12 @@ Sdk::keepAliveTimeout(tUint64 tick)
             if (eventHandler)
                 eventHandler->OnWillReconnect("Connection Reset", {"Reconnecting"});
         } else {
-            Stop();
+            // Stop();
             HandleSessionConnectionReset();
         }
+    } else {
+        session->ResetIncomingActivities();
     }
-    session->ResetIncomingActivities();
 }
 
 void Sdk::stopWebDebugger()
@@ -1117,7 +1122,7 @@ Sdk::initiateContinousUsages()
 }
 
 bool
-Sdk::resumeWithLock(tString funcName, tInt timeout)
+Sdk::resumeWithLock(tString funcName, tInt32 timeout)
 {   auto ret = pollController->PollOnce(timeout);
     auto success = (ret < 0 && app_get_errno() != EINTR ? false : true);
     return success;
