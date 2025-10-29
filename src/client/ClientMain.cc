@@ -107,9 +107,11 @@ parseReverseTunnel(ClientConfigPtr config, tString value)
     try {
         if (values.size() < 4) {
             config->sdkConfig->SetTcpForwardTo(url);
+            LOGD(url);
         } else {
             auto forwardingUrl = values[values.size() - 4] + ":" + values[values.size() - 3];
             config->forwardings.push_back(std::pair(forwardingUrl, url));
+            LOGD(url);
         }
     } catch(...) {
         return false;
@@ -347,7 +349,7 @@ struct ClientSdkEventHandler: virtual public sdk::SdkEventHandler
 
     virtual void
     OnDisconnected(tString error, std::vector<tString> messages) override
-                                { this->error = error; }
+                                { this->error = error; LOGD("Disconnected:", messages); }
 
     virtual void
     OnWillReconnect(tString error, std::vector<tString> messages) override

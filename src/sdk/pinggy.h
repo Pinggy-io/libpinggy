@@ -141,6 +141,7 @@ typedef uint32_t                pinggy_capa_t;
 typedef uint32_t               *pinggy_capa_p_t;
 typedef uint32_t                pinggy_uint32_t;
 typedef uint16_t                pinggy_uint16_t;
+typedef int32_t                 pinggy_int32_t;
 typedef int32_t                 pinggy_raw_len_t;
 
 #define pinggy_true 1
@@ -1180,7 +1181,7 @@ pinggy_tunnel_resume(pinggy_ref_t tunnel);
  * @return        pinggy_true to continue, pinggy_false to stop.
  */
 PINGGY_EXPORT pinggy_bool_t
-pinggy_tunnel_resume_timeout(pinggy_ref_t tunnel, pinggy_int_t timeout);
+pinggy_tunnel_resume_timeout(pinggy_ref_t tunnel, pinggy_int32_t timeout);
 
 /**
  * @brief Stops the running tunnel.

@@ -1231,7 +1231,7 @@ pinggy_tunnel_resume(pinggy_ref_t ref)
 }
 
 PINGGY_EXPORT pinggy_bool_t
-pinggy_tunnel_resume_timeout(pinggy_ref_t ref, pinggy_int_t timeout)
+pinggy_tunnel_resume_timeout(pinggy_ref_t ref, pinggy_int32_t timeout)
 {
     auto sdk =  getSdk(ref);
     if (sdk == nullptr) {
