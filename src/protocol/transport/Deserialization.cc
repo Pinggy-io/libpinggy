@@ -499,7 +499,7 @@ Deserializer::Decode(RawDataPtr stream, PathRegistryPtr pathRegistry, std::strin
         auto value = decodeLit(stream, pathDef->ValType, pathRegistry);
         rootValue = addValueToPath(rootValue, pathDef, value);
     }
-    memValue = rootValue;
+    memValue.self = rootValue;
 }
 
 PinggyValue::PinggyInternalType_ObjectPtr

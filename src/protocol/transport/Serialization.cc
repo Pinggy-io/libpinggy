@@ -154,7 +154,6 @@ Serializer::encode(PinggyValue &val)
     if (!val.self)
         return;
     encodeLiterals(val.self, parentPathId);
-    val.cleanUp();
 }
 
 #define defineEncoders(x)                                                                           \

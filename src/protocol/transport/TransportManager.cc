@@ -212,7 +212,7 @@ TransportManager::parseBody(RawDataPtr stream)
         return;
 
     if (enablePinggyValue) {
-        auto val = deserializer->getDecodedStream();
+        auto &val = deserializer->getDecodedStream();
         eventHandler->HandleIncomingPinggyValue(val);
     } else {
         eventHandler->HandleIncomingDeserialize(deserializer);

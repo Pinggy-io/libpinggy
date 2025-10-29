@@ -122,15 +122,21 @@ private:
     DeclareClassWithNonSharedPtr(PinggyInternalType);
     PinggyInternalTypePtr       self;
 
-    void
-    cleanUp();
-
 public:
     PinggyValue(PinggyInternalTypePtr v) : self(v)
                                 { }
 
     PinggyValue() : self(nullptr)
                                 { }
+
+
+    PinggyValue(const PinggyValue&) = delete;        // disable copy
+    PinggyValue& operator=(const PinggyValue&) = delete;
+
+    PinggyValue(PinggyValue&&) = delete; // Disable move
+    PinggyValue& operator=(PinggyValue&&) = delete;
+
+    ~PinggyValue();
 
 #define DefineGetter(x) \
     t##x \
@@ -444,6 +450,7 @@ PinggyValue::PinggyInternalType::GetTo(T &val)
 {
     PinggyValue v(this);
     FromPinggyValue(v, val);
+    v.self = nullptr; // so that it won't get deleted
 }
 
 template <typename T>
@@ -507,6 +514,7 @@ PinggyValue::PinggyInternalType_Array::SetFrom(const std::vector<T> &val)
         PinggyValue v;
         v.SetFrom(elem);
         value.push_back(v.self);
+        v.self = nullptr; // so that it won't get deleted
     }
 }
 
@@ -552,6 +560,7 @@ PinggyValue::PinggyInternalType_Object::SetFrom(tString key, const T &v)
     PinggyValue pv;
     ToPinggyValue(pv, v);
     value[key] = pv.self;
+    pv.self = nullptr; // so that it won't get deleted
 }
 
 template <typename T>
@@ -667,6 +676,7 @@ PinggyValue::SetFrom(tString key, const T &val)
     PinggyValue pv;
     pv.SetFrom(val);
     s->Set(key, pv.self);
+    pv.self = nullptr; // so that it won't get deleted
 }
 
 #endif // SRC_CPP_PINGGYTRANSPORT_PINGGYVALUE_HH_

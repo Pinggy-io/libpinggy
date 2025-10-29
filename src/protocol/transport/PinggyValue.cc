@@ -91,7 +91,7 @@ LiteralCompatibility(Define_checkIfCompatible_Func)
 
 #define DefineAllGetter(typ)                                                \
     t##typ                                                                  \
-    PinggyValue::PinggyInternalType::Get##typ()                                          \
+    PinggyValue::PinggyInternalType::Get##typ()                             \
     {                                                                       \
         throw std::bad_cast();                                              \
         return typ##_Default;                                               \
@@ -350,6 +350,14 @@ PinggyValue::SetFrom(const tCChar &v)
     self = PinggyValue::NewPinggyInternalType_StringPtr(tString(v));
 }
 
+PinggyValue::~PinggyValue()
+{
+    if (self) {
+        delete self;
+        self = nullptr;
+    }
+}
+
 size_t
 PinggyValue::Size()
 {
@@ -392,13 +400,4 @@ PinggyValue::HasChildWithKey(tString key)
         return false;
 
     return ptr->HasChildWithKey(key);
-}
-
-void
-PinggyValue::cleanUp()
-{
-    if (self) {
-        delete self;
-        self = nullptr;
-    }
 }

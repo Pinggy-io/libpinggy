@@ -84,6 +84,7 @@ FOREACH_ANY_TYPE(DeclareDecodeLit)
     friend class TransportManager;
     Deserializer(bool mismatchedEndianness);
 
+    //this is private because we don't want to return a non referenced object
     PinggyValue&
     getDecodedStream()              { return memValue; }
 
