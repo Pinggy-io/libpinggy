@@ -323,7 +323,7 @@ private:
     updateForwardMap(std::vector<RemoteForwardingPtr> remoteForwardings);
 
     void
-    reconnectOrStopLoop();
+    reconnectOrStopLoop(tString reason);
 
     void
     initiateReconnection();
@@ -377,7 +377,7 @@ private:
     bool                        appHandlesNewChannel;
     bool                        reconnectMode;
 
-    tString                     cleanupReason;
+    tString                     disconnectionReason;
 
     friend class ThreadLock;
 };

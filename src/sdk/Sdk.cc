@@ -143,10 +143,7 @@ Sdk::Start(bool block)
     bool ret = true;
     do {
         ret = ResumeTunnel();
-    } while(block && ret && state < SdkState::Stopped);
-
-    if (!ret)
-        state = SdkState::Stopped;
+    } while(block && ret && state < SdkState::Ended);
 
     return ret;
 }
@@ -164,6 +161,7 @@ Sdk::Stop()
         }
     }
 
+    disconnectionReason = "Stopped by user";
     state = SdkState::Stopped;
     return true;
 }
@@ -181,7 +179,7 @@ Sdk::ResumeTunnel(tInt32 timeout)
 
     if (state == SdkState::Stopped) {
         cleanup();
-        return false;
+        return true;
     }
 
     acquireAccessLock();
@@ -193,8 +191,9 @@ Sdk::ResumeTunnel(tInt32 timeout)
             lastError = "Maximum reconnection attempts reached. Exiting.";
             if (eventHandler)
                 eventHandler->OnReconnectionFailed(reconnectCounter);
+            disconnectionReason = lastError;
             state = SdkState::Stopped;
-            return false;
+            return true;
         }
 
         cleanupForReconnection();
@@ -204,6 +203,10 @@ Sdk::ResumeTunnel(tInt32 timeout)
     }
 
     auto success = resumeWithLock(__func__, timeout);
+    if (!success) {
+        disconnectionReason = "System error occurred, may be ctrl+c was pressed";
+        state = SdkState::Stopped; //ctrl+c happened, however, if app want it ca continue again and get a problem
+    }
     return success;
 }
 
@@ -375,7 +378,7 @@ Sdk::HandleSessionInitiated()
 
     if (session->GetSessionVersion() < PINGGY_SESSION_VERSION_1_02) {
         LOGE("Not authenticating for sdk version mismatch. Server is older that the sdk.");
-        HandleSessionAuthenticationFailed("Incompatible SDK. Kindly upgrade", {"Incompatible SDK. Kindly upgrade"});
+        HandleSessionAuthenticationFailed("Incompatible SDK. Server is older that the sdk.", {"Incompatible SDK. Server is older that the sdk."});
         return;
     }
 
@@ -407,7 +410,7 @@ Sdk::HandleSessionAuthenticationFailed(tString error, std::vector<tString> authe
 
     releaseBaseConnection();
 
-    reconnectOrStopLoop();
+    reconnectOrStopLoop(lastError);
 
     if (eventHandler && !reconnectMode) {
             eventHandler->OnTunnelFailed(JoinString(authenticationMsg, "\n"));
@@ -519,7 +522,7 @@ Sdk::HandleSessionRemoteForwardingFailed(protocol::tReqId reqId, tString error)
 
         releaseBaseConnection();
 
-        reconnectOrStopLoop();
+        reconnectOrStopLoop(error);
 
         if (eventHandler && !reconnectMode) {
             eventHandler->OnTunnelFailed(error);
@@ -534,7 +537,6 @@ Sdk::HandleSessionRemoteForwardingFailed(protocol::tReqId reqId, tString error)
         return;
     }
 
-    // auto [bindAddress, forwardTo] = pendingAdditionalRemoteForwardingMap[reqId];
     auto forwarding = pendingAdditionalRemoteForwardingMap[reqId];
     pendingAdditionalRemoteForwardingMap.erase(reqId);
 
@@ -625,10 +627,7 @@ Sdk::HandleSessionDisconnection(tString reason)
 
     releaseBaseConnection();
 
-    reconnectOrStopLoop();
-
-    if (eventHandler && !reconnectMode)
-        eventHandler->OnDisconnected(reason, {reason});
+    reconnectOrStopLoop(reason);
 }
 
 void
@@ -640,10 +639,7 @@ Sdk::HandleSessionConnectionReset()
 
     releaseBaseConnection();
 
-    reconnectOrStopLoop();
-
-    if (eventHandler && !reconnectMode)
-        eventHandler->OnDisconnected("Connection reset", {"Connection reset"});
+    reconnectOrStopLoop("Connection reset");
 }
 
 void
@@ -654,7 +650,7 @@ Sdk::HandleSessionError(tUint32 errorNo, tString what, tBool recoverable)
     if (!recoverable) {
         releaseBaseConnection();
 
-        reconnectOrStopLoop();
+        reconnectOrStopLoop(what);
     }
 
     if (eventHandler)
@@ -665,9 +661,7 @@ void
 Sdk::HandleSessionUsages(ClientSpecificUsagesPtr usages)
 {
     json jdata;
-    PINGGY_NLOHMANN_JSON_FROM_PTR_VAR2(jdata, usages, \
-                                            CLIENT_SPECIFIC_USAGES_JSON_FIELDS_MAP \
-                                    );
+    PINGGY_NLOHMANN_JSON_FROM_PTR_VAR2(jdata, usages, CLIENT_SPECIFIC_USAGES_JSON_FIELDS_MAP );
     lastUsagesUpdate = jdata.dump();
     if (eventHandler)
         eventHandler->OnUsageUpdate(lastUsagesUpdate);
@@ -837,7 +831,7 @@ Sdk::internalConnect()
         }
     } catch (const std::exception &e) {
         LOGE("Exception occured: ", e.what());
-        reconnectOrStopLoop();
+        reconnectOrStopLoop(e.what());
         return;
     }
 
@@ -892,6 +886,9 @@ Sdk::throwWrongThreadException(tString funcname)
 void
 Sdk::cleanup()
 {
+    if (state == SdkState::Ended)
+        return;
+
     if (keepAliveTask) {
         keepAliveTask->DisArm();
         keepAliveTask = nullptr;
@@ -917,13 +914,13 @@ Sdk::cleanup()
     }
 
     if (eventHandler)
-        eventHandler->OnDisconnected("Ended", {"Ended"});
+        eventHandler->OnDisconnected(disconnectionReason, {disconnectionReason});
 
     if (eventHandler) {
         eventHandler = nullptr;
     }
-    // stopped = true;
-    state = SdkState::Stopped;
+
+    state = SdkState::Ended;
 }
 
 void
@@ -946,8 +943,9 @@ Sdk::keepAliveTimeout(tUint64 tick)
             keepAliveTask = nullptr;
         }
         releaseBaseConnection();
-        lastError = "Tunnel seems unresponsive. Reconnecting";
-        reconnectOrStopLoop();
+        lastError = "Tunnel seems unresponsive.";
+
+        reconnectOrStopLoop(lastError);
     } else {
         session->ResetIncomingActivities();
     }
@@ -1088,7 +1086,7 @@ Sdk::updateForwardMap(std::vector<RemoteForwardingPtr> remoteForwardings)
 }
 
 void
-Sdk::reconnectOrStopLoop()
+Sdk::reconnectOrStopLoop(tString reason)
 {
     if (reconnectMode) {
         state = SdkState::ReconnectInitiated;
@@ -1098,6 +1096,7 @@ Sdk::reconnectOrStopLoop()
             eventHandler->OnWillReconnect("Connection Reset", {"Reconnecting"});
         }
     } else {
+        disconnectionReason = reason;
         state = SdkState::Stopped;
     }
 }

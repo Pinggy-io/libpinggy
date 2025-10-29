@@ -22,6 +22,56 @@
 
 namespace net {
 
+static tString
+sslErrorToString(int err)
+{
+    auto syserr = app_get_errno();
+    unsigned long detail = ERR_get_error(); // More specific internal error if available
+    char buf[256];
+
+    std::ostringstream oss;
+
+    switch (err)
+    {
+        case SSL_ERROR_NONE:
+            return "SSL_ERROR_NONE: No error";
+
+        case SSL_ERROR_WANT_READ:
+            return "SSL_ERROR_WANT_READ: Operation blocked (need to read more data)";
+
+        case SSL_ERROR_WANT_WRITE:
+            return "SSL_ERROR_WANT_WRITE: Operation blocked (need to write more data)";
+
+        case SSL_ERROR_WANT_X509_LOOKUP:
+            return "SSL_ERROR_WANT_X509_LOOKUP: Callback required for certificate lookup";
+
+        case SSL_ERROR_ZERO_RETURN:
+            return "SSL_ERROR_ZERO_RETURN: TLS connection closed cleanly";
+
+        case SSL_ERROR_SYSCALL:
+            if (detail != 0) {
+                ERR_error_string_n(detail, buf, sizeof(buf));
+                oss << "SSL_ERROR_SYSCALL: " << buf;
+            } else {
+                oss << "SSL_ERROR_SYSCALL: System call error: " << app_get_strerror(syserr);
+            }
+            return oss.str();
+
+        case SSL_ERROR_SSL:
+            if (detail != 0) {
+                ERR_error_string_n(detail, buf, sizeof(buf));
+                oss << "SSL_ERROR_SSL: " << buf;
+            } else {
+                oss << "SSL_ERROR_SSL: Unspecified protocol error";
+            }
+            return oss.str();
+
+        default:
+            oss << "Unknown SSL error code: " << err;
+            return oss.str();
+    }
+}
+
 class SslConnectFutureTaskHandler: virtual public SslConnectHandler
 {
 public:
@@ -208,8 +258,10 @@ SslNetworkConnection::Connect(SSL_CTX *ctx)
     auto ret = SSL_connect(ssl);
     if (ret <= 0) {
         LOGSSLE("Error while initiation ssl");
+        auto sslErr = SSL_get_error(ssl, ret);
+        auto reason = sslErrorToString(sslErr);
         CloseAndFreeFailedConnect(ssl, ctx, netConn);
-        throw CannotConnectException("Cannot perform ssl connect");
+        throw CannotConnectException("Cannot perform ssl connect: "+ reason);
     }
     connected = true;
 }
