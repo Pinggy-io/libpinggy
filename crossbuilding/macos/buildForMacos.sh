@@ -75,7 +75,7 @@ then
     done
     popd
     mkdir -p $OPENSSL_ROOT_PATH/lib $OPENSSL_ROOT_PATH/bin $OPENSSL_ROOT_PATH/include
-    cp -r $BUILD_PATH/x86_64/openssl/include/* $OPENSSL_ROOT_PATH/include/
+    cp -r $OPENSSL_ROOT_PARENT/${OPENSSL_VERSION}/x86_64/include/* $OPENSSL_ROOT_PATH/include/
 
     SSL_Name=libssl.dylib
     Crypto_Name=libcrypto.dylib
