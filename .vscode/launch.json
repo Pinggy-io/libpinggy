@@ -49,6 +49,18 @@
                 "LIBPINGGY_LIBPATH": "${workspaceFolder}/releases/macos/universal/libpinggy.dylib"
             },
             // "sourceLanguages": ["cpp"]
+        },
+         {
+            "name": "Debug test-pinggyclientc",
+            "type": "lldb-dap",
+            "request": "launch",
+            "program": "${workspaceFolder}/releases/macos/universal/pinggyclientc",
+            "args": [ "-p443", "-r", "-R0:l:4000", "-L4300:l:4300", "a.pinggy.io"],
+            // "args": [ "-r", "-R0:l:4000", "-L4300:l:4300", "-sexample.com", "-p7878", "l"],
+            "cwd": "${workspaceFolder}",
+            "stopOnEntry": false,
+            "env": {},
+            // "sourceLanguages": ["cpp"]
         }
     ]
 }
