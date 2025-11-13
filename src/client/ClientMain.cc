@@ -33,33 +33,42 @@
 
 #endif
 
+ // for setting up the connection modes 
+ //ex: tcp+token@server so the mode is tcp 
+static const std::string ConnMode_HTTP = "http";
+static const std::string ConnMode_TCP = "tcp";
+static const std::string ConnMode_TLS = "tls";
+static const std::string ConnMode_TLSTCP = "tlstcp";
+static const std::string ConnModeExt_UDP = "udp";
 
-static const std::string ConnMode_HTTP      = "http";
-static const std::string ConnMode_TCP       = "tcp";
-static const std::string ConnMode_TLS       = "tls";
-static const std::string ConnMode_TLSTCP    = "tlstcp";
-static const std::string ConnModeExt_UDP    = "udp";
-
-struct ClientConfig: virtual public pinggy::SharedObject
+// structure for client configuration 
+struct ClientConfig : virtual public pinggy::SharedObject
 {
-    ClientConfig() :
-            sdkConfig(sdk::NewSDKConfigPtr()),
-            WebDebuggerPort(4300),
-            EnableWebDebugger(false)
-                                {}
+    ClientConfig() : // constructor
+        sdkConfig(sdk::NewSDKConfigPtr()),
+        WebDebuggerPort(4300),
+        EnableWebDebugger(false) // turn on/off web debugger
+    { 
+        
+    }
 
-    virtual ~ClientConfig()     {}
+    virtual ~ClientConfig() {} // destructor 
 
     std::vector<std::pair<std::string, std::string>>
-                                forwardings;
+                                forwardings; // for storing the list of reverse tunnels 
     sdk::SDKConfigPtr           sdkConfig;
     port_t                      WebDebuggerPort;
     bool                        EnableWebDebugger;
 };
-DefineMakeSharedPtr(ClientConfig);
+
+DefineMakeSharedPtr(ClientConfig);  // macro for the clientconfig  
 
 static std::vector<tString>
-parseForwarding(const tString& val) {
+
+// function to parse forwarding address (forwardingg adreess to components)
+// also handls the IPv6 address 
+parseForwarding(const tString& val)
+{
     std::vector<tString> result;
     tString value = val;
 
@@ -83,6 +92,7 @@ parseForwarding(const tString& val) {
             }
         } else {
             // Find next colon
+
             size_t colon = value.find(':');
             if (colon == tString::npos) {
                 result.push_back(value);
@@ -96,29 +106,35 @@ parseForwarding(const tString& val) {
     return result;
 }
 
+// called when the useer provides -R
 bool
-parseReverseTunnel(ClientConfigPtr config, tString value)
+parseReverseTunnel(ClientConfigPtr config, tString value)// if the values is 2 then eastablish single tunnel else multiple tunnels
 {
     auto values = parseForwarding(value);
     if (values.size() < 2) { // fixed logic here
         return false;
     }
-    auto url =  values[values.size() - 2] + ":" + values[values.size() - 1];
+    auto url = values[values.size() - 2] + ":" + values[values.size() - 1];
     try {
-        if (values.size() < 4) {
+        if (values.size() < 4) { // for two token only just the port and address
+            // simply from the remote to local 
             config->sdkConfig->SetTcpForwardTo(url);
             LOGD(url);
-        } else {
+        } else { // for more than two tokens, establish multiple tunnels
+            // more complex forwardings two pairs 
             auto forwardingUrl = values[values.size() - 4] + ":" + values[values.size() - 3];
             config->forwardings.push_back(std::pair(forwardingUrl, url));
             LOGD(url);
         }
-    } catch(...) {
+    } catch (...) {
         return false;
     }
     return true;
 }
 
+// extarct the last part (i.e the port number)
+// called when the user provides -L
+// sets up the web debugger port 
 bool
 parseForwardTunnel(ClientConfigPtr config, tString value)
 {
@@ -130,12 +146,16 @@ parseForwardTunnel(ClientConfigPtr config, tString value)
     try {
         config->WebDebuggerPort = std::stoi(values[values.size() - 1]);
         config->EnableWebDebugger = true;
-    } catch(...) {
+    } catch (...) {
         return false;
     }
     return true;
 }
 
+
+// for storing the user tokens and the connection mode 
+//ex : tcp@token to connection == TCP and token to token and set this inside the sdkconfig
+// what type of tunnel i will be using and the type of authentication
 bool
 parseUser(ClientConfigPtr config, tString user)
 {
@@ -147,9 +167,9 @@ parseUser(ClientConfigPtr config, tString user)
     auto forwardingAddress = sdkConfig->GetTcpForwardTo();
     sdkConfig->SetTcpForwardTo("");
 
-    for(auto s : values) {
+    for (auto s : values) {
         auto sl = StringToLower(s);
-        LOGT("s=" << s, "sl="<<sl);
+        LOGT("s=" << s, "sl=" << sl);
         if (sl == ConnMode_HTTP || sl == ConnMode_TCP || sl == ConnMode_TLS || sl == ConnMode_TLSTCP) {
             sdkConfig->SetTcpForwardTo(forwardingAddress);
             sdkConfig->SetMode(sl);
@@ -173,6 +193,9 @@ parseUser(ClientConfigPtr config, tString user)
     return true;
 }
 
+
+//splits the token@server so that 
+// after this the connection info is complete
 bool
 parseUserServer(ClientConfigPtr config, tString value, tString port)
 {
@@ -187,14 +210,15 @@ parseUserServer(ClientConfigPtr config, tString value, tString port)
         if (values.size() > 1) {
             success = parseUser(config, values[values.size() - 2]);
         }
-    } catch(...) {
+    } catch (...) {
         return false;
     }
     return success;
 }
 
 void
-printHelpOptions(const char *prog){
+printHelpOptions(const char* prog)
+{
     printf("%s [-h|--help] [-v|-version] [--port|-p PORT] [-R ADDR:PORT] [-L ADDR:PORT] token@server\n", prog);
     printf("        -h\n");
     printf("       --help\n");
@@ -217,7 +241,7 @@ printHelpOptions(const char *prog){
     printf("            Enable autoreconnect\n");
     printf("\n");
 }
-
+// Stores all command line arguments in the SDK config for internal tracking
 bool
 parseSdkArguments(ClientConfigPtr config, int argc, char *argv[])
 {
@@ -231,7 +255,7 @@ parseSdkArguments(ClientConfigPtr config, int argc, char *argv[])
 }
 
 ClientConfigPtr
-parseArguments(int argc, char *argv[])
+parseArguments(int argc, char* argv[])
 {
     auto config = NewClientConfigPtr();
 
@@ -258,53 +282,53 @@ parseArguments(int argc, char *argv[])
     while ((opt = cli_getopt_long(argc, argv, "ahvVno:R:L:p:s:r", longopts, &longindex)) != -1) {
         bool success = true;
         switch (opt) {
-            case 'h':
-                printHelpOptions(prog);
-                exitNow = true;
-                exit(0);
-                break;
-            case 'v':
-                printf("v%d.%d.%d\n", PinggyVersionMajor, PinggyVersionMinor, PinggyVersionPatch);
-                exitNow = true;
-                exit(0);
-                break;
-            case 'V':
-                SetGlobalLogEnable(true);
-                break;
-            case 'o':
-                printf("Output option with value: %s\n", cli_optarg);
-                break;
-            case 'p':
-                serverPort = cli_optarg;
-                break;
-            case 'R':
-                success = parseReverseTunnel(config, cli_optarg);
-                break;
-            case 'L':
-                success = parseForwardTunnel(config, cli_optarg);
-                break;
-            case 'n':
-                config->sdkConfig->SetSsl(false);
-                config->sdkConfig->SetInsecure(true);
-                break;
-            case 's':
-                config->sdkConfig->SetSniServerName(cli_optarg);
-                break;
-            case 'r':
-                config->sdkConfig->SetAutoReconnect(true);
-                break;
-            case 'a':
-                config->sdkConfig->SetAdvancedParsing(true);
-                break;
-            case 256: // Handling for --config
-                printf("Config option with value: %s\n", cli_optarg);
-                break;
-            case 257: // Handling for --debug
-                printf("Debug option\n");
-                break;
-            case '?':
-                printf("Unknown option or missing argument\n");
-                break;
+        case 'h':
+            printHelpOptions(prog);
+            exitNow = true;
+            exit(0);
+            break;
+        case 'v':
+            printf("v%d.%d.%d\n", PinggyVersionMajor, PinggyVersionMinor, PinggyVersionPatch);
+            exitNow = true;
+            exit(0);
+            break;
+        case 'V':
+            SetGlobalLogEnable(true);
+            break;
+        case 'o':
+            printf("Output option with value: %s\n", cli_optarg);
+            break;
+        case 'p':
+            serverPort = cli_optarg;
+            break;
+        case 'R':
+            success = parseReverseTunnel(config, cli_optarg);
+            break;
+        case 'L':
+            success = parseForwardTunnel(config, cli_optarg);
+            break;
+        case 'n':
+            config->sdkConfig->SetSsl(false);
+            config->sdkConfig->SetInsecure(true);
+            break;
+        case 's':
+            config->sdkConfig->SetSniServerName(cli_optarg);
+            break;
+        case 'r':
+            config->sdkConfig->SetAutoReconnect(true);
+            break;
+        case 'a':
+            config->sdkConfig->SetAdvancedParsing(true);
+            break;
+        case 256: // Handling for --config
+            printf("Config option with value: %s\n", cli_optarg);
+            break;
+        case 257: // Handling for --debug
+            printf("Debug option\n");
+            break;
+        case '?':
+            printf("Unknown option or missing argument\n");
+            break;
         }
         if (!success) {
             exitNow = true;
@@ -327,11 +351,13 @@ parseArguments(int argc, char *argv[])
 
     return config;
 }
-
-struct ClientSdkEventHandler: virtual public sdk::SdkEventHandler
+// the event handler part 
+// this is where the real events are handled like the connection succeds, fails or etc
+struct ClientSdkEventHandler : virtual public sdk::SdkEventHandler
 {
-    ClientSdkEventHandler(ClientConfigPtr config):
-        config(config)          { }
+    ClientSdkEventHandler(ClientConfigPtr config) :
+        config(config)
+    {}
 
     virtual
     ~ClientSdkEventHandler()    { }
@@ -341,15 +367,21 @@ struct ClientSdkEventHandler: virtual public sdk::SdkEventHandler
 
     virtual void
     OnAuthenticationFailed(std::vector<tString> why) override
-                                { this->error = JoinString(why, " "); }
+    {
+        this->error = JoinString(why, " ");
+    }
 
     virtual void
     OnPrimaryForwardingFailed(tString error) override
-                                { this->error = error; }
+    {
+        this->error = error;
+    }
 
     virtual void
     OnDisconnected(tString error, std::vector<tString> messages) override
-                                { this->error = error; LOGD("Disconnected:", messages); }
+    {
+        this->error = error; LOGD("Disconnected:", messages);
+    }
 
     virtual void
     OnWillReconnect(tString error, std::vector<tString> messages) override
@@ -390,7 +422,8 @@ struct ClientSdkEventHandler: virtual public sdk::SdkEventHandler
     }
 
     virtual void
-    OnUsageUpdate(tString msg) override {
+    OnUsageUpdate(tString msg) override
+    {
         std::cout << "Update msg: " << msg << std::endl;
     }
 
@@ -401,7 +434,8 @@ struct ClientSdkEventHandler: virtual public sdk::SdkEventHandler
 DefineMakeSharedPtr(ClientSdkEventHandler);
 
 int
-main(int argc, char *argv[]) {
+main(int argc, char* argv[])
+{
     WindowsSocketInitialize();
     InitLogWithCout();
     // SetGlobalLogEnable(false);
@@ -444,3 +478,23 @@ ClientSdkEventHandler::OnPrimaryForwardingSucceeded(std::vector<std::string> url
         thisPtr->sdk.lock()->StartWebDebugging(config->WebDebuggerPort);
     }
 }
+
+
+
+/*
+CLI arguments → parseArguments()
+                ↓
+          ClientConfig (modes, tokens, addresses, tunnels)
+                ↓
+        Create SDK object (C++ Pinggy SDK)
+                ↓
+           Connect to server
+                ↓
+        Request main + extra tunnels
+                ↓
+        Register event callbacks
+                ↓
+          Start main event loop
+
+
+*/
