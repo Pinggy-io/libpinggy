@@ -140,6 +140,8 @@ Sdk::Start(bool block)
         releaseAccessLock();
     }
 
+    // this function is supposed to return true in all the cases.
+
     bool ret = true;
     do {
         ret = ResumeTunnel();
@@ -177,13 +179,13 @@ Sdk::ResumeTunnel(tInt32 timeout)
         return false;
     }
 
+    acquireAccessLock();
+    DEFER({releaseAccessLock();});
+
     if (state == SdkState::Stopped) {
         cleanup();
         return true;
     }
-
-    acquireAccessLock();
-    DEFER({releaseAccessLock();});
 
     if (state == SdkState::ReconnectInitiated) {
         if (    reconnectCounter >= sdkConfig->maxReconnectAttempts
@@ -191,6 +193,7 @@ Sdk::ResumeTunnel(tInt32 timeout)
             lastError = "Maximum reconnection attempts reached. Exiting.";
             if (eventHandler)
                 eventHandler->OnReconnectionFailed(reconnectCounter);
+            reconnectMode = false;
             disconnectionReason = lastError;
             state = SdkState::Stopped;
             return true;
@@ -830,13 +833,16 @@ Sdk::internalConnect()
             baseConnection = sslConnection;
         }
     } catch (const std::exception &e) {
+        baseConnection = nullptr;
         LOGE("Exception occured: ", e.what());
         reconnectOrStopLoop(e.what());
         return;
     }
 
-    if (!baseConnection)
-        return;
+    if (!baseConnection) {
+        reconnectOrStopLoop("Unable to connect");
+        return; //unused code
+    }
 
     state = SdkState::Connected;
 
