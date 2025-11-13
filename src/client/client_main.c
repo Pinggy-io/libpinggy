@@ -19,9 +19,6 @@
 #include <string.h>
 #include <ctype.h>
 #include <errno.h>
-#include <ctype.h>
-#include <stdlib.h>
-#include <string.h>
 #include <stdio.h>
 
 
@@ -208,15 +205,13 @@ static int parse_user(pinggy_ref_t config_ref, char* user)
                 pinggy_config_set_tcp_forward_to(config_ref, tcp_forward_to_buf);
             }
             type_set = 1;
-        }
-        else if (strcmp(p, ConnModeExt_UDP) == 0) {
+        } else if (strcmp(p, ConnModeExt_UDP) == 0) {
             pinggy_config_set_udp_type(config_ref, p);
             if (strlen(tcp_forward_to_buf) > 0) {
                 pinggy_config_set_udp_forward_to(config_ref, tcp_forward_to_buf);
             }
             udp_type_set = 1;
-        }
-        else {
+        } else {
             token_str = p;
         }
         p = strtok(NULL, "+");
@@ -250,8 +245,7 @@ static int parse_user_server(pinggy_ref_t config_ref, char* value, const char* p
         if (!parse_user(config_ref, user)) {
             return 0;
         }
-    }
-    else {
+    } else {
         snprintf(server_addr, sizeof(server_addr), "%s:%s", value, port);
     }
 
@@ -365,8 +359,7 @@ static client_app_data_t* parse_arguments(int argc, char* argv[])
         if (!parse_user_server(app_data->config_ref, argv[cli_optind], server_port)) {
             exit_now = 1;
         }
-    }
-    else {
+    }  else {
         exit_now = 1;
     }
 

@@ -48,12 +48,14 @@ struct ClientConfig : virtual public pinggy::SharedObject
         sdkConfig(sdk::NewSDKConfigPtr()),
         WebDebuggerPort(4300),
         EnableWebDebugger(false) // turn on/off web debugger
-    {}
+    { 
+        
+    }
 
     virtual ~ClientConfig() {} // destructor 
 
     std::vector<std::pair<std::string, std::string>>
-        forwardings; // for storing the list of reverse tunnels 
+                                forwardings; // for storing the list of reverse tunnels 
     sdk::SDKConfigPtr           sdkConfig;
     port_t                      WebDebuggerPort;
     bool                        EnableWebDebugger;
@@ -85,14 +87,12 @@ parseForwarding(const tString& val)
             value = value.substr(close + 1);
             if (!value.empty() && value[0] == ':') {
                 value = value.substr(1);
-            }
-            else {
+            } else {
                 break;
             }
-        }
-        else {
+        } else {
             // Find next colon
-            
+
             size_t colon = value.find(':');
             if (colon == tString::npos) {
                 result.push_back(value);
@@ -105,6 +105,7 @@ parseForwarding(const tString& val)
 
     return result;
 }
+
 // called when the useer provides -R
 bool
 parseReverseTunnel(ClientConfigPtr config, tString value)// if the values is 2 then eastablish single tunnel else multiple tunnels
@@ -119,15 +120,13 @@ parseReverseTunnel(ClientConfigPtr config, tString value)// if the values is 2 t
             // simply from the remote to local 
             config->sdkConfig->SetTcpForwardTo(url);
             LOGD(url);
-        }
-        else { // for more than two tokens, establish multiple tunnels
+        } else { // for more than two tokens, establish multiple tunnels
             // more complex forwardings two pairs 
             auto forwardingUrl = values[values.size() - 4] + ":" + values[values.size() - 3];
             config->forwardings.push_back(std::pair(forwardingUrl, url));
             LOGD(url);
         }
-    }
-    catch (...) {
+    } catch (...) {
         return false;
     }
     return true;
@@ -147,8 +146,7 @@ parseForwardTunnel(ClientConfigPtr config, tString value)
     try {
         config->WebDebuggerPort = std::stoi(values[values.size() - 1]);
         config->EnableWebDebugger = true;
-    }
-    catch (...) {
+    } catch (...) {
         return false;
     }
     return true;
@@ -175,12 +173,10 @@ parseUser(ClientConfigPtr config, tString user)
         if (sl == ConnMode_HTTP || sl == ConnMode_TCP || sl == ConnMode_TLS || sl == ConnMode_TLSTCP) {
             sdkConfig->SetTcpForwardTo(forwardingAddress);
             sdkConfig->SetMode(sl);
-        }
-        else if (sl == ConnModeExt_UDP) {
+        } else if (sl == ConnModeExt_UDP) {
             sdkConfig->SetUdpForwardTo(forwardingAddress);
             sdkConfig->SetUdpMode(sl);
-        }
-        else {
+        } else {
             token = "+" + s;
         }
     }
@@ -214,8 +210,7 @@ parseUserServer(ClientConfigPtr config, tString value, tString port)
         if (values.size() > 1) {
             success = parseUser(config, values[values.size() - 2]);
         }
-    }
-    catch (...) {
+    } catch (...) {
         return false;
     }
     return success;
@@ -248,7 +243,7 @@ printHelpOptions(const char* prog)
 }
 // Stores all command line arguments in the SDK config for internal tracking
 bool
-parseSdkArguments(ClientConfigPtr config, int argc, char* argv[])
+parseSdkArguments(ClientConfigPtr config, int argc, char *argv[])
 {
     std::vector<tString> args;
     for (int i = 0; i < argc; i++) {
@@ -283,7 +278,7 @@ parseArguments(int argc, char* argv[])
     };
     bool exitNow = false;
     tString serverPort = "443";
-    const char* prog = argv[0];
+    const char *prog = argv[0];
     while ((opt = cli_getopt_long(argc, argv, "ahvVno:R:L:p:s:r", longopts, &longindex)) != -1) {
         bool success = true;
         switch (opt) {
@@ -343,8 +338,7 @@ parseArguments(int argc, char* argv[])
 
     if (cli_optind < argc) {
         exitNow = !(parseUserServer(config, argv[cli_optind], serverPort));
-    }
-    else {
+    } else {
         exitNow = true;
     }
 
@@ -366,49 +360,49 @@ struct ClientSdkEventHandler : virtual public sdk::SdkEventHandler
     {}
 
     virtual
-        ~ClientSdkEventHandler() {}
+    ~ClientSdkEventHandler()    { }
 
     virtual void
-        OnPrimaryForwardingSucceeded(std::vector<std::string> urls) override;
+    OnPrimaryForwardingSucceeded(std::vector<std::string> urls) override;
 
     virtual void
-        OnAuthenticationFailed(std::vector<tString> why) override
+    OnAuthenticationFailed(std::vector<tString> why) override
     {
         this->error = JoinString(why, " ");
     }
 
     virtual void
-        OnPrimaryForwardingFailed(tString error) override
+    OnPrimaryForwardingFailed(tString error) override
     {
         this->error = error;
     }
 
     virtual void
-        OnDisconnected(tString error, std::vector<tString> messages) override
+    OnDisconnected(tString error, std::vector<tString> messages) override
     {
         this->error = error; LOGD("Disconnected:", messages);
     }
 
     virtual void
-        OnWillReconnect(tString error, std::vector<tString> messages) override
+    OnWillReconnect(tString error, std::vector<tString> messages) override
     {
         std::cout << "Reconnecting" << std::endl;
     }
 
     virtual void
-        OnForwardingChanged(tString urlMap) override
+    OnForwardingChanged(tString urlMap) override
     {
         std::cout << urlMap << std::endl;
     }
 
     virtual void
-        OnReconnecting(tUint16 count) override
+    OnReconnecting(tUint16 count) override
     {
         std::cout << "Trying.. " << count << std::endl;
     }
 
     virtual void
-        OnReconnectionCompleted(std::vector<tString> urls) override
+    OnReconnectionCompleted(std::vector<tString> urls) override
     {
         std::cout << "Reconnected" << std::endl;
         auto s = sdk.lock();
@@ -422,13 +416,13 @@ struct ClientSdkEventHandler : virtual public sdk::SdkEventHandler
     }
 
     virtual void
-        OnReconnectionFailed(tUint16 tries) override
+    OnReconnectionFailed(tUint16 tries) override
     {
         std::cout << "Reconnection failed after " << tries << " tries" << std::endl;
     }
 
     virtual void
-        OnUsageUpdate(tString msg) override
+    OnUsageUpdate(tString msg) override
     {
         std::cout << "Update msg: " << msg << std::endl;
     }
