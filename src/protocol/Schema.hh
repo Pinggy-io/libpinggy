@@ -94,12 +94,15 @@ enum tChannelType {
         (tString,                   Bind,               "",                         1), \
         (tInt16,                    ForwardingPort,     0,                          1), \
         (tString,                   ForwardingHost,     "",                         1), \
-        (TunnelMode,                Mode)                                               \
+        (TunnelMode,                Mode,               TunnelMode::None)               \
     )                                                                                   \
     f(RemoteForwardResponse,                                                            \
         arg,                                                                            \
         (tMsgId,                    MsgId,              0),                             \
         (tReqId,                    ReqId,              0,                          1), \
+        (tForwardingId,             ForwardingId,       InvalidForwardingId,        1), \
+        (std::vector<RemoteForwardingPtr>,                                              \
+                                    RemoteForwardings),                                 \
         (tUint8,                    Success,            0,                          1), \
         (std::vector<tString>,      Urls),                                              \
         (tString,                   Error,              "",                         1)  \
@@ -107,12 +110,12 @@ enum tChannelType {
     f(SetupChannel,                                                                     \
         arg,                                                                            \
         (tMsgId,                    MsgId,              0),                             \
+        (tForwardingId,             ForwardingId,       InvalidForwardingId,        1), \
         (tChannelId,                ChannelId,          0,                          1), \
         (tUint16,                   ConnectToPort,      0,                          1), \
         (tString,                   ConnectToHost,      "",                         1), \
         (tUint16,                   SrcPort,            0,                          1), \
         (tString,                   SrcHost,            "",                         1), \
-        (TunnelMode,                Mode),                                              \
         (tInt8,                     ChannelType,        ChannelType_Stream,         1), \
         (tUint32,                   InitialWindowSize,  0,                          1), \
         (tUint32,                   MaxDataSize,        0,                          1)  \

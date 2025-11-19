@@ -21,6 +21,7 @@
 #include <vector>
 #include <platform/assert_pinggy.h>
 #include <type_traits>
+#include "PinggyValue.hh"
 
 // Primary template for checking if a type is a specialization of std::vector
 template<typename T>
@@ -29,10 +30,6 @@ struct IsVector : std::false_type {};
 // Specialization for std::vector
 template<typename T, typename Alloc>
 struct IsVector<std::vector<T, Alloc>> : std::true_type {};
-
-
-typedef const char*     tCChar;
-const tValueType ValueType_CChar             = (uint8_t)31;
 
 DeclareClassWithSharedPtr(Serializer);
 DeclareClassWithSharedPtr(TransportManager);
@@ -111,6 +108,18 @@ FOREACH_ALL_TYPE(DefineSerializeArray)
     void serializeArray(std::vector<T> vector_t);
 
     friend class TransportManager;
+
+    void
+    encodeLiterals(PinggyValue::PinggyInternalTypePtr value, tPathId parentPathId);
+
+#define declareEncoders(x) \
+    void \
+    encode_ ## x(PinggyValue::PinggyInternalType_##x##Ptr value, tPathId parentPathId);
+FOREACH_ANY_TYPE(declareEncoders)
+#undef declareEncoders
+
+    void
+    encode(PinggyValue &val);
 
 public:
     ~Serializer();

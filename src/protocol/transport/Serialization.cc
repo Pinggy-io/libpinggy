@@ -143,3 +143,80 @@ SerializerPtr Serializer::Serialize(std::string key, t##_x t)               \
 
 DeclareSerializeMemFuncBody(CChar) //This is basically for Serializer only.
 FOREACH_ALL_TYPE(DeclareSerializeMemFuncBody)
+
+
+
+
+void
+Serializer::encode(PinggyValue &val)
+{
+    auto parentPathId = this->pathId;
+    if (!val.self)
+        return;
+    encodeLiterals(val.self, parentPathId);
+}
+
+#define defineEncoders(x)                                                                           \
+    void                                                                                            \
+    Serializer::encode_##x(PinggyValue::PinggyInternalType_##x##Ptr value, tPathId parentPathId)    \
+    {                                                                                               \
+        Serialize_Lit(stream, value->value, mismatchedEndianness);                                  \
+    }
+FOREACH_ALL_TYPE(defineEncoders)
+#undef defineEncoders
+
+
+void
+Serializer::encode_Object(PinggyValue::PinggyInternalType_ObjectPtr obj, tPathId parentPathId)
+{
+    for (auto elem : obj->value) {
+        auto path = elem.first;
+        auto val = elem.second;
+        auto type = val->GetValueType();
+        auto pathId = pathRegistry->RegisterPath(path, type, parentPathId);
+        if (type != ValueType_Object)
+            Serialize_Lit(stream, pathId, mismatchedEndianness);
+        encodeLiterals(val, pathId);
+    }
+}
+
+void
+Serializer::encode_Array(PinggyValue::PinggyInternalType_ArrayPtr arr, tPathId parentPathId)
+{
+    uint16_t cnt = arr->value.size();
+    tValueType contentType = ValueType_Invalid;
+    Serialize_Lit(stream, cnt, mismatchedEndianness);
+    if (cnt > 0) {
+        contentType = arr->value[0]->GetValueType();
+    }
+    Serialize_Lit(stream, contentType, mismatchedEndianness);
+    if (cnt == 0){
+        return;
+    }
+    for (auto t : arr->value) {
+        auto newPathId = pathRegistry->RegisterPath("", contentType, parentPathId);
+        encodeLiterals(t, newPathId);
+        if (contentType == ValueType_Object)
+            Serialize_Lit(stream, (uint16_t)RETURN_BACK_PATH_ID, mismatchedEndianness);
+    }
+}
+
+void
+Serializer::encodeLiterals(PinggyValue::PinggyInternalTypePtr value, tPathId parentPathId)
+{
+    auto valueType = value->GetValueType();
+    switch(valueType) {
+#define defineCase(x)                                                               \
+    case ValueType_##x:                                                             \
+    {                                                                               \
+        auto val = dynamic_cast<PinggyValue::PinggyInternalType_##x##Ptr>(value);   \
+        encode_##x(val, parentPathId);                                              \
+    }                                                                               \
+    break;
+    FOREACH_ANY_TYPE(defineCase)
+#undef defineCase
+    }
+}
+
+//================
+

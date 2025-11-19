@@ -26,19 +26,20 @@
             "sourceLanguages": ["cpp"]
         },
         {
-            "name": "Debug test-pinggyclient",
+            "name": "lldb-pinggyclient",
             "type": "lldb-dap",
             "request": "launch",
             "program": "${workspaceFolder}/releases/macos/universal/pinggyclient",
-            "args": [ "-p443", "-r", "-R0:l:4000", "-L4300:l:4300", "a.pinggy.io"],
-            // "args": [ "-r", "-R0:l:4000", "-L4300:l:4300", "-sexample.com", "-p7878", "l"],
+            // "args": [ "-p443", "-r", "-R0:l:4000", "-L4300:l:4300", "a.pinggy.io"],
+            // "args": [ "-p443", "-r", "-R0:l:4000", "-L4300:l:4300", "-st.pinggy.io", "core2.t.pinggy.io"],
+            "args": [ "-r", "-R0:l:4000", "-Rtcp//l/11232:0:l:8080", "-L4300:l:4300", "-sexample.com", "-p7879", "-n", "handleTcpPort@l"],
             "cwd": "${workspaceFolder}",
             "stopOnEntry": false,
             "env": {},
             // "sourceLanguages": ["cpp"]
         },
         {
-            "name": "Debug test-pythonclient",
+            "name": "lldb-pythonclient",
             "type": "lldb-dap",
             "request": "launch",
             "program": "python3",
@@ -49,6 +50,17 @@
                 "LIBPINGGY_LIBPATH": "${workspaceFolder}/releases/macos/universal/libpinggy.dylib"
             },
             // "sourceLanguages": ["cpp"]
+        },
+        {
+            "name": "pdb-pythonclient",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/bindings/python/example2.py",
+            "cwd": "${workspaceFolder}",
+            "stopOnEntry": false,
+            "env": {
+                "LIBPINGGY_LIBPATH": "${workspaceFolder}/releases/macos/universal/libpinggy.dylib"
+            }
         },
          {
             "name": "Debug test-pinggyclientc",

@@ -141,6 +141,25 @@ Url::~Url()
 {
 }
 
+UrlPtr
+Url::Clone()
+{
+    auto newUrl = NewUrlPtr(new Url());
+    newUrl->protocol    = protocol;
+    newUrl->host        = host;
+    newUrl->port        = port;
+    newUrl->portStr     = portStr;
+    newUrl->path        = path;
+    newUrl->query       = query;
+    newUrl->ipv6        = ipv6;
+    return newUrl;
+}
+
+Url::Url(): port(0), ipv6(false)
+{
+
+}
+
 std::ostream &
 operator<<(std::ostream &os, const UrlPtr &url)
 {

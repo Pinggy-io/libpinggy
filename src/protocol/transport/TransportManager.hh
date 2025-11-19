@@ -29,13 +29,18 @@ abstract class TransportManagerEventHandler: virtual public pinggy::SharedObject
 {
 public:
     virtual
-    ~TransportManagerEventHandler() {}
+    ~TransportManagerEventHandler()
+                                { }
 
     virtual void
     HandleConnectionReset(net::NetworkConnectionPtr netConn) = 0;
 
     virtual void
     HandleIncomingDeserialize(DeserializerPtr deserializer) = 0;
+
+    virtual void
+    HandleIncomingPinggyValue(PinggyValue &)
+                                { }
 
     virtual void
     HandleReadyToSendBuffer() = 0;
@@ -56,6 +61,7 @@ private:
                                 eventHandler;
 
     std::queue<RawDataPtr>      senderQueue;
+    bool                        enablePinggyValue;
 
     bool                        readingHeader;
     RawDataPtr                  recvRawData;
@@ -103,11 +109,18 @@ public:
     virtual
     ~TransportManager();
 
+    inline void
+    EnablePinggyValueMode(bool enable = true)
+                                { enablePinggyValue = enable; }
+
     virtual SerializerPtr
     GetSerializer();
 
     virtual bool
     SendMsg(SerializerPtr serializer);
+
+    virtual bool
+    SendMsg(PinggyValue &v); //not using const because we want take controll of this object
 
     virtual bool
     EndTransport();

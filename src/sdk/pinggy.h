@@ -147,6 +147,24 @@ typedef int32_t                 pinggy_raw_len_t;
 #define pinggy_true 1
 #define pinggy_false 0
 
+typedef enum TunnelState {
+    TunnelState_Invalid = 0,
+    TunnelState_Initial,
+    TunnelState_Started,
+    TunnelState_ReconnectInitiated,
+    TunnelState_Reconnecting,
+    TunnelState_Connecting,
+    TunnelState_Connected,
+    TunnelState_SessionInitiating,
+    TunnelState_SessionInitiated,
+    TunnelState_Authenticating,
+    TunnelState_Authenticated,
+    TunnelState_ForwardingInitiated,
+    TunnelState_ForwardingSucceeded,
+    TunnelState_Stopped,
+    TunnelState_Ended,
+} pinggy_tunnel_state_t;
+
 /**
  * PINGGY_TYPETEST_ENABLED is a type enforcer for code. It make sure that all the code
  * Implementation used exactly same data as the declaration function.
@@ -186,47 +204,11 @@ pinggy_is_interrupted();
 
 //================
 /**
- * @typedef pinggy_on_connected_cb_t
- * @brief Callback for when the tunnel is successfully connected to the server.
- * This is an informational callback only and most apps do not need to implement this.
- * @param user_data  User-defined pointer passed during callback registration.
- * @param tunnel_ref Reference to the tunnel object.
- */
-typedef pinggy_void_t (*pinggy_on_connected_cb_t)                               \
-                            (pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref);
-
-/**
- * @typedef pinggy_on_authenticated_cb_t
- * @brief Callback for when the tunnel is authenticated.
- * Here, authentication means the tunnel is allowed to be set up.
- *
- * This callback can arrive only when the tunnel is being connected, i.e.,
- * `pinggy_tunnel_connect_blocking` is working or `pinggy_tunnel_connect` is
- * called and the app is waiting for an event by calling `pinggy_tunnel_resume`.
- *
- * @param user_data  User-defined pointer passed during callback registration.
- * @param tunnel_ref Reference to the tunnel object.
- */
-typedef pinggy_void_t (*pinggy_on_authenticated_cb_t)                           \
-                            (pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref);
-
-/**
- * @typedef pinggy_on_authentication_failed_cb_t
- * @brief Callback for when tunnel authentication fails. It is similar to `pinggy_on_authenticated_cb_t`.
- * @param user_data  User-defined pointer passed during callback registration.
- * @param tunnel_ref Reference to the tunnel object.
- * @param num_reasons Size of the `reasons` array.
- * @param reasons Array of strings describing reasons for failure.
- */
-typedef pinggy_void_t (*pinggy_on_authentication_failed_cb_t)                   \
-                            (pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_len_t num_reasons, pinggy_char_p_p_t reasons);
-
-/**
- * @typedef pinggy_on_primary_forwarding_succeeded_cb_t
+ * @typedef pinggy_on_tunnel_established_cb_t
  * @brief Callback for when primary forwarding is successfully established.
  *
  * This callback can arrive only when the app has requested primary forwarding using
- * `pinggy_tunnel_request_primary_forwarding_blocking` or has called `pinggy_tunnel_request_primary_forwarding`
+ * `pinggy_tunnel_start_forwarding_blocking` or has called `pinggy_tunnel_start_forwarding`
  * and is waiting for an event by calling `pinggy_tunnel_resume`.
  *
  * @param user_data  User-defined pointer passed during callback registration.
@@ -234,18 +216,18 @@ typedef pinggy_void_t (*pinggy_on_authentication_failed_cb_t)                   
  * @param num_urls Size of the `urls` array.
  * @param urls Array of URLs as strings.
  */
-typedef pinggy_void_t (*pinggy_on_primary_forwarding_succeeded_cb_t)            \
+typedef pinggy_void_t (*pinggy_on_tunnel_established_cb_t)            \
                             (pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_len_t num_urls, pinggy_char_p_p_t urls);
 
 /**
- * @typedef pinggy_on_primary_forwarding_failed_cb_t
+ * @typedef pinggy_on_tunnel_failed_cb_t
  * @brief Callback for when primary forwarding fails. The context is the same as
- * `pinggy_on_primary_forwarding_succeeded_cb_t`.
+ * `pinggy_on_tunnel_established_cb_t`.
  * @param user_data  User-defined pointer passed during callback registration.
  * @param tunnel_ref Reference to the tunnel object.
  * @param msg Error message string.
  */
-typedef pinggy_void_t (*pinggy_on_primary_forwarding_failed_cb_t)               \
+typedef pinggy_void_t (*pinggy_on_tunnel_failed_cb_t)               \
                             (pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_const_char_p_t msg);
 
 /**
@@ -256,9 +238,10 @@ typedef pinggy_void_t (*pinggy_on_primary_forwarding_failed_cb_t)               
  * @param tunnel_ref Reference to the tunnel object.
  * @param bind_addr  The remote bind address as a string.
  * @param forward_to_addr The local forwarding address as a string.
+ * @param forwarding_type The forwarding type as a string.
  */
 typedef pinggy_void_t (*pinggy_on_additional_forwarding_succeeded_cb_t)         \
-                            (pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_const_char_p_t bind_addr, pinggy_const_char_p_t forward_to_addr);
+                            (pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_const_char_p_t bind_addr, pinggy_const_char_p_t forward_to_addr, pinggy_const_char_p_t forwarding_type);
 
 /**
  * @typedef pinggy_on_additional_forwarding_failed_cb_t
@@ -268,13 +251,14 @@ typedef pinggy_void_t (*pinggy_on_additional_forwarding_succeeded_cb_t)         
  * @param tunnel_ref Reference to the tunnel object.
  * @param bind_addr  The remote bind address as a string.
  * @param forward_to_addr The local forwarding address as a string.
+ * @param forwarding_type The forwarding type as a string.
  * @param error Error message string.
  */
 typedef pinggy_void_t (*pinggy_on_additional_forwarding_failed_cb_t)            \
-                            (pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_const_char_p_t bind_addr, pinggy_const_char_p_t forward_to_addr, pinggy_const_char_p_t error);
+                            (pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_const_char_p_t bind_addr, pinggy_const_char_p_t forward_to_addr, pinggy_const_char_p_t forwarding_type, pinggy_const_char_p_t error);
 
 /**
- * @typedef pinggy_on_forwarding_changed_cb_t
+ * @typedef pinggy_on_forwardings_changed_cb_t
  * @brief Callback for when the forwarding map changes.
  *
  * The app should expect this call at any time as long as the tunnel is running.
@@ -286,7 +270,7 @@ typedef pinggy_void_t (*pinggy_on_additional_forwarding_failed_cb_t)            
  * @param tunnel_ref Reference to the tunnel object.
  * @param url_map JSON string describing the new forwarding map.
  */
-typedef pinggy_void_t (*pinggy_on_forwarding_changed_cb_t)                      \
+typedef pinggy_void_t (*pinggy_on_forwardings_changed_cb_t)                      \
                             (pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_const_char_p_t url_map);
 
 /**
@@ -479,48 +463,104 @@ PINGGY_EXPORT pinggy_void_t
 pinggy_config_set_token(pinggy_ref_t config, pinggy_char_p_t token);
 
 /**
- * @brief Sets the tunnel type for the configuration.
+ * @brief Adds a new forwarding rule to the tunnel configuration.
  *
- * The type must be one of: "tcp", "http", "tls", or "tlstcp".
+ * This function allows you to specify how incoming connections to a `binding_url`
+ * on the Pinggy server should be forwarded to a `forward_to` address on your local machine.
+ *
+ * @param config          Reference to the tunnel config object.
+ * @param forwarding_type Null-terminated string specifying the type of forwarding.
+ *                        Valid types are "http", "tcp", "udp", "tls", "tlstcp".
+ *                        If an empty string or NULL is provided, "http" is assumed.
+ * @param binding_url     Null-terminated string specifying the remote address to bind to.
+ *                        This can be a domain name, a domain:port combination, or just a port.
+ *                        Examples: "example.pinggy.io", "example.pinggy.io:8080", ":80".
+ *                        If empty or NULL, the server will assign a default binding.
+ * @param forward_to      Null-terminated string specifying the local address to forward to.
+ *                        This can be a URL (e.g., "http://localhost:3000"), an IP address
+ *                        (e.g., "127.0.0.1:8000"), or just a port (e.g., ":5000").
+ *                        If the schema (e.g., "http://") and host are omitted, "localhost"
+ *                        is assumed. For example, ":3000" becomes "http://localhost:3000"
+ *                        for HTTP forwarding.
+ *                        If `forwarding_type` is "http" and `forward_to` specifies an "https"
+ *                        schema (e.g., "https://localhost:443"), this implicitly enables
+ *                        `local_server_tls` for this specific forwarding rule.
+ * @return                pinggy_true on success, pinggy_false on failure.
+ */
+PINGGY_EXPORT pinggy_void_t
+pinggy_config_add_forwarding(pinggy_ref_t config, pinggy_char_p_t forwarding_type, pinggy_char_p_t binding_url, pinggy_char_p_t forward_to);
+
+/**
+ * @brief Adds a new forwarding rule to the tunnel configuration with simplified parameters.
+ *
+ * This function provides a simplified way to add forwarding rules. It automatically
+ * determines the `forwarding_type` and `binding_url` based on the `forward_to`
+ * parameter, following a specific format.
+ *
+ * The `forward_to` parameter should follow the format `[forwarding_type://][localhost:]port`.
+ *
+ * - If `forwarding_type` is "https", it means the `forwarding_type` will be "http"
+ *   and `local_server_tls` will be enabled for this specific forwarding rule.
+ * - If `forwarding_type` is omitted, "http" is assumed.
+ * - If `localhost:` is omitted, "localhost" is assumed.
+ *
+ * Examples:
+ * - `pinggy_config_add_forwarding_simple(config, "3000")` will be interpreted as
+ *   `pinggy_config_add_forwarding(config, "http", "", "http://localhost:3000")`.
+ * - `pinggy_config_add_forwarding_simple(config, "tcp://localhost:22")` will be interpreted as
+ *   `pinggy_config_add_forwarding(config, "tcp", "", "tcp://localhost:22")`.
+ * - `pinggy_config_add_forwarding_simple(config, "https://8080")` will be interpreted as
+ *   `pinggy_config_add_forwarding(config, "http", "", "https://localhost:8080")`
+ *   and will also enable `local_server_tls` for this rule.
+ *
+ * @param config          Reference to the tunnel config object.
+ * @param forward_to      Null-terminated string specifying the local address to forward to,
+ *                        following the format `[forwarding_type://][localhost:]port`.
+ * @return                pinggy_true on success, pinggy_false on failure.
+ */
+PINGGY_EXPORT pinggy_void_t
+pinggy_config_add_forwarding_simple(pinggy_ref_t config, pinggy_char_p_t forward_to);
+
+/**
+ * @brief Sets multiple forwarding rules for the tunnel configuration.
+ *
+ * This function allows you to define multiple forwarding rules either as a single
+ * simplified forwarding string (similar to `pinggy_config_add_forwarding_simple`)
+ * or as a JSON array of forwarding objects.
+ *
+ * If `forwardings` is a single string, it should follow the format
+ * `[forwarding_type://][localhost:]port`.
+ *
+ * If `forwardings` is a JSON string, it should be an array of objects, where each
+ * object defines a forwarding rule with the following properties:
+ * - `type`: (Optional) The type of forwarding (e.g., "http", "tcp", "udp", "tls", "tlstcp").
+ *   Defaults to "http" if not specified.
+ * - `listenAddress`: (Optional) The remote address to bind to. Format: `[host][:port]`.
+ *   An empty string or undefined means the server will assign a default binding.
+ *   The hostname is ignored for TCP and UDP tunnels. Any schema provided will be ignored.
+ * - `address`: The local address to forward to. Format: `[protocol://][host]:port`.
+ *   The `protocol` is primarily used to determine if `local_server_tls` should be
+ *   enabled for this specific rule (e.g., `https://`). It is ignored otherwise.
+ *
+ * @param config      Reference to the tunnel config object.
+ * @param forwardings Null-terminated string representing either a single simplified
+ *                    forwarding rule or a JSON array of forwarding rule objects.
+ */
+PINGGY_EXPORT pinggy_void_t
+pinggy_config_set_forwardings(pinggy_ref_t config, pinggy_char_p_t forwardings);
+
+/**
+ * @brief Resets all forwarding rules previously added to the tunnel configuration.
+ *
+ * This function clears any forwarding rules that were set using `pinggy_config_add_forwarding`,
+ * `pinggy_config_add_forwarding_simple`, or `pinggy_config_set_forwardings`.
+ * After calling this function, the tunnel configuration will have no active forwarding rules
+ * until new ones are added.
  *
  * @param config Reference to the tunnel config object.
- * @param type   Null-terminated string specifying the tunnel type.
  */
 PINGGY_EXPORT pinggy_void_t
-pinggy_config_set_type(pinggy_ref_t config, pinggy_char_p_t type);
-
-/**
- * @brief Sets the UDP tunnel type for the configuration.
- *
- * Currently, the UDP type can be "udp" or an empty string.
- *
- * @param config   Reference to the tunnel config object.
- * @param udp_type Null-terminated string specifying the UDP type.
- */
-PINGGY_EXPORT pinggy_void_t
-pinggy_config_set_udp_type(pinggy_ref_t config, pinggy_char_p_t udp_type);
-
-/**
- * @brief Sets the local TCP server address for forwarding.
- *
- * Required when the tunnel type is "tcp", "http", "tls", or "tlstcp". The address should be in the format "<server>:<port>".
- *
- * @param config         Reference to the tunnel config object.
- * @param tcp_forward_to Null-terminated string specifying the local TCP server address.
- */
-PINGGY_EXPORT pinggy_void_t
-pinggy_config_set_tcp_forward_to(pinggy_ref_t config, pinggy_char_p_t tcp_forward_to);
-
-/**
- * @brief Sets the local UDP server address for forwarding.
- *
- * Required when the UDP type is set to "udp". The address should be in the format "<server>:<port>".
- *
- * @param config         Reference to the tunnel config object.
- * @param udp_forward_to Null-terminated string specifying the local UDP server address.
- */
-PINGGY_EXPORT pinggy_void_t
-pinggy_config_set_udp_forward_to(pinggy_ref_t config, pinggy_char_p_t udp_forward_to);
+pinggy_config_reset_forwardings(pinggy_ref_t config);
 
 /**
  * @brief Enables or disables force mode for the tunnel configuration.
@@ -741,6 +781,30 @@ pinggy_config_set_allow_preflight(pinggy_ref_t config, pinggy_bool_t allow_prefl
 PINGGY_EXPORT pinggy_void_t
 pinggy_config_set_local_server_tls(pinggy_ref_t config, pinggy_const_char_p_t local_server_tls);
 
+/**
+ * @brief Sets the port for the web debugger.
+ *
+ * This function configures the port on which the web debugger will listen.
+ * The web debugger provides a web interface for monitoring and debugging the tunnel.
+ *
+ * @param config Reference to the tunnel config object.
+ * @param addr   Address to use for the web debugger.
+ */
+PINGGY_EXPORT pinggy_void_t
+pinggy_config_set_webdebugger_addr(pinggy_ref_t ref, pinggy_const_char_p_t addr);
+
+/**
+ * @brief Enables or disables the web debugger for the tunnel.
+ *
+ * This function controls whether the web debugger is active.
+ * When enabled, the web debugger provides a web interface for monitoring and debugging the tunnel.
+ *
+ * @param config Reference to the tunnel config object.
+ * @param enable Set to pinggy_true to enable the web debugger, or pinggy_false to disable it.
+ */
+PINGGY_EXPORT pinggy_void_t
+pinggy_config_set_webdebugger(pinggy_ref_t config, pinggy_bool_t enable);
+
 //==============================
 
 /**
@@ -786,88 +850,26 @@ PINGGY_EXPORT pinggy_const_int_t
 pinggy_config_get_token_len(pinggy_ref_t config, pinggy_capa_t buffer_len, pinggy_char_p_t buffer, pinggy_capa_p_t max_len);
 
 /**
- * @brief Retrieves the tunnel type (e.g., "tcp", "http") from the tunnel config.
+ * @brief Retrieves the forwarding rules (as a JSON string) from the tunnel config.
  * @param config      Reference to the tunnel config object.
- * @param buffer_len  Length of the buffer provided for the type string.
- * @param buffer      Pointer to a character array where the type will be copied.
+ * @param buffer_len  Length of the buffer provided for the forwarding rules string.
+ * @param buffer      Pointer to a character array where the forwarding rules JSON will be copied.
  * @return            Number of bytes copied to the buffer (including null terminator).
  */
 PINGGY_EXPORT pinggy_const_int_t
-pinggy_config_get_type(pinggy_ref_t config, pinggy_capa_t buffer_len, pinggy_char_p_t buffer);
+pinggy_config_get_forwardings(pinggy_ref_t config, pinggy_capa_t buffer_len, pinggy_char_p_t buffer);
 
 /**
- * @brief Retrieves the tunnel type from the tunnel config, and provides the required buffer size.
+ * @brief Retrieves the forwarding rules (as a JSON string) from the tunnel config, and provides the required buffer size.
  * @param config      Reference to the tunnel config object.
- * @param buffer_len  Length of the buffer provided for the type string.
- * @param buffer      Pointer to a character array where the type will be copied.
- * @param max_len     Pointer to a variable that will be set to the total length required to hold the full type string (including null terminator).
+ * @param buffer_len  Length of the buffer provided for the forwarding rules string.
+ * @param buffer      Pointer to a character array where the forwarding rules JSON will be copied.
+ * @param max_len     Pointer to a variable that will be set to the total length required to hold the full forwarding rules string (including null terminator).
  * @return            Number of bytes copied to the buffer (including null terminator).
  */
 PINGGY_EXPORT pinggy_const_int_t
-pinggy_config_get_type_len(pinggy_ref_t config, pinggy_capa_t buffer_len, pinggy_char_p_t buffer, pinggy_capa_p_t max_len);
+pinggy_config_get_forwardings_len(pinggy_ref_t config, pinggy_capa_t buffer_len, pinggy_char_p_t buffer, pinggy_capa_p_t max_len);
 
-/**
- * @brief Retrieves the UDP tunnel type from the tunnel config.
- * @param config      Reference to the tunnel config object.
- * @param buffer_len  Length of the buffer provided for the UDP type string.
- * @param buffer      Pointer to a character array where the UDP type will be copied.
- * @return            Number of bytes copied to the buffer (including null terminator).
- */
-PINGGY_EXPORT pinggy_const_int_t
-pinggy_config_get_udp_type(pinggy_ref_t config, pinggy_capa_t buffer_len, pinggy_char_p_t buffer);
-
-/**
- * @brief Retrieves the UDP tunnel type from the tunnel config, and provides the required buffer size.
- * @param config      Reference to the tunnel config object.
- * @param buffer_len  Length of the buffer provided for the UDP type string.
- * @param buffer      Pointer to a character array where the UDP type will be copied.
- * @param max_len     Pointer to a variable that will be set to the total length required to hold the full UDP type string (including null terminator).
- * @return            Number of bytes copied to the buffer (including null terminator).
- */
-PINGGY_EXPORT pinggy_const_int_t
-pinggy_config_get_udp_type_len(pinggy_ref_t config, pinggy_capa_t buffer_len, pinggy_char_p_t buffer, pinggy_capa_p_t max_len);
-
-/**
- * @brief Retrieves the TCP forwarding address from the tunnel config.
- * @param config      Reference to the tunnel config object.
- * @param buffer_len  Length of the buffer provided for the forwarding address.
- * @param buffer      Pointer to a character array where the forwarding address will be copied.
- * @return            Number of bytes copied to the buffer (including null terminator).
- */
-PINGGY_EXPORT pinggy_const_int_t
-pinggy_config_get_tcp_forward_to(pinggy_ref_t config, pinggy_capa_t buffer_len, pinggy_char_p_t buffer);
-
-/**
- * @brief Retrieves the TCP forwarding address from the tunnel config, and provides the required buffer size.
- * @param config      Reference to the tunnel config object.
- * @param buffer_len  Length of the buffer provided for the forwarding address.
- * @param buffer      Pointer to a character array where the forwarding address will be copied.
- * @param max_len     Pointer to a variable that will be set to the total length required to hold the full forwarding address (including null terminator).
- * @return            Number of bytes copied to the buffer (including null terminator).
- */
-PINGGY_EXPORT pinggy_const_int_t
-pinggy_config_get_tcp_forward_to_len(pinggy_ref_t config, pinggy_capa_t buffer_len, pinggy_char_p_t buffer, pinggy_capa_p_t max_len);
-
-/**
- * @brief Retrieves the UDP forwarding address from the tunnel config.
- * @param config      Reference to the tunnel config object.
- * @param buffer_len  Length of the buffer provided for the forwarding address.
- * @param buffer      Pointer to a character array where the forwarding address will be copied.
- * @return            Number of bytes copied to the buffer (including null terminator).
- */
-PINGGY_EXPORT pinggy_const_int_t
-pinggy_config_get_udp_forward_to(pinggy_ref_t config, pinggy_capa_t buffer_len, pinggy_char_p_t buffer);
-
-/**
- * @brief Retrieves the UDP forwarding address from the tunnel config, and provides the required buffer size.
- * @param config      Reference to the tunnel config object.
- * @param buffer_len  Length of the buffer provided for the forwarding address.
- * @param buffer      Pointer to a character array where the forwarding address will be copied.
- * @param max_len     Pointer to a variable that will be set to the total length required to hold the full forwarding address (including null terminator).
- * @return            Number of bytes copied to the buffer (including null terminator).
- */
-PINGGY_EXPORT pinggy_const_int_t
-pinggy_config_get_udp_forward_to_len(pinggy_ref_t config, pinggy_capa_t buffer_len, pinggy_char_p_t buffer, pinggy_capa_p_t max_len);
 
 /**
  * @brief Checks whether the force mode is enabled in the tunnel config.
@@ -1114,6 +1116,35 @@ pinggy_config_get_local_server_tls(pinggy_ref_t config, pinggy_capa_t buffer_len
 PINGGY_EXPORT pinggy_const_int_t
 pinggy_config_get_local_server_tls_len(pinggy_ref_t config, pinggy_capa_t buffer_len, pinggy_char_p_t buffer, pinggy_capa_p_t max_len);
 
+/**
+ * @brief Retrieves the web debugger bindaddress from the tunnel config.
+ * @param config  Reference to the tunnel config object.
+ * @param buffer_len  Length of the buffer provided for the web-debugger address.
+ * @param buffer      Pointer to a character array where the web-debugger address string will be copied.
+ * @return            Number of bytes copied to the buffer (excluding null terminator).
+ */
+PINGGY_EXPORT pinggy_const_int_t
+pinggy_config_get_webdebugger_addr(pinggy_ref_t config, pinggy_capa_t buffer_len, pinggy_char_p_t buffer);
+
+/**
+ * @brief Retrieves the web debugger bindaddress from the tunnel config.
+ * @param config  Reference to the tunnel config object.
+ * @param buffer_len  Length of the buffer provided for the web-debugger address.
+ * @param buffer      Pointer to a character array where the web-debugger string will be copied.
+ * @param max_len     Pointer to a variable that will be set to the total length required to hold the full web-debugger address string (including null terminator).
+ * @return            Number of bytes copied to the buffer (excluding null terminator).
+ */
+PINGGY_EXPORT pinggy_const_int_t
+pinggy_config_get_webdebugger_addr_len(pinggy_ref_t config, pinggy_capa_t buffer_len, pinggy_char_p_t buffer, pinggy_capa_p_t max_len);
+
+/**
+ * @brief Checks whether the web debugger is enabled in the tunnel config.
+ * @param config  Reference to the tunnel config object.
+ * @return        pinggy_true if the web debugger is enabled, otherwise pinggy_false.
+ */
+PINGGY_EXPORT pinggy_bool_t
+pinggy_config_get_webdebugger(pinggy_ref_t config);
+
 //====================================
 
 /**
@@ -1137,32 +1168,18 @@ PINGGY_EXPORT pinggy_bool_t
 pinggy_tunnel_start(pinggy_ref_t tunnel);
 
 /**
- * @brief Connects and authenticates the tunnel.
- *
- * This function triggers the authentication process and calls the appropriate callbacks if set. After completion, the application must call pinggy_tunnel_resume in a loop to until it receives authentication callbacks.
+ * @brief It is similar to resume. However, it also start the the tunnel if not started.
  *
  * @param tunnel Reference to the tunnel object.
- * @return      pinggy_true if authentication succeeded, pinggy_false otherwise.
+ * @return      pinggy_true on success, pinggy_false on failure.
  */
 PINGGY_EXPORT pinggy_bool_t
-pinggy_tunnel_connect(pinggy_ref_t tunnel);
-
-
-/**
- * @brief Connects and authenticates the tunnel (blocking).
- *
- * This function triggers the authentication process and calls the appropriate callbacks if set. Unlike pinggy_tunnel_connect, the application does not need to call pinggy_tunnel_resume after this call.
- *
- * @param tunnel Reference to the tunnel object.
- * @return      pinggy_true if authentication succeeded, pinggy_false otherwise.
- */
-PINGGY_EXPORT pinggy_bool_t
-pinggy_tunnel_connect_blocking(pinggy_ref_t tunnel);
+pinggy_tunnel_start_non_blocking(pinggy_ref_t tunnel);
 
 /**
  * @brief Resumes tunnel operation after connect.
  *
- * Applications should call this function in a loop after pinggy_tunnel_connect and pinggy_tunnel_request_primary_forwarding to keep the tunnel active. Returns false when the tunnel should stop.
+ * Applications should call this function in a loop after pinggy_tunnel_connect and pinggy_tunnel_start_forwarding to keep the tunnel active. Returns false when the tunnel should stop.
  *
  * @param tunnel Reference to the tunnel object.
  * @return      pinggy_true to continue, pinggy_false to stop.
@@ -1207,42 +1224,22 @@ pinggy_tunnel_is_active(pinggy_ref_t tunnel);
  * @brief Starts a web debugging server managed by the tunnel.
  *
  * @param tunnel         Reference to the tunnel object.
- * @param listening_port Port number to listen on for debugging.
- * @return              The port number actually used for debugging.
+ * @param listening_addr listening addr for the webDebugger. Keep it empty for automatic selection.
+ * @return              The listening addr.
  */
-PINGGY_EXPORT pinggy_uint16_t
-pinggy_tunnel_start_web_debugging(pinggy_ref_t tunnel, pinggy_uint16_t listening_port);
-
-/**
- * @brief Requests remote forwarding from the server.
- *
- * The server will provide a domain name and call the appropriate callbacks. The application must call pinggy_tunnel_resume to receive these callbacks.
- *
- * @param tunnel Reference to the tunnel object.
- */
-PINGGY_EXPORT pinggy_void_t
-pinggy_tunnel_request_primary_forwarding(pinggy_ref_t tunnel);
-
-
-/**
- * @brief Requests remote forwarding from the server (blocking).
- *
- * The server will provide a domain name and call the appropriate callbacks. The application does not need to call pinggy_tunnel_resume to receive these callbacks.
- *
- * @param tunnel Reference to the tunnel object.
- */
-PINGGY_EXPORT pinggy_void_t
-pinggy_tunnel_request_primary_forwarding_blocking(pinggy_ref_t tunnel);
+PINGGY_EXPORT pinggy_bool_t
+pinggy_tunnel_start_web_debugging(pinggy_ref_t tunnel, pinggy_const_char_p_t listening_addr);
 
 /**
  * @brief Requests additional remote forwarding from the server.
  *
  * @param tunnel              Reference to the tunnel object.
- * @param remote_binding_addr Null-terminated string specifying the remote binding address.
+ * @param remote_binding_url  Null-terminated string specifying the remote binding address. It can contain schema. `forwarding_type` would be derived from the schema if it is empty.
  * @param forward_to          Null-terminated string specifying the local forwarding address.
+ * @param forwarding_type     It is equivalen to tunnel_type. It can be one of [http, tcp, tls, tlstcp, udp]
  */
 PINGGY_EXPORT pinggy_void_t
-pinggy_tunnel_request_additional_forwarding(pinggy_ref_t, pinggy_const_char_p_t, pinggy_const_char_p_t);
+pinggy_tunnel_request_additional_forwarding(pinggy_ref_t tunnel, pinggy_const_char_p_t remote_binding_url, pinggy_const_char_p_t forward_to, pinggy_const_char_p_t forwarding_type);
 
 /**
  * @brief Starts continuous usage updates for the tunnel.
@@ -1306,8 +1303,58 @@ pinggy_tunnel_get_greeting_msgs(pinggy_ref_t tunnel, pinggy_capa_t capa, pinggy_
 PINGGY_EXPORT pinggy_const_int_t
 pinggy_tunnel_get_greeting_msgs_len(pinggy_ref_t tunnel, pinggy_capa_t capa, pinggy_char_p_t val, pinggy_capa_p_t max_len);
 
+/**
+ * @brief Retrieves the web debugging port from the tunnel.
+ *
+ * This function retrieves the port on which the web debugger is listening,
+ * if it has been started for the given tunnel.
+ *
+ * @param tunnel     Reference to the tunnel object.
+ * @return           The listening port.
+ */
 PINGGY_EXPORT pinggy_uint16_t
 pinggy_tunnel_get_webdebugging_port(pinggy_ref_t tunnel);
+
+/**
+ * @brief Retrieves the web debugging address from the tunnel.
+ *
+ * This function retrieves the address on which the web debugger is listening,
+ * if it has been started for the given tunnel.
+ *
+ * @param tunnel     Reference to the tunnel object.
+ * @param capa       Capacity of the provided buffer.
+ * @param val        Pointer to a character buffer to receive the web debugging address string.
+ * @return           Number of bytes copied to the buffer.
+ */
+PINGGY_EXPORT pinggy_const_int_t
+pinggy_tunnel_get_webdebugging_addr(pinggy_ref_t tunnel, pinggy_capa_t capa, pinggy_char_p_t val);
+
+/**
+ * @brief Retrieves the web debugging address from the tunnel.
+ *
+ * This function retrieves the address on which the web debugger is listening,
+ * if it has been started for the given tunnel.
+ *
+ * @param tunnel     Reference to the tunnel object.
+ * @param capa       Capacity of the provided buffer.
+ * @param val        Pointer to a character buffer to receive the web debugging address string.
+ * @param max_len    Pointer to a variable to receive the required buffer size.
+ * @return           Number of bytes copied to the buffer.
+ */
+PINGGY_EXPORT pinggy_const_int_t
+pinggy_tunnel_get_webdebugging_addr_len(pinggy_ref_t tunnel, pinggy_capa_t capa, pinggy_char_p_t val, pinggy_capa_p_t max_len);
+
+/**
+ * @brief Retrieves the internal state of the tunnel.
+ *
+ * This function returns the current operational state of the tunnel,
+ * which can be used to monitor its lifecycle and progress.
+ *
+ * @param tunnel Reference to the tunnel object.
+ * @return      A `pinggy_tunnel_state_t` enum value representing the current state of the tunnel.
+ */
+PINGGY_EXPORT pinggy_tunnel_state_t
+pinggy_tunnel_get_state(pinggy_ref_t tunnel);
 
 
 //=====================================
@@ -1315,59 +1362,26 @@ pinggy_tunnel_get_webdebugging_port(pinggy_ref_t tunnel);
 //=====================================
 
 /**
- * @brief Registers a callback for when the tunnel is successfully connected to the server.
- *
- * @param tunnel    Reference to the tunnel object.
- * @param connected Function pointer for the connected callback.
- * @param user_data User data to be passed to the callback.
- * @return          pinggy_true on success, pinggy_false on failure.
- */
-PINGGY_EXPORT pinggy_bool_t
-pinggy_tunnel_set_on_connected_callback(pinggy_ref_t tunnel, pinggy_on_connected_cb_t connected, pinggy_void_p_t user_data);
-
-/**
- * @brief Registers a callback for when the tunnel is authenticated.
- *
- * @param tunnel         Reference to the tunnel object.
- * @param authenticated  Function pointer for the authenticated callback.
- * @param user_data      User data to be passed to the callback.
- * @return               pinggy_true on success, pinggy_false on failure.
- */
-PINGGY_EXPORT pinggy_bool_t
-pinggy_tunnel_set_on_authenticated_callback(pinggy_ref_t tunnel, pinggy_on_authenticated_cb_t authenticated, pinggy_void_p_t user_data);
-
-/**
- * @brief Registers a callback for when tunnel authentication fails.
- *
- * @param tunnel                Reference to the tunnel object.
- * @param authentication_failed Function pointer for the authentication failed callback.
- * @param user_data             User data to be passed to the callback.
- * @return                      pinggy_true on success, pinggy_false on failure.
- */
-PINGGY_EXPORT pinggy_bool_t
-pinggy_tunnel_set_on_authentication_failed_callback(pinggy_ref_t tunnel, pinggy_on_authentication_failed_cb_t authentication_failed, pinggy_void_p_t user_data);
-
-/**
  * @brief Registers a callback for when primary forwarding is successfully established.
  *
  * @param tunnel                         Reference to the tunnel object.
- * @param primary_forwarding_succeeded   Function pointer for the primary forwarding succeeded callback.
+ * @param forwarding_succeeded   Function pointer for the primary forwarding succeeded callback.
  * @param user_data                      User data to be passed to the callback.
  * @return                               pinggy_true on success, pinggy_false on failure.
  */
 PINGGY_EXPORT pinggy_bool_t
-pinggy_tunnel_set_on_primary_forwarding_succeeded_callback(pinggy_ref_t tunnel, pinggy_on_primary_forwarding_succeeded_cb_t, pinggy_void_p_t user_data);
+pinggy_tunnel_set_on_tunnel_established_callback(pinggy_ref_t tunnel, pinggy_on_tunnel_established_cb_t, pinggy_void_p_t user_data);
 
 /**
  * @brief Registers a callback for when primary forwarding fails.
  *
  * @param tunnel                       Reference to the tunnel object.
- * @param primary_forwarding_failed    Function pointer for the primary forwarding failed callback.
+ * @param forwarding_failed    Function pointer for the primary forwarding failed callback.
  * @param user_data                    User data to be passed to the callback.
  * @return                             pinggy_true on success, pinggy_false on failure.
  */
 PINGGY_EXPORT pinggy_bool_t
-pinggy_tunnel_set_on_primary_forwarding_failed_callback(pinggy_ref_t tunnel, pinggy_on_primary_forwarding_failed_cb_t, pinggy_void_p_t user_data);
+pinggy_tunnel_set_on_tunnel_failed_callback(pinggy_ref_t tunnel, pinggy_on_tunnel_failed_cb_t, pinggy_void_p_t user_data);
 
 /**
  * @brief Registers a callback for when additional forwarding is successfully established.
@@ -1400,7 +1414,7 @@ pinggy_tunnel_set_on_additional_forwarding_failed_callback(pinggy_ref_t tunnel, 
  * @return                   pinggy_true on success, pinggy_false on failure.
  */
 PINGGY_EXPORT pinggy_bool_t
-pinggy_tunnel_set_on_forwarding_changed_callback(pinggy_ref_t tunnel, pinggy_on_forwarding_changed_cb_t forwarding_changed, pinggy_void_p_t user_data);
+pinggy_tunnel_set_on_forwardings_changed_callback(pinggy_ref_t tunnel, pinggy_on_forwardings_changed_cb_t forwarding_changed, pinggy_void_p_t user_data);
 
 /**
  * @brief Registers a callback for when the tunnel is disconnected.
@@ -1822,35 +1836,6 @@ pinggy_build_os(pinggy_capa_t capa, pinggy_char_p_t val);
 PINGGY_EXPORT pinggy_const_int_t
 pinggy_build_os_len(pinggy_capa_t capa, pinggy_char_p_t val, pinggy_capa_p_t max_len);
 //==============================================================
-
-//==========================================
-// FORWARD COMPATIBILITY
-//==========================================
-#define pinggy_connected_cb_t                                       pinggy_on_connected_cb_t
-#define pinggy_authenticated_cb_t                                   pinggy_on_authenticated_cb_t
-#define pinggy_authentication_failed_cb_t                           pinggy_on_authentication_failed_cb_t
-#define pinggy_primary_forwarding_succeeded_cb_t                    pinggy_on_primary_forwarding_succeeded_cb_t
-#define pinggy_primary_forwarding_failed_cb_t                       pinggy_on_primary_forwarding_failed_cb_t
-#define pinggy_additional_forwarding_succeeded_cb_t                 pinggy_on_additional_forwarding_succeeded_cb_t
-#define pinggy_additional_forwarding_failed_cb_t                    pinggy_on_additional_forwarding_failed_cb_t
-#define pinggy_disconnected_cb_t                                    pinggy_on_disconnected_cb_t
-#define pinggy_tunnel_error_cb_t                                    pinggy_on_tunnel_error_cb_t
-#define pinggy_new_channel_cb_t                                     pinggy_on_new_channel_cb_t
-#define pinggy_raise_exception_cb_t                                 pinggy_on_raise_exception_cb_t
-
-#define pinggy_set_exception_callback                               pinggy_set_on_exception_callback
-#define pinggy_tunnel_set_connected_callback                        pinggy_tunnel_set_on_connected_callback
-#define pinggy_tunnel_set_authenticated_callback                    pinggy_tunnel_set_on_authenticated_callback
-#define pinggy_tunnel_set_authentication_failed_callback            pinggy_tunnel_set_on_authentication_failed_callback
-#define pinggy_tunnel_set_primary_forwarding_succeeded_callback     pinggy_tunnel_set_on_primary_forwarding_succeeded_callback
-#define pinggy_tunnel_set_primary_forwarding_failed_callback        pinggy_tunnel_set_on_primary_forwarding_failed_callback
-#define pinggy_tunnel_set_additional_forwarding_succeeded_callback  pinggy_tunnel_set_on_additional_forwarding_succeeded_callback
-#define pinggy_tunnel_set_additional_forwarding_failed_callback     pinggy_tunnel_set_on_additional_forwarding_failed_callback
-#define pinggy_tunnel_set_disconnected_callback                     pinggy_tunnel_set_on_disconnected_callback
-#define pinggy_tunnel_set_tunnel_error_callback                     pinggy_tunnel_set_on_tunnel_error_callback
-#define pinggy_tunnel_set_new_channel_callback                      pinggy_tunnel_set_on_new_channel_callback
-
-
 
 #ifdef __cplusplus
 }

@@ -74,16 +74,18 @@ printHelpOptions(const char *prog)
 }
 
 typedef struct {
-    pinggy_ref_t config_ref;
-    uint16_t web_debugger_port;
-    pinggy_bool_t enable_web_debugger;
-    char *error_msg;
-    pinggy_ref_t tunnel_ref;
+    pinggy_ref_t                config_ref;
+    port_t                      web_debugger_port;
+    pinggy_bool_t               enable_web_debugger;
+    pinggy_char_p_t             error_msg;
+    pinggy_ref_t                tunnel_ref;
+    pinggy_char_p_t             mode;
 } client_app_data_t;
 
 
 
-static int split_forwarding(const char* val, char parts[][128], int max_parts)
+static int
+split_forwarding(const char* val, char parts[][128], int max_parts)
 {
     int count = 0;
     const char* start = val;
@@ -102,8 +104,7 @@ static int split_forwarding(const char* val, char parts[][128], int max_parts)
             parts[count - 1][len] = '\0';
             start = end + 1;
             if (*start == ':') start++;
-        }
-        else {
+        } else {
             const char* colon = strchr(start, ':');
             if (!colon) {
                 strncpy(parts[count++], start, 127);
@@ -123,7 +124,8 @@ static int split_forwarding(const char* val, char parts[][128], int max_parts)
 }
 
 
-static int parse_forward_tunnel(client_app_data_t* app_data, const char* value)
+static int
+parse_forward_tunnel(client_app_data_t* app_data, const char* value)
 {
     char parts[8][128];
     int count = split_forwarding(value, parts, 8);
@@ -137,7 +139,8 @@ static int parse_forward_tunnel(client_app_data_t* app_data, const char* value)
     return 1;
 }
 
-static int parse_reverse_tunnel(pinggy_ref_t config_ref, const char* value)
+static int
+parse_reverse_tunnel(pinggy_ref_t config_ref, const char* value)
 {
     char parts[8][128];
     int count = split_forwarding(value, parts, 8);
@@ -180,7 +183,8 @@ static int parse_reverse_tunnel(pinggy_ref_t config_ref, const char* value)
 }
 
 
-static int parse_user(pinggy_ref_t config_ref, char* user)
+static int
+parse_user(pinggy_ref_t config_ref, char* user)
 {
     char tcp_forward_to_buf[256] = { 0 };
     pinggy_config_get_tcp_forward_to(config_ref, sizeof(tcp_forward_to_buf), tcp_forward_to_buf);
@@ -232,7 +236,8 @@ static int parse_user(pinggy_ref_t config_ref, char* user)
 }
 
 
-static int parse_user_server(pinggy_ref_t config_ref, char* value, const char* port)
+static int
+parse_user_server(pinggy_ref_t config_ref, char* value, const char* port)
 {
     char* at_sign = strrchr(value, '@');
     char server_addr[256];
@@ -253,7 +258,8 @@ static int parse_user_server(pinggy_ref_t config_ref, char* value, const char* p
     return 1;
 }
 
-static int parse_sdk_arguments(pinggy_ref_t config_ref, int argc, char* argv[])
+static int
+parse_sdk_arguments(pinggy_ref_t config_ref, int argc, char* argv[])
 {
     if (argc <= 0) return 1;
 
@@ -276,10 +282,12 @@ static int parse_sdk_arguments(pinggy_ref_t config_ref, int argc, char* argv[])
 
 
 
-static client_app_data_t* parse_arguments(int argc, char* argv[])
+static client_app_data_t *
+parse_arguments(int argc, char *argv[])
 {
-    client_app_data_t* app_data = (client_app_data_t*)calloc(1, sizeof(client_app_data_t));
+    client_app_data_t *app_data = (client_app_data_t*)calloc(1, sizeof(client_app_data_t));
     if (!app_data) return NULL;
+    bzero(app_data, sizeof(client_app_data_t));
 
     app_data->config_ref = pinggy_create_config();
     if (app_data->config_ref == INVALID_PINGGY_REF) {
@@ -363,6 +371,10 @@ static client_app_data_t* parse_arguments(int argc, char* argv[])
         exit_now = 1;
     }
 
+    if (!exit_now) {
+        exit_now = !parse_reverse_tunnel(app_data);
+    }
+
     if ((cli_optind + 1) < argc) {
         if (!parse_sdk_arguments(app_data->config_ref, argc - (cli_optind + 1), argv + (cli_optind + 1))) {
             exit_now = 1;
@@ -378,9 +390,10 @@ static client_app_data_t* parse_arguments(int argc, char* argv[])
     return app_data;
 }
 
-static void on_primary_forwarding_succeeded(pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_len_t num_urls, pinggy_char_p_p_t urls)
+static void
+on_primary_forwarding_succeeded(pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_len_t num_urls, pinggy_char_p_p_t urls)
 {
-    client_app_data_t* app_data = (client_app_data_t*)user_data;
+    client_app_data_t *app_data = (client_app_data_t*)user_data;
     int i;
     printf("Connection completed\n");
     for (i = 0; i < num_urls; i++) {
@@ -391,9 +404,10 @@ static void on_primary_forwarding_succeeded(pinggy_void_p_t user_data, pinggy_re
     }
 }
 
-static void on_authentication_failed(pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_len_t num_reasons, pinggy_char_p_p_t reasons)
+static void
+on_authentication_failed(pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_len_t num_reasons, pinggy_char_p_p_t reasons)
 {
-    client_app_data_t* app_data = (client_app_data_t*)user_data;
+    client_app_data_t *app_data = (client_app_data_t*)user_data;
     size_t total_len = 0;
     int i;
     for (i = 0; i < num_reasons; i++) {
@@ -413,35 +427,40 @@ static void on_authentication_failed(pinggy_void_p_t user_data, pinggy_ref_t tun
     }
 }
 
-static void on_primary_forwarding_failed(pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_const_char_p_t msg)
+static void
+on_primary_forwarding_failed(pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_const_char_p_t msg)
 {
-    client_app_data_t* app_data = (client_app_data_t*)user_data;
+    client_app_data_t *app_data = (client_app_data_t*)user_data;
     if (msg) {
         app_data->error_msg = (char*)malloc(strlen(msg) + 1);
         if (app_data->error_msg) strcpy(app_data->error_msg, msg);
     }
 }
 
-static void on_disconnected(pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_const_char_p_t error, pinggy_len_t msg_size, pinggy_char_p_p_t msg)
+static void
+on_disconnected(pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_const_char_p_t error, pinggy_len_t msg_size, pinggy_char_p_p_t msg)
 {
-    client_app_data_t* app_data = (client_app_data_t*)user_data;
+    client_app_data_t *app_data = (client_app_data_t*)user_data;
     if (error) {
         app_data->error_msg = (char*)malloc(strlen(error) + 1);
         if (app_data->error_msg) strcpy(app_data->error_msg, error);
     }
 }
 
-static void on_will_reconnect(pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_const_char_p_t error, pinggy_len_t num_msgs, pinggy_char_p_p_t messages)
+static void
+on_will_reconnect(pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_const_char_p_t error, pinggy_len_t num_msgs, pinggy_char_p_p_t messages)
 {
     printf("Reconnecting\n");
 }
 
-static void on_reconnecting(pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_uint16_t retry_cnt)
+static void
+on_reconnecting(pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_uint16_t retry_cnt)
 {
     printf("Trying.. %u\n", retry_cnt);
 }
 
-static void on_reconnection_completed(pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_len_t num_urls, pinggy_char_p_p_t urls)
+static void
+on_reconnection_completed(pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_len_t num_urls, pinggy_char_p_p_t urls)
 {
     int i;
     printf("Reconnected\n");
@@ -450,12 +469,14 @@ static void on_reconnection_completed(pinggy_void_p_t user_data, pinggy_ref_t tu
     }
 }
 
-static void on_reconnection_failed(pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_uint16_t retry_cnt)
+static void
+on_reconnection_failed(pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_uint16_t retry_cnt)
 {
     printf("Reconnection failed after %u tries\n", retry_cnt);
 }
 
-static void on_usage_update(pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_const_char_p_t usages)
+static void
+on_usage_update(pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_const_char_p_t usages)
 {
     printf("Update msg: %s\n", usages);
     pinggy_capa_t capa = 0;
@@ -471,9 +492,11 @@ static pinggy_void_t
 pinggy_on_raise_exception_cb(pinggy_const_char_p_t where, pinggy_const_char_p_t what)
 {
     printf("%s ==> %s\n", where, what);
+    exit(1);
 }
 
-int main(int argc, char* argv[])
+int
+main(int argc, char *argv[])
 {
 #ifdef __WINDOWS_OS__
     WindowsSocketInitialize();

@@ -29,29 +29,24 @@
 namespace sdk
 {
 
-enum SdkState {
-    SdkState_Invalid = 0,
-    SdkState_AuthenticationFailed,
-    SdkState_PrimaryReverseForwardingFailed,
+enum class SdkState {
+    Invalid = 0,
 
-    SdkState_Initial,
-    SdkState_Connecting,
-    SdkState_Connected,
-    SdkState_SessionInitiating,
-    SdkState_SessionInitiated,
-    SdkState_Authenticating,
-    SdkState_Authenticated,
-    SdkState_PrimaryReverseForwardingInitiated,
-    SdkState_PrimaryReverseForwardingAccepted,
-    SdkState_PrimaryReverseForwardingSucceeded,
+    Initial,
+    Started,
+    ReconnectInitiated,
+    Reconnecting,
+    Connecting,
+    Connected,
+    SessionInitiating,
+    SessionInitiated,
+    Authenticating,
+    Authenticated,
+    ForwardingInitiated,
+    ForwardingSucceeded,
 
-    SdkState_Disconnected,
-
-    SdkState_Reconnect_Failed,
-    SdkState_Reconnect_Initiated,
-    SdkState_Reconnect_Connected,
-    SdkState_Reconnect_Forwarded,
-    SdkState_ReconnectWaiting,
+    Stopped,
+    Ended,
 };
 
 abstract class SdkEventHandler: virtual public pinggy::SharedObject
@@ -61,33 +56,22 @@ public:
     ~SdkEventHandler()          { }
 
     virtual void
-    OnConnected()                 { }
-
-    virtual void
-    OnAuthenticated()             { } //Not important;
-
-    virtual void
-    OnAuthenticationFailed(std::vector<tString> why)
+    OnTunnelEstablished(std::vector<tString> urls)
                                 { }
 
     virtual void
-    OnPrimaryForwardingSucceeded(std::vector<tString> urls)
+    OnTunnelFailed(tString) { }
+
+    virtual void
+    OnAdditionalForwardingSucceeded(tString bindAddress, tString forwardTo, tString forwardingType)
                                 { }
 
     virtual void
-    OnPrimaryForwardingFailed(tString)
+    OnAdditionalForwardingFailed(tString bindAddress, tString forwardTo, tString forwardingType, tString error)
                                 { }
 
     virtual void
-    OnAdditionalForwardingSucceeded(tString bindAddress, tString forwardTo)
-                                { }
-
-    virtual void
-    OnAdditionalForwardingFailed(tString bindAddress, tString forwardTo, tString error)
-                                { }
-
-    virtual void
-    OnForwardingChanged(tString changedJson)
+    OnForwardingsChanged(tString changedJson)
                                 { }
 
     virtual void
@@ -139,10 +123,7 @@ public:
     ~Sdk();
 
     bool
-    Connect(bool block = false);
-
-    bool
-    Start();
+    Start(bool block = true);
 
     bool
     Stop();
@@ -151,7 +132,7 @@ public:
     ResumeTunnel(tInt32 timeout = -1);
 
     bool
-    IsAuthenticated()           {return state >= SdkState_Authenticated;}
+    IsAuthenticated()           {return state >= SdkState::Authenticated;}
 
     std::vector<tString>
     GetUrls();
@@ -165,17 +146,20 @@ public:
     ThreadLockPtr
     LockIfDifferentThread();
 
-    port_t
-    StartWebDebugging(port_t port=4300);
-
-    bool
-    RequestPrimaryRemoteForwarding(bool block = false);
+    tString
+    StartWebDebugging(tString addr);
 
     void
-    RequestAdditionalRemoteForwarding(tString bindAddress, tString forwardTo);
+    RequestAdditionalForwarding(tString forwardingType, tString bindingUrl, tString forwardTo);
+
+    void
+    RequestAdditionalForwarding(tString forwardTo);
 
     bool
-    IsTunnelActive()            { return (state >= SdkState_Authenticating && (!stopped)); }
+    IsTunnelActive()            { return (state >= SdkState::Started && state < SdkState::Stopped); }
+
+    SdkState
+    GetTunnelState();
 
     void
     StartUsagesUpdate()         { usagesRunning = true; }
@@ -192,6 +176,9 @@ public:
     const tString&
     GetGreetingMsg()            { return greetingMsgs; }
 
+    tString
+    GetWebDebuggerListeningAddress();
+
     tPort
     GetWebDebugListeningPort();
 
@@ -206,7 +193,8 @@ public:
     HandleSessionAuthenticationFailed(tString error, std::vector<tString> OnAuthenticationFailed) override;
 
     virtual void
-    HandleSessionRemoteForwardingSucceeded(protocol::tReqId reqId, std::vector<tString> urls) override;
+    HandleSessionRemoteForwardingSucceeded(protocol::tReqId reqId, tForwardingId forwardingId, std::vector<tString> urls,
+                                            std::vector<RemoteForwardingPtr> remoteForwardings) override;
 
     virtual void
     HandleSessionRemoteForwardingFailed(protocol::tReqId reqId, tString error) override;
@@ -281,10 +269,7 @@ private:
     authenticate();
 
     void
-    tunnelInitiated();
-
-    bool
-    internalConnect(bool block);
+    internalConnect();
 
     bool
     startPollingInCurrentThread();
@@ -313,9 +298,6 @@ private:
     void
     initPollController();
 
-    void
-    initiateContinousUsages();
-
     bool
     resumeWithLock(tString funcName, tInt32 timeout);
 
@@ -325,18 +307,8 @@ private:
     void
     setState(SdkState s)        { state = s; }
 
-    void
-    setReconnectionState(SdkState s)
-                                { reconnectionState = s; }
-
-    void
-    handlePrimaryForwardingFailed(tString reason);
-
-    void
-    primaryForwardingCompleted();
-
     bool
-    internalRequestPrimaryRemoteForwarding(bool block = false);
+    internalRequestForwarding();
 
     void
     acquireAccessLock(bool block = false);
@@ -345,21 +317,24 @@ private:
     releaseAccessLock();
 
     void
-    internalRequestAdditionalRemoteForwarding(tString bindAddress, tString forwardTo);
+    internalRequestAdditionalRemoteForwarding(SdkForwardingPtr forwarding);
 
     void
-    updateForwardMapWithPrimaryForwarding();
+    updateForwardMap(std::vector<RemoteForwardingPtr> remoteForwardings);
 
     void
-    updateForwardMapWithAdditionalForwarding();
+    reconnectOrStopLoop(tString reason);
+
+    void
+    initiateReconnection();
+
+    void
+    releaseBaseConnection();
 
     net::NetworkConnectionPtr   baseConnection;
     common::PollControllerPtr   pollController;
     protocol::SessionPtr        session;
-
     bool                        running;
-
-    protocol::tReqId            primaryForwardingReqId;
 
     std::vector<tString>        authenticationMsg;
     std::vector<tString>        urls;
@@ -379,39 +354,30 @@ private:
     net::NetworkConnectionPtr   notificationConn;
     net::NetworkConnectionPtr   _notificateMonitorConn;
 
-    bool                        stopped;
-    bool                        reconnectNow;
-    bool                        cleanupNow;
-
     tUint64                     lastKeepAliveTickReceived;
     SdkState                    state;
-    SdkState                    reconnectionState;
 
-    std::map<protocol::tReqId, std::tuple<tString, port_t, tString, port_t, tString, tString>> // pendingReqId [remote binding address to localBinding address]
-                                pendingRemoteForwardingMap;
-    std::map<std::tuple<tString, port_t>, std::tuple<tString, port_t>>
-                                remoteForwardings;
+    std::map<protocol::tReqId, SdkForwardingPtr> // pendingReqId [remote binding address to localBinding address]
+                                pendingAdditionalRemoteForwardingMap;
+    std::map<protocol::tReqId, SdkForwardingPtr>
+                                pendingRemoteForwardingRequestMap;
+    std::map<tForwardingId, SdkForwardingPtr>
+                                sdkForwardings;
 
     common::PollableTaskPtr     keepAliveTask;
     tInt16                      reconnectCounter;
 
-    protocol::ChannelPtr        usageChannel;
     bool                        usagesRunning;
     tString                     greetingMsgs;
     tString                     lastUsagesUpdate;
-    common::PollableTaskPtr     primaryForwardingCheckTimeout;
 
     std::map<tString, tString>  forwardingMap;
-
-    std::vector<std::tuple<tString, tString>>
+    std::vector<SdkForwardingPtr>
                                 additionalForwardings;
-
     bool                        appHandlesNewChannel;
+    bool                        reconnectMode;
 
-    UrlPtr                      tcpForwardTo; //default
-    UrlPtr                      udpForwardTo; //default
-
-    tString                     cleanupReason;
+    tString                     disconnectionReason;
 
     friend class ThreadLock;
 };
