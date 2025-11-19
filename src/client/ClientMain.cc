@@ -64,6 +64,7 @@ static std::vector<tString>
 
 // function to parse forwarding address (forwardingg adreess to components)
 // also handls the IPv6 address
+// -R [[[schema//]remotehost[/port]:]0:]localhost:localport
 parseForwarding(const tString& val)
 {
     std::vector<tString> result;
