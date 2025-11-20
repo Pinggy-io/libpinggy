@@ -40,8 +40,8 @@ static const char *ConnMode_UDP       = "udp";
 // --- Helper: String Vector (to replace std::vector<tString>) ---
 typedef struct 
 {
-    char **items;
-    size_t size;
+    char         **items;
+    size_t         size;
 } StringVector;
 
 void 
@@ -97,7 +97,7 @@ typedef struct
     
     // Added for C context
     pinggy_ref_t        tunnel_ref; 
-    char *error; 
+    char               *error; 
 } ClientConfig;
 
 ClientConfig 
@@ -176,9 +176,9 @@ parseForwarding(const char *val)
 
 // Helper struct for Tuple return
 typedef struct {
-    char *schema;
-    char *hostname;
-    int port;
+    char         *schema;
+    char         *hostname;
+    int           port;
 } HostnameTuple;
 
 HostnameTuple 
@@ -586,7 +586,8 @@ pinggy_on_raise_exception_cb(pinggy_const_char_p_t where, pinggy_const_char_p_t 
 }
 
 // --- Main ---
-int main(int argc, char* argv[])
+int 
+main(int argc, char* argv[])
 {
 #ifdef __WINDOWS_OS__
     WindowsSocketInitialize();
