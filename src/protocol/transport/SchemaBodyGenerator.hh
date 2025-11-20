@@ -278,7 +278,7 @@ static tString _##RootClass##_##ClassSmallSuffix##TypeArray[] = {               
 void Inflate(DeserializerPtr deserializer,                                      \
     RootClass##ClassSuffix##Ptr &ClassSmallSuffix)                              \
 {                                                                               \
-    tUint8 ClassSmallSuffix##Type;                                              \
+    tUint8 ClassSmallSuffix##Type = ClassSuffix##Type_Invalid;                  \
     bool found = false;                                                         \
     deserializer->Deserialize(APP_EXPAND(TO_STR(ClassSmallSuffix##Type)),       \
         ClassSmallSuffix##Type);                                                \
@@ -322,7 +322,7 @@ void Inflate(DeserializerPtr deserializer,                                      
 void                                                                            \
 FromPinggyValue(PinggyValue &pv, RootClass##ClassSuffix##Ptr &ClassSmallSuffix) \
 {                                                                               \
-    tUint8 ClassSmallSuffix##Type;                                              \
+    tUint8 ClassSmallSuffix##Type = ClassSuffix##Type_Invalid;                  \
     bool found = false;                                                         \
     pv.GetTo(APP_EXPAND(TO_STR(ClassSmallSuffix##Type)),                        \
         ClassSmallSuffix##Type);                                                \
