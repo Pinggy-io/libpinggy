@@ -271,6 +271,7 @@ printHelpOptions(const char* prog)
     printf("            Enable autoreconnect\n");
     printf("\n");
 }
+
 // Stores all command line arguments in the SDK config for internal tracking
 bool
 parseSdkArguments(ClientConfigPtr config, int argc, char *argv[])
@@ -384,13 +385,13 @@ parseArguments(int argc, char* argv[])
 
     return config;
 }
+
 // the event handler part
 // this is where the real events are handled like the connection succeds, fails or etc
 struct ClientSdkEventHandler : virtual public sdk::SdkEventHandler
 {
-    ClientSdkEventHandler(ClientConfigPtr config) :
-        config(config)
-    {}
+    ClientSdkEventHandler(ClientConfigPtr config):
+        config(config)          { }
 
     virtual
     ~ClientSdkEventHandler()    { }
