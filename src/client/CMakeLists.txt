@@ -15,22 +15,23 @@ TargetLinkLibraries(pinggyclient PRIVATE pinggysdk)
 
 AddCopyClient(pinggyclientcopy pinggyclient ${PINGGY_RELEASE_DIR} "Copying pinggyclient to the base directory")
 
-if(BUILD_MODE_STATIC STREQUAL "yes")
 
-    set(CSOURCES
-        client_main.c
-    )
 
-    list(APPEND CSOURCES
-        cli_getopt.c
-    )
+set(CSOURCES
+    client_main.c
+)
 
-    AddExecutable(pinggyclientc ${CSOURCES})
+list(APPEND CSOURCES
+    cli_getopt.c
+)
 
-    AddPlatFormHeader(pinggyclientc)
 
-    TargetLinkLibraries(pinggyclientc PRIVATE pinggysdk)
+AddExecutable(pinggyclientc ${CSOURCES})
 
-    AddCopyClient(pinggyclientccopy pinggyclientc ${PINGGY_RELEASE_DIR} "Copying pinggyclientc to the base directory")
+AddPlatFormHeader(pinggyclientc)
 
-endif()
+TargetLinkLibraries(pinggyclientc PRIVATE pinggysdk)
+TargetLinkLibraries(pinggyclientc PUBLIC pinggyapi_shared)
+
+AddCopyClient(pinggyclientccopy pinggyclientc ${PINGGY_RELEASE_DIR} "Copying pinggyclientc to the base directory")
+

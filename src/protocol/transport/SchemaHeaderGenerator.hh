@@ -21,7 +21,7 @@
 #include "TransportManager.hh"
 
 /*
-So, this two files (_SchemaHeaderGenerator.hh and SchemaBodyGenerator.hh) are there
+So, this two files (SchemaHeaderGenerator.hh and SchemaBodyGenerator.hh) are there
 to automatically generate schema that uses our new transport layer. One can easily
 use the transport without any schema, however, writing it is tidious and difficult.
 
@@ -150,6 +150,8 @@ DefineMakeSharedPtr(RootClass##ClassSuffix)                                     
                                                                                 \
 void Inflate(DeserializerPtr, RootClass##ClassSuffix##Ptr &);                   \
 void Deflate(SerializerPtr serializer, RootClass##ClassSuffix##Ptr);            \
+void FromPinggyValue(PinggyValue &val, RootClass##ClassSuffix##Ptr &);          \
+void ToPinggyValue(PinggyValue &v, const RootClass##ClassSuffix##Ptr &);        \
                                                                                 \
 Definition(_SCHEMA_HEADER_DefineProtocolClass,(RootClass, ClassSuffix))         \
 
@@ -158,6 +160,8 @@ Definition(_SCHEMA_HEADER_DefineProtocolClass,(RootClass, ClassSuffix))         
 #define DECLARE_TRANSPORT_SERIALIZER_DESERIALIZER_PTR(cls, ...)                 \
     static void Deflate(SerializerPtr serializer, cls##Ptr objPtr);             \
     static void Inflate(DeserializerPtr deserializer, cls##Ptr &objPtr);        \
+    static void ToPinggyValue(PinggyValue &v, const cls##Ptr &objPtr);          \
+    static void FromPinggyValue(PinggyValue &val, cls##Ptr &objPtr);            \
 
 
 //=============================================================================
@@ -189,56 +193,68 @@ Definition(_SCHEMA_HEADER_DefineProtocolClass,(RootClass, ClassSuffix))         
         _SCHEMA_HEADER_EmptyEvHandlerHandlingFunction_, x,                      \
         _SCHEMA_HEADER_StripParen vars, __VA_ARGS__)
 
-#define DECLARE_HANDLING_CLASS(HandlingClassName, RootClass, ClassSuffix,       \
-                                        ClassSmallSuffix, Definition)           \
-DeclareClassWithSharedPtr(HandlingClassName);                                   \
-abstract class HandlingClassName##EventHandler :                                \
-        virtual public pinggy::SharedObject                                     \
-{                                                                               \
-public:                                                                         \
-    virtual ~ HandlingClassName##EventHandler() {}                              \
-    virtual void Handle##RootClass##ConnectionReset(HandlingClassName##Ptr) = 0;\
-    virtual void Handle##RootClass##Stopped(HandlingClassName##Ptr) = 0;        \
-    Definition(_SCHEMA_HEADER_EvHandlerHandlingFunction,                        \
-        (HandlingClassName, RootClass, ClassSuffix))                            \
-};                                                                              \
-DeclareSharedPtr(HandlingClassName##EventHandler);                              \
-abstract class HandlingClassName##EmptyEventHandler :                           \
-        public HandlingClassName##EventHandler                                  \
-{                                                                               \
-public:                                                                         \
-    virtual ~ HandlingClassName##EmptyEventHandler() {}                         \
-    virtual void Handle##RootClass##ConnectionReset(HandlingClassName##Ptr) {}  \
-    virtual void Handle##RootClass##Stopped(HandlingClassName##Ptr) {}          \
-    Definition(_SCHEMA_HEADER_EmptyEvHandlerHandlingFunction,                   \
-        (HandlingClassName, RootClass, ClassSuffix,))                           \
-};                                                                              \
-DeclareSharedPtr(HandlingClassName##EmptyEventHandler);                         \
-class HandlingClassName : public TransportManagerEventHandler                   \
-{                                                                               \
-public:                                                                         \
-    HandlingClassName(net::NetworkConnectionPtr netConn,                        \
-        HandlingClassName##EventHandler##Ptr handlerPtr);                       \
-    virtual ~ HandlingClassName();                                              \
-    virtual bool Start(bool handshakeRequired=true);                            \
-    virtual bool Stop();                                                        \
-    virtual bool IsConnected() { return running; }                              \
-    virtual bool Send##ClassSuffix(RootClass##ClassSuffix##Ptr                  \
-        ClassSmallSuffix, bool queue = true);                                   \
-    virtual void HandleConnectionReset(net::NetworkConnectionPtr netConn);      \
-    virtual void HandleIncomingDeserialize(DeserializerPtr deserializer);       \
-    virtual void HandleReadyToSendBuffer();                                     \
-    virtual void HandleIncompleteHandshake();                                   \
-    virtual net::NetworkConnectionPtr GetNetConn() { return netConn; }          \
-    virtual pinggy::VoidPtr GetPtr() { return ptr; }                            \
-private:                                                                        \
-    net::NetworkConnectionPtr netConn;                                          \
-    TransportManagerPtr transportManager;                                       \
-    std::queue<RootClass##ClassSuffix##Ptr> sendQueue;                          \
-    HandlingClassName##EventHandler##Ptr eventHandler;                          \
-    pinggy::VoidPtr ptr;                                                        \
-    bool running;                                                               \
-};                                                                              \
-DefineMakeSharedPtr(HandlingClassName)
+#define DECLARE_HANDLING_CLASS(HandlingClassName, RootClass, ClassSuffix,                           \
+                               ClassSmallSuffix, Definition)                                        \
+    DeclareClassWithSharedPtr(HandlingClassName);                                                   \
+    abstract class HandlingClassName##EventHandler : virtual public pinggy::SharedObject            \
+    {                                                                                               \
+    public:                                                                                         \
+        virtual ~HandlingClassName##EventHandler() {}                                               \
+        virtual void Handle##RootClass##ConnectionReset(HandlingClassName##Ptr) = 0;                \
+        virtual void Handle##RootClass##Stopped(HandlingClassName##Ptr) = 0;                        \
+        Definition(_SCHEMA_HEADER_EvHandlerHandlingFunction,                                        \
+                   (HandlingClassName, RootClass, ClassSuffix))                                     \
+    };                                                                                              \
+    DeclareSharedPtr(HandlingClassName##EventHandler);                                              \
+    abstract class HandlingClassName##EmptyEventHandler : public HandlingClassName##EventHandler    \
+    {                                                                                               \
+    public:                                                                                         \
+        virtual ~HandlingClassName##EmptyEventHandler() {}                                          \
+        virtual void Handle##RootClass##ConnectionReset(HandlingClassName##Ptr) {}                  \
+        virtual void Handle##RootClass##Stopped(HandlingClassName##Ptr) {}                          \
+        Definition(_SCHEMA_HEADER_EmptyEvHandlerHandlingFunction,                                   \
+                   (HandlingClassName, RootClass, ClassSuffix, ))                                   \
+    };                                                                                              \
+    DeclareSharedPtr(HandlingClassName##EmptyEventHandler);                                         \
+    class HandlingClassName : public TransportManagerEventHandler                                   \
+    {                                                                                               \
+    public:                                                                                         \
+        HandlingClassName(net::NetworkConnectionPtr netConn,                                        \
+                          HandlingClassName##EventHandler##Ptr handlerPtr);                         \
+        virtual ~HandlingClassName();                                                               \
+        virtual bool                                                                                \
+        Start(bool handshakeRequired = true);                                                       \
+        virtual bool                                                                                \
+        Stop();                                                                                     \
+        virtual bool                                                                                \
+        IsConnected() { return running; }                                                           \
+        virtual bool                                                                                \
+        Send##ClassSuffix(RootClass##ClassSuffix##Ptr                                               \
+                              ClassSmallSuffix,                                                     \
+                          bool queue = true);                                                       \
+        virtual void                                                                                \
+        HandleConnectionReset(net::NetworkConnectionPtr netConn) override;                          \
+        virtual void                                                                                \
+        HandleIncomingDeserialize(DeserializerPtr deserializer) override;                           \
+        virtual void                                                                                \
+        HandleIncomingPinggyValue(PinggyValue &) override;                                          \
+        virtual void                                                                                \
+        HandleReadyToSendBuffer() override;                                                         \
+        virtual void                                                                                \
+        HandleIncompleteHandshake() override;                                                       \
+        virtual net::NetworkConnectionPtr GetNetConn() { return netConn; }                          \
+        virtual pinggy::VoidPtr GetPtr() { return ptr; }                                            \
+        virtual void EnablePinggyValueMode(bool enable = true) final;                               \
+                                                                                                    \
+    private:                                                                                        \
+        net::NetworkConnectionPtr netConn;                                                          \
+        TransportManagerPtr transportManager;                                                       \
+        std::queue<RootClass##ClassSuffix##Ptr> sendQueue;                                          \
+        HandlingClassName##EventHandler##Ptr eventHandler;                                          \
+        pinggy::VoidPtr ptr;                                                                        \
+        bool running;                                                                               \
+        bool pinggyValueMode;                                                                       \
+    };                                                                                              \
+    DefineMakeSharedPtr(HandlingClassName)
 
 #endif // __SRC_CPP_PROTOCOL_TRANSPORT_SCHEMAHEADERGENERATOR_HH__

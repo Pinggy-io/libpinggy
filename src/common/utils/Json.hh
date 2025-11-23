@@ -182,4 +182,26 @@ using json = nlohmann::json;
     {auto ptr = pdata; json nlohmann_json_j = jdata; NLOHMANN_JSON_EXPAND(NLOHMANN_JSON_PASTE(_PINGGY_NLOHMANN_JSON_TO_PTR_VAR_3, __VA_ARGS__))}
 
 
+#define NLOHMANN_JSON_SERIALIZE_ENUM_PINGGY(ENUM_TYPE, type2, ...)                  \
+void                                                                                \
+to_json(nlohmann::json &j, const ENUM_TYPE& e)                                      \
+{                                                                                   \
+    static_assert(std::is_enum<ENUM_TYPE>::value, #ENUM_TYPE " must be an enum!");  \
+    static const std::pair<ENUM_TYPE, type2> m[] =  __VA_ARGS__;                    \
+    auto it = std::find_if(std::begin(m), std::end(m),                              \
+                    [e](const std::pair<ENUM_TYPE, type2>& ej_pair) ->              \
+                        bool { return ej_pair.first == e; });                       \
+    j = ((it != std::end(m)) ? it : std::begin(m))->second;                         \
+}                                                                                   \
+void                                                                                \
+from_json(const nlohmann::json &j, ENUM_TYPE& e)                                    \
+{                                                                                   \
+    static_assert(std::is_enum<ENUM_TYPE>::value, #ENUM_TYPE " must be an enum!");  \
+    static const std::pair<ENUM_TYPE, type2> m[] = __VA_ARGS__;                     \
+    auto it = std::find_if(std::begin(m), std::end(m),                              \
+                        [&j](const std::pair<ENUM_TYPE, type2>& ej_pair) ->         \
+                                            bool { return ej_pair.second == j; });  \
+    e = ((it != std::end(m)) ? it : std::begin(m))->first;                          \
+}
+
 #endif //SRC_CPP_COMMON_JSON_HH_

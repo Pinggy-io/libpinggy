@@ -52,7 +52,9 @@ struct NoDeleter
     }
 };
 
-class Url {
+DeclareClassWithSharedPtr(Url);
+
+class Url : public pinggy::SharedObject {
 public:
     Url(tString url, int defaultPort = 80, tString defaultProto = "http");
 
@@ -65,9 +67,15 @@ public:
     tString
     GetSockAddrString()         { return GetHost() + ":" + portStr; }
 
+    /**
+     * return host. incase of IPv6, encase it inside []
+     */
     tString
     GetHost()                   { return (host.empty() || !ipv6) ? host : "["+host+"]"; }
 
+    /**
+     * return host. incase of IPv6, it does not encase with []
+     */
     const tString&
     GetRawHost()                { return host; }
 
@@ -102,9 +110,13 @@ public:
     void
     SetQuery(tString query)     { this->query = query; }
 
+    UrlPtr
+    Clone();
 
 
 private:
+    Url();
+
     tString                     protocol;
     tString                     host;
     port_t                      port;

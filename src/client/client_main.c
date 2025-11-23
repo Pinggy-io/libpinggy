@@ -18,34 +18,347 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <stdbool.h>
+#include <stdint.h>
 
 #include <pinggy.h>
 #include "cli_getopt.h"
 
 #ifndef PLATFORM_CONFIG_INCLUDED
-
 #define PinggyVersionMajor 0
-#define PinggyVersionMinor 1
+#define PinggyVersionMinor 0
 #define PinggyVersionPatch 0
-
-#define PINGGY_GIT_COMMIT_ID "unknown"
-#define PINGGY_BUILD_TIMESTAMP "0000-00-00 00:00:00"
-#define PINGGY_LIBC_VERSION "unknown"
-#define PINGGY_BUILD_OS "unknown"
-
-#else
-#include <platform/platform.h>
 #endif
 
+// Connection modes
+static const char *ConnMode_HTTP      = "http";
+static const char *ConnMode_TCP       = "tcp";
+static const char *ConnMode_TLS       = "tls";
+static const char *ConnMode_TLSTCP    = "tlstcp";
+static const char *ConnMode_UDP       = "udp";
 
-#define ConnMode_HTTP      "http"
-#define ConnMode_TCP       "tcp"
-#define ConnMode_TLS       "tls"
-#define ConnMode_TLSTCP    "tlstcp"
-#define ConnModeExt_UDP    "udp"
+// --- Helper: String Vector (to replace std::vector<tString>) ---
+typedef struct 
+{
+    char         **items;
+    size_t         size;
+} StringVector;
 
-void
-printHelpOptions(const char *prog){
+void 
+Vector_Init(StringVector *v) 
+{ 
+    v->items = NULL; v->size = 0; 
+}
+
+void 
+Vector_Push(StringVector *v, const char *str) 
+{
+    v->items = (char**)realloc(v->items, sizeof(char*) * (v->size + 1));
+    v->items[v->size++] = strdup(str);
+}
+
+void 
+Vector_Free(StringVector *v) 
+{
+    if (!v) 
+    {
+        return;
+    }
+    for(size_t i=0; i<v->size; i++) {
+        free(v->items[i]);
+    }
+    free(v->items);
+    v->items = NULL; v->size = 0;
+}
+
+// Helper to split strings (like Utils.hh)
+StringVector 
+SplitString(const char *str, const char *delim) 
+{
+    StringVector v; Vector_Init(&v);
+    char *dup = strdup(str);
+    char *token = strtok(dup, delim);
+    while(token) { 
+        Vector_Push(&v, token);
+        token = strtok(NULL, delim);
+    }
+    free(dup);
+    return v;
+}
+
+// --- Structure for client configuration ---
+typedef struct 
+{
+    StringVector        forwardings; // for storing the list of reverse tunnels
+    pinggy_ref_t        SdkConfig;
+    char               *WebDebuggerAddr;
+    bool                EnableWebDebugger;
+    char                *Mode;
+    
+    // Added for C context
+    pinggy_ref_t        tunnel_ref; 
+    char               *error; 
+} ClientConfig;
+
+ClientConfig 
+*NewClientConfigPtr()
+{
+    ClientConfig *cfg = (ClientConfig*)calloc(1, sizeof(ClientConfig));
+    Vector_Init(&cfg->forwardings);
+    cfg->SdkConfig = pinggy_create_config();
+    cfg->WebDebuggerAddr = strdup("localhost:4300");
+    cfg->EnableWebDebugger = false;
+    cfg->Mode = strdup("");
+    return cfg;
+}
+
+void 
+FreeClientConfig(ClientConfig *cfg) 
+{
+    if(!cfg) return;
+    Vector_Free(&cfg->forwardings);
+    pinggy_free_ref(cfg->SdkConfig);
+    if(cfg->WebDebuggerAddr) free(cfg->WebDebuggerAddr);
+    if(cfg->Mode) free(cfg->Mode);
+    if(cfg->error) free(cfg->error);
+    free(cfg);
+}
+
+// --- Logic Implementation ---
+
+// function to parse forwarding address
+// -R [[[schema//]remotehost[/port]:]0:]localhost:localport
+
+StringVector 
+parseForwarding(const char *val)
+{
+    StringVector result;
+    Vector_Init(&result);
+    
+    if (!val) return result;
+    char *value = strdup(val);
+    char *p = value;
+    
+    while (*p != '\0') {
+        if (*p == '[') {
+            // IPv6 address in brackets
+            char *close = strchr(p, ']');
+            if (!close) {
+                Vector_Push(&result, p);
+                break;
+            }
+            // Include closing bracket
+            size_t len = close - p + 1;
+            char *ipv6 = (char*)malloc(len + 1);
+            strncpy(ipv6, p, len);
+            ipv6[len] = '\0';
+            Vector_Push(&result, ipv6);
+            free(ipv6);
+            
+            p = close + 1;
+            if (*p == ':') p++;
+            else break;
+        } else {
+            // Find next colon
+            char *colon = strchr(p, ':');
+            if (!colon) {
+                Vector_Push(&result, p);
+                break;
+            }
+            *colon = '\0';
+            Vector_Push(&result, p);
+            p = colon + 1;
+        }
+    }
+    free(value);
+    return result;
+}
+
+// Helper struct for Tuple return
+typedef struct {
+    char         *schema;
+    char         *hostname;
+    int           port;
+} HostnameTuple;
+
+HostnameTuple 
+parseHostname(const char *host)
+{
+    HostnameTuple t = {NULL, NULL, 0};
+    if (!host) return t;
+
+    char *copy = strdup(host);
+    char *curr_hostname = copy;
+
+    char *schemaSep = strstr(curr_hostname, "//");
+    if (schemaSep) {
+        *schemaSep = '\0';
+        t.schema = strdup(curr_hostname);
+        curr_hostname = schemaSep + 2;
+    } else {
+        t.schema = strdup("");
+    }
+
+    char *lastSlash = strrchr(curr_hostname, '/');
+    if (lastSlash) {
+        *lastSlash = '\0';
+        t.port = atoi(lastSlash + 1);
+    }
+
+    t.hostname = strdup(curr_hostname);
+
+    // Schema validation logic from C++
+    if (strcmp(t.schema, ConnMode_HTTP) != 0 && strcmp(t.schema, ConnMode_TCP) != 0 && 
+        strcmp(t.schema, ConnMode_TLS) != 0 && strcmp(t.schema, ConnMode_TLSTCP) != 0 && 
+        strcmp(t.schema, ConnMode_UDP) != 0) {
+        free(t.schema);
+        t.schema = strdup("");
+    }
+    
+    free(copy);
+    return t;
+}
+
+// called when the user provides -R
+bool 
+parseReverseTunnel(ClientConfig *config)
+{
+    for (size_t i = 0; i < config->forwardings.size; i++) {
+        char *value = config->forwardings.items[i];
+        StringVector values = parseForwarding(value);
+        
+        if (values.size < 2) {
+            Vector_Free(&values);
+            return false;
+        }
+
+        // forwardTo = values[size-2] + ":" + values[size-1]
+        char forwardTo[512];
+        snprintf(forwardTo, sizeof(forwardTo), "%s:%s", 
+                 values.items[values.size - 2], values.items[values.size - 1]);
+
+        // Mimic try/catch block logic
+        if (values.size < 4) {
+            // AddForwarding(mode, "", forwardTo)
+            pinggy_config_add_forwarding(config->SdkConfig, config->Mode, "", forwardTo);
+        } else {
+            char *remoteHost = values.items[values.size - 4];
+            HostnameTuple ht = parseHostname(remoteHost);
+            
+            if (!ht.hostname || strlen(ht.hostname) == 0) {
+                if (ht.hostname) free(ht.hostname);
+                ht.hostname = strdup("localhost");
+            }
+            
+            char hostname_full[512];
+            snprintf(hostname_full, sizeof(hostname_full), "%s:%d", ht.hostname, ht.port);
+            
+            if (!ht.schema || strlen(ht.schema) == 0) {
+                pinggy_config_add_forwarding(config->SdkConfig, config->Mode, hostname_full, forwardTo);
+            } else {
+                pinggy_config_add_forwarding(config->SdkConfig, ht.schema, hostname_full, forwardTo);
+            }
+            
+            if (ht.schema) free(ht.schema);
+            if (ht.hostname) free(ht.hostname);
+        }
+        
+        Vector_Free(&values);
+    }
+    return true;
+}
+
+// called when the user provides -L
+bool 
+parseForwardTunnel(ClientConfig *config, const char *value)
+{
+    StringVector values = parseForwarding(value);
+    if (values.size < 2) {
+        Vector_Free(&values);
+        return false;
+    }
+
+    char newAddr[512];
+    snprintf(newAddr, sizeof(newAddr), "%s:%s", 
+             values.items[values.size - 2], values.items[values.size - 1]);
+    
+    if(config->WebDebuggerAddr) free(config->WebDebuggerAddr);
+    config->WebDebuggerAddr = strdup(newAddr);
+    config->EnableWebDebugger = true;
+    
+    Vector_Free(&values);
+    return true;
+}
+
+// parseUser: tcp+token -> Mode=tcp, Token=token
+bool 
+parseUser(ClientConfig *config, const char *user)
+{
+    StringVector values = SplitString(user, "+");
+    char token[1024] = "";
+
+    for(size_t i=0; i < values.size; i++) {
+        char *s = values.items[i];
+        // StringToLower logic (inline)
+        char sl[256];
+        strncpy(sl, s, 255); sl[255] = '\0';
+        for(char *p=sl; *p; ++p) *p = tolower((unsigned char)*p);
+        
+        if (strcmp(sl, ConnMode_HTTP) == 0 || strcmp(sl, ConnMode_TCP) == 0 || 
+            strcmp(sl, ConnMode_TLS) == 0 || strcmp(sl, ConnMode_TLSTCP) == 0 || 
+            strcmp(sl, ConnMode_UDP) == 0) {
+            
+            if (strlen(config->Mode) > 0) {
+                printf("You cannot provide more than one type of default forwarding type");
+                Vector_Free(&values);
+                return false;
+            }
+            if(config->Mode) free(config->Mode);
+            config->Mode = strdup(sl);
+        } else {
+            strcat(token, "+");
+            strcat(token, s);
+        }
+    }
+
+    if (strlen(token) > 1) {
+        // Remove leading '+' and set token
+        pinggy_config_set_token(config->SdkConfig, token + 1);
+        printf("token: %s\n", token + 1); 
+    }
+    
+    Vector_Free(&values);
+    return true;
+}
+
+// parseUserServer: token@server
+bool 
+parseUserServer(ClientConfig *config, const char *value, const char *port)
+{
+    StringVector values = SplitString(value, "@");
+    if (values.size > 2) {
+        Vector_Free(&values);
+        return false;
+    }
+
+    bool success = true;
+    // SetServerAddress logic
+    char serverAddr[512];
+    const char *hostPart = values.items[values.size - 1];
+    snprintf(serverAddr, sizeof(serverAddr), "%s:%s", hostPart, port);
+    pinggy_config_set_server_address(config->SdkConfig, serverAddr);
+
+    if (values.size > 1) {
+        success = parseUser(config, values.items[values.size - 2]);
+    }
+    
+    Vector_Free(&values);
+    return success;
+}
+
+void 
+printHelpOptions(const char *prog) 
+{
     printf("%s [-h|--help] [-v|-version] [--port|-p PORT] [-R ADDR:PORT] [-L ADDR:PORT] token@server\n", prog);
     printf("        -h\n");
     printf("       --help\n");
@@ -69,363 +382,258 @@ printHelpOptions(const char *prog){
     printf("\n");
 }
 
-typedef struct {
-    pinggy_ref_t config_ref;
-    uint16_t web_debugger_port;
-    pinggy_bool_t enable_web_debugger;
-    char *error_msg;
-    pinggy_ref_t tunnel_ref;
-} client_app_data_t;
-
-static int parse_forward_tunnel(client_app_data_t *app_data, const char *value) {
-    const char *colon = strrchr(value, ':');
-    if (!colon) {
-        return 0; // false
+bool 
+parseSdkArguments(ClientConfig *config, int argc, char *argv[])
+{
+    size_t len = 0;
+    for(int i=0; i<argc; i++) len += strlen(argv[i]) + 1;
+    
+    char *args = (char*)malloc(len + 1);
+    args[0] = '\0';
+    for(int i=0; i<argc; i++) {
+        strcat(args, argv[i]);
+        if(i < argc-1) strcat(args, " ");
     }
-    app_data->web_debugger_port = atoi(colon + 1);
-    app_data->enable_web_debugger = pinggy_true;
-    return 1; // true
+    
+    pinggy_config_set_argument(config->SdkConfig, args);
+    free(args);
+    return true;
 }
 
-static int parse_user(pinggy_ref_t config_ref, char *user) {
-    char tcp_forward_to_buf[256] = {0};
-    pinggy_config_get_tcp_forward_to(config_ref, sizeof(tcp_forward_to_buf), tcp_forward_to_buf);
-    pinggy_config_set_tcp_forward_to(config_ref, ""); // clear it first
-
-    char *token_str = NULL;
-    int type_set = 0;
-    int udp_type_set = 0;
-
-    char *p = strtok(user, "+");
-    while (p != NULL) {
-        // to lower
-        int i = 0;
-        while(p[i]) {
-            p[i] = tolower(p[i]);
-            i++;
-        }
-
-        if (strcmp(p, ConnMode_HTTP) == 0 || strcmp(p, ConnMode_TCP) == 0 || strcmp(p, ConnMode_TLS) == 0 || strcmp(p, ConnMode_TLSTCP) == 0) {
-            pinggy_config_set_type(config_ref, p);
-            if (strlen(tcp_forward_to_buf) > 0) {
-                pinggy_config_set_tcp_forward_to(config_ref, tcp_forward_to_buf);
-            }
-            type_set = 1;
-        } else if (strcmp(p, ConnModeExt_UDP) == 0) {
-            pinggy_config_set_udp_type(config_ref, p);
-            if (strlen(tcp_forward_to_buf) > 0) {
-                pinggy_config_set_udp_forward_to(config_ref, tcp_forward_to_buf);
-            }
-            udp_type_set = 1;
-        } else {
-            token_str = p;
-        }
-        p = strtok(NULL, "+");
-    }
-
-    if (!type_set && !udp_type_set) {
-        pinggy_config_set_type(config_ref, ConnMode_HTTP);
-        if (strlen(tcp_forward_to_buf) > 0) {
-            pinggy_config_set_tcp_forward_to(config_ref, tcp_forward_to_buf);
-        }
-    }
-
-    if (token_str) {
-        pinggy_config_set_token(config_ref, token_str);
-    }
-
-    return 1;
-}
-
-static int parse_user_server(pinggy_ref_t config_ref, char *value, const char *port) {
-    char *at_sign = strrchr(value, '@');
-    char server_addr[256];
-
-    if (at_sign) {
-        *at_sign = '\0'; // split string
-        char *user = value;
-        char *server = at_sign + 1;
-        snprintf(server_addr, sizeof(server_addr), "%s:%s", server, port);
-        if (!parse_user(config_ref, user)) {
-            return 0;
-        }
-    } else {
-        snprintf(server_addr, sizeof(server_addr), "%s:%s", value, port);
-    }
-
-    pinggy_config_set_server_address(config_ref, server_addr);
-    return 1;
-}
-
-static int parse_sdk_arguments(pinggy_ref_t config_ref, int argc, char *argv[]) {
-    if (argc <= 0) {
-        return 1;
-    }
-    // Join arguments with space
-    size_t total_len = 0;
-    int i;
-    for (i = 0; i < argc; i++) {
-        total_len += strlen(argv[i]) + 1;
-    }
-
-    if (total_len == 0) {
-        return 1;
-    }
-
-    char *arg_str = (char *)malloc(total_len);
-    if (!arg_str) {
-        return 0;
-    }
-    arg_str[0] = '\0';
-    for (i = 0; i < argc; i++) {
-        strcat(arg_str, argv[i]);
-        if (i < argc - 1) {
-            strcat(arg_str, " ");
-        }
-    }
-
-    pinggy_config_set_argument(config_ref, arg_str);
-    free(arg_str);
-    return 1;
-}
-
-static client_app_data_t* parse_arguments(int argc, char *argv[]) {
-    client_app_data_t *app_data = (client_app_data_t*)calloc(1, sizeof(client_app_data_t));
-    if (!app_data) return NULL;
-
-    app_data->config_ref = pinggy_create_config();
-    if (app_data->config_ref == INVALID_PINGGY_REF) {
-        free(app_data);
-        return NULL;
-    }
-    app_data->web_debugger_port = 4300;
+ClientConfig* 
+parseArguments(int argc, char* argv[])
+{
+    ClientConfig *config = NewClientConfigPtr();
 
     int opt;
     int longindex = 0;
-
     struct cli_option longopts[] = {
         {"help", cli_no_argument, 0, 'h'},
         {"version", cli_no_argument, 0, 'v'},
         {"verbose", cli_no_argument, 0, 'V'},
         {"port", cli_required_argument, 0, 'p'},
         {"sni", cli_required_argument, 0, 's'},
-        {"insecure", cli_no_argument, 0, 'n'},
-        {"inseceure", cli_no_argument, 0, 'n'}, // for backward compatibility with typo
-        {0, 0, 0, 0} // Terminator
+        {"insecure", cli_required_argument, 0, 'n'},
+        {NULL, cli_required_argument, 0, 'R'},
+        {NULL, cli_required_argument, 0, 'L'},
+        {NULL, cli_required_argument, 0, 'o'},
+        {NULL, cli_required_argument, 0, 'n'},
+        {0, 0, 0, 0}
     };
-    int exit_now = 0;
-    char *server_port = "443";
+    
+    bool exitNow = false;
+    char *serverPort = "443";
     const char *prog = argv[0];
+
     while ((opt = cli_getopt_long(argc, argv, "ahvVno:R:L:p:s:r", longopts, &longindex)) != -1) {
-        int success = 1;
+        bool success = true;
         switch (opt) {
-            case 'a':
-                pinggy_config_set_advanced_parsing(app_data->config_ref, pinggy_true);
-                break;
-            case 'h':
-                printHelpOptions(prog);
-                exit_now = 1;
-                exit(0);
-                break;
-            case 'v':
-                printf("v%d.%d.%d\n", PinggyVersionMajor, PinggyVersionMinor, PinggyVersionPatch);
-                exit_now = 1;
-                exit(0);
-                break;
-            case 'V':
-                pinggy_set_log_enable(pinggy_true);
-                break;
-            case 'o':
-                printf("Output option with value: %s\n", cli_optarg);
-                break;
-            case 'p':
-                server_port = cli_optarg;
-                break;
-            case 'R':
-                pinggy_config_set_tcp_forward_to(app_data->config_ref, cli_optarg);
-                break;
-            case 'L':
-                success = parse_forward_tunnel(app_data, cli_optarg);
-                break;
-            case 'n':
-                pinggy_config_set_ssl(app_data->config_ref, pinggy_false);
-                break;
-            case 's':
-                pinggy_config_set_sni_server_name(app_data->config_ref, cli_optarg);
-                break;
-            case 'r':
-                pinggy_config_set_auto_reconnect(app_data->config_ref, pinggy_true);
-                break;
-            case '?':
-                printf("Unknown option or missing argument\n");
-                break;
+        case 'h':
+            printHelpOptions(prog);
+            exitNow = true;
+            exit(0);
+            break;
+        case 'v':
+            printf("v%d.%d.%d\n", PinggyVersionMajor, PinggyVersionMinor, PinggyVersionPatch);
+            exitNow = true;
+            exit(0);
+            break;
+        case 'V':
+            pinggy_set_log_enable(true);
+            break;
+        case 'o':
+            printf("Output option with value: %s\n", cli_optarg);
+            break;
+        case 'p':
+            serverPort = cli_optarg;
+            break;
+        case 'R':
+            Vector_Push(&config->forwardings, cli_optarg);
+            break;
+        case 'L':
+            success = parseForwardTunnel(config, cli_optarg);
+            break;
+        case 'n':
+            pinggy_config_set_ssl(config->SdkConfig, false);
+            pinggy_config_set_insecure(config->SdkConfig, true); 
+            break;
+        case 's':
+            pinggy_config_set_sni_server_name(config->SdkConfig, cli_optarg);
+            break;
+        case 'r':
+            pinggy_config_set_auto_reconnect(config->SdkConfig, true);
+            break;
+        case 'a':
+            pinggy_config_set_advanced_parsing(config->SdkConfig, true);
+            break;
+        case '?':
+            printf("Unknown option or missing argument\n");
+            break;
         }
         if (!success) {
-            exit_now = 1;
+            exitNow = true;
             break;
         }
     }
 
     if (cli_optind < argc) {
-        if (!parse_user_server(app_data->config_ref, argv[cli_optind], server_port)) {
-            exit_now = 1;
-        }
+        exitNow = !(parseUserServer(config, argv[cli_optind], serverPort));
     } else {
-        exit_now = 1;
+        exitNow = true;
     }
 
-    if ((cli_optind + 1) < argc) {
-        if (!parse_sdk_arguments(app_data->config_ref, argc - (cli_optind + 1), argv + (cli_optind + 1))) {
-            exit_now = 1;
-        }
+    if (!exitNow)
+        exitNow = !parseReverseTunnel(config);
+
+    if (!exitNow && (cli_optind + 1) < argc) {
+        exitNow = !(parseSdkArguments(config, argc - (cli_optind + 1), argv + (cli_optind + 1)));
     }
 
-    if (exit_now) {
-        pinggy_free_ref(app_data->config_ref);
-        free(app_data);
+    if (exitNow) {
+        FreeClientConfig(config);
         exit(0);
     }
 
-    return app_data;
+    return config;
 }
 
-static void on_primary_forwarding_succeeded(pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_len_t num_urls, pinggy_char_p_p_t urls) {
-    client_app_data_t *app_data = (client_app_data_t *)user_data;
-    int i;
+// --- Callbacks ---
+
+static void 
+OnTunnelEstablished(pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_len_t num_urls, pinggy_char_p_p_t urls)
+{
+    ClientConfig *config = (ClientConfig*)user_data;
     printf("Connection completed\n");
-    for (i = 0; i < num_urls; i++) {
+    for (int i = 0; i < (int)num_urls; i++) {
         printf("   %s\n", urls[i]);
     }
-    if (app_data->enable_web_debugger && app_data->web_debugger_port > 0) {
-        pinggy_tunnel_start_web_debugging(tunnel_ref, app_data->web_debugger_port);
-    }
-}
-
-static void on_authentication_failed(pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_len_t num_reasons, pinggy_char_p_p_t reasons) {
-    client_app_data_t *app_data = (client_app_data_t *)user_data;
-    size_t total_len = 0;
-    int i;
-    for (i = 0; i < num_reasons; i++) {
-        total_len += strlen(reasons[i]) + 1;
-    }
-    if (total_len > 0) {
-        app_data->error_msg = (char *)malloc(total_len);
-        if (app_data->error_msg) {
-            app_data->error_msg[0] = '\0';
-            for (i = 0; i < num_reasons; i++) {
-                strcat(app_data->error_msg, reasons[i]);
-                if (i < num_reasons - 1) {
-                    strcat(app_data->error_msg, " ");
-                }
-            }
+    
+    pinggy_capa_t capa = 0;
+    pinggy_tunnel_get_greeting_msgs_len(tunnel_ref, 0, NULL, &capa);
+    if (capa > 0) {
+        char *greeting = (char*)malloc(capa);
+        if (pinggy_tunnel_get_greeting_msgs(tunnel_ref, capa, greeting) > 0) {
+             printf("Greeting: %s\n", greeting);
         }
+        free(greeting);
+    }
+
+    if (config->EnableWebDebugger && config->WebDebuggerAddr && strlen(config->WebDebuggerAddr) > 0) {
+        pinggy_config_set_webdebugger_addr(config->SdkConfig, config->WebDebuggerAddr);
+        pinggy_tunnel_start_web_debugging(tunnel_ref, config->WebDebuggerAddr);
     }
 }
 
-static void on_primary_forwarding_failed(pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_const_char_p_t msg) {
-    client_app_data_t *app_data = (client_app_data_t *)user_data;
-    if (msg) {
-        app_data->error_msg = (char*)malloc(strlen(msg) + 1);
-        if(app_data->error_msg) strcpy(app_data->error_msg, msg);
-    }
+static void 
+OnTunnelFailed(pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_const_char_p_t msg)
+{
+    ClientConfig *config = (ClientConfig*)user_data;
+    if(msg) config->error = strdup(msg);
 }
 
-static void on_disconnected(pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_const_char_p_t error, pinggy_len_t msg_size, pinggy_char_p_p_t msg) {
-    client_app_data_t *app_data = (client_app_data_t *)user_data;
-    if (error) {
-        app_data->error_msg = (char*)malloc(strlen(error) + 1);
-        if(app_data->error_msg) strcpy(app_data->error_msg, error);
-    }
+static void 
+OnDisconnected(pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_const_char_p_t error, pinggy_len_t msg_size, pinggy_char_p_p_t msgs)
+{
+    ClientConfig *config = (ClientConfig*)user_data;
+    if(error) config->error = strdup(error);
+    if(msgs && msg_size > 0) printf("Disconnected msg: %s\n", msgs[0]);
 }
 
-static void on_will_reconnect(pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_const_char_p_t error, pinggy_len_t num_msgs, pinggy_char_p_p_t messages) {
+static void 
+OnWillReconnect(pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_const_char_p_t error, pinggy_len_t num_msgs, pinggy_char_p_p_t messages)
+{
     printf("Reconnecting\n");
 }
 
-static void on_reconnecting(pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_uint16_t retry_cnt) {
-    printf("Trying.. %u\n", retry_cnt);
+static void 
+OnReconnecting(pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_uint16_t count)
+{
+    printf("Trying.. %u\n", count);
 }
 
-static void on_reconnection_completed(pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_len_t num_urls, pinggy_char_p_p_t urls) {
-    int i;
+static void 
+OnReconnectionCompleted(pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_len_t num_urls, pinggy_char_p_p_t urls)
+{
     printf("Reconnected\n");
-    for (i = 0; i < num_urls; i++) {
+    for (int i = 0; i < (int)num_urls; i++) {
         printf("   %s\n", urls[i]);
     }
 }
 
-static void on_reconnection_failed(pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_uint16_t retry_cnt) {
-    printf("Reconnection failed after %u tries\n", retry_cnt);
+static void 
+OnReconnectionFailed(pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_uint16_t tries)
+{
+    printf("Reconnection failed after %u tries\n", tries);
 }
 
-static void on_usage_update(pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_const_char_p_t usages) {
-    printf("Update msg: %s\n", usages);
-    pinggy_capa_t capa = 0;
-    pinggy_tunnel_get_greeting_msgs_len(tunnel_ref, 0, NULL, &capa);
-    if (capa <= 0)
-        return;
-    char *greetings = alloca(capa);
-    if (pinggy_tunnel_get_greeting_msgs(tunnel_ref, capa, greetings) > 0)
-        printf("Greeting: %s\n", greetings);
+static void 
+OnUsageUpdate(pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_const_char_p_t msg)
+{
+    printf("Update msg: %s\n", msg);
 }
 
-static pinggy_void_t
+// **THIS IS THE FUNCTION YOU WERE MISSING**
+static void 
+OnForwardingsChanged(pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_const_char_p_t url_map)
+{
+    printf("%s\n", url_map);
+}
+
+static pinggy_void_t 
 pinggy_on_raise_exception_cb(pinggy_const_char_p_t where, pinggy_const_char_p_t what)
 {
-    printf("%s ==> %s\n", where, what);
+    printf("Exception: %s ==> %s\n", where, what);
 }
 
-int main(int argc, char *argv[]) {
+// --- Main ---
+int 
+main(int argc, char* argv[])
+{
 #ifdef __WINDOWS_OS__
     WindowsSocketInitialize();
 #endif
-    pinggy_set_log_enable(pinggy_false);
+    // Enable logs to see the debug info like token and "Initiated"
+    pinggy_set_log_enable(true); 
+
 #if defined(__LINUX_OS__) || defined(__MAC_OS__)
     ignore_sigpipe();
 #endif
 
     pinggy_set_on_exception_callback(pinggy_on_raise_exception_cb);
 
-    client_app_data_t *app_data = parse_arguments(argc, argv);
-    if (!app_data) {
-        return 1;
+    ClientConfig *config = parseArguments(argc, argv);
+    if (!config) {
+        return 0;
     }
-    pinggy_config_set_basic_auths(app_data->config_ref, "[['user1', 'pass1'], ['user2', 'pass two']]");
-    char str[1024];
-    pinggy_config_get_argument_len(app_data->config_ref, 1024, str, NULL);
-    printf("aasd %s\n", str);
-    return 0;
 
-    app_data->tunnel_ref = pinggy_tunnel_initiate(app_data->config_ref);
-    if (app_data->tunnel_ref == INVALID_PINGGY_REF) {
+    config->tunnel_ref = pinggy_tunnel_initiate(config->SdkConfig);
+    if (config->tunnel_ref == INVALID_PINGGY_REF) {
         printf("Failed to initiate tunnel\n");
-        pinggy_free_ref(app_data->config_ref);
-        free(app_data);
-        return 1;
+        FreeClientConfig(config);
+        return 0;
     }
 
-    pinggy_tunnel_set_on_primary_forwarding_succeeded_callback(app_data->tunnel_ref, on_primary_forwarding_succeeded, app_data);
-    pinggy_tunnel_set_on_authentication_failed_callback(app_data->tunnel_ref, on_authentication_failed, app_data);
-    pinggy_tunnel_set_on_primary_forwarding_failed_callback(app_data->tunnel_ref, on_primary_forwarding_failed, app_data);
-    pinggy_tunnel_set_on_disconnected_callback(app_data->tunnel_ref, on_disconnected, app_data);
-    pinggy_tunnel_set_on_will_reconnect_callback(app_data->tunnel_ref, on_will_reconnect, app_data);
-    pinggy_tunnel_set_on_reconnecting_callback(app_data->tunnel_ref, on_reconnecting, app_data);
-    pinggy_tunnel_set_on_reconnection_completed_callback(app_data->tunnel_ref, on_reconnection_completed, app_data);
-    pinggy_tunnel_set_on_reconnection_failed_callback(app_data->tunnel_ref, on_reconnection_failed, app_data);
-    pinggy_tunnel_set_on_usage_update_callback(app_data->tunnel_ref, on_usage_update, app_data);
+    pinggy_tunnel_set_on_tunnel_established_callback(config->tunnel_ref, OnTunnelEstablished, config);
+    pinggy_tunnel_set_on_tunnel_failed_callback(config->tunnel_ref, OnTunnelFailed, config);
+    pinggy_tunnel_set_on_disconnected_callback(config->tunnel_ref, OnDisconnected, config);
+    pinggy_tunnel_set_on_will_reconnect_callback(config->tunnel_ref, OnWillReconnect, config);
+    pinggy_tunnel_set_on_reconnecting_callback(config->tunnel_ref, OnReconnecting, config);
+    pinggy_tunnel_set_on_reconnection_completed_callback(config->tunnel_ref, OnReconnectionCompleted, config);
+    pinggy_tunnel_set_on_reconnection_failed_callback(config->tunnel_ref, OnReconnectionFailed, config);
+    pinggy_tunnel_set_on_usage_update_callback(config->tunnel_ref, OnUsageUpdate, config);
+    
+    // Register the forwardings changed callback
+    pinggy_tunnel_set_on_forwardings_changed_callback(config->tunnel_ref, OnForwardingsChanged, config);
 
-    pinggy_tunnel_start_usage_update(app_data->tunnel_ref);
+    pinggy_tunnel_start_usage_update(config->tunnel_ref);
+    pinggy_tunnel_start(config->tunnel_ref);
 
-    pinggy_tunnel_start(app_data->tunnel_ref);
-
-    if (app_data->error_msg) {
-        printf("Tunnel ended with msg: %s\n", app_data->error_msg);
-        free(app_data->error_msg);
+    if (config->error && strlen(config->error) > 0) {
+        printf("Tunnel ended with msg: %s\n", config->error);
     }
 
-    pinggy_free_ref(app_data->tunnel_ref);
-    pinggy_free_ref(app_data->config_ref);
-    free(app_data);
+    pinggy_free_ref(config->tunnel_ref);
+    FreeClientConfig(config);
 
     return 0;
 }

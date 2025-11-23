@@ -422,6 +422,58 @@ sock_t app_tcp6_listener_ip(struct in6_addr ip, port_t port)
     return listener_d;
 }
 
+sock_t app_tcp_listener_host(const char* host, const char *port)
+{
+    struct addrinfo hints;
+    struct addrinfo *res, *rp;
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family = AF_UNSPEC;    /* Allow IPv4 or IPv6 */
+    hints.ai_socktype = SOCK_STREAM; /* Stream socket */
+    hints.ai_flags = 0;
+    hints.ai_protocol = 0;          /* Any protocol */
+    int err = 0;
+
+    int s = getaddrinfo(host, port, &hints, &res);
+    if(s != 0) {
+        return InValidSocket;
+    }
+
+    sock_t sock = InValidSocket;
+    for(rp = res; rp != NULL; rp=rp->ai_next) {
+        if (rp->ai_family == AF_INET6)
+        sock = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
+        if(!IsValidSocket(sock)) {
+            LOGEE("Cannot listen");
+            continue;
+        }
+
+        int optval = 1;
+        setsockopt(sock, SOL_SOCKET, SO_REUSEADDR,
+                    (const void *)&optval , sizeof(int));
+
+        int c = bind(sock, rp->ai_addr, rp->ai_addrlen);
+        if(!issockoptsuccess(c)) {
+            LOGEE("Can't bind the port");
+            goto ListenError;
+        }
+
+        //LISTEN
+        if(!issockoptsuccess(listen(sock, SOMAXCONN))) {
+            LOGEE("Cannot listen");
+            goto ListenError;
+        }
+        break;
+ListenError:
+        err = app_get_errno();
+        SysSocketClose(sock);
+        sock = InValidSocket;
+        app_set_errno(err);
+    }
+    freeaddrinfo(res);
+
+    return sock;
+}
+
 sock_t app_udp_listener_ip(in_addr_t ip, port_t port)
 {
     sock_t listener_d = socket(AF_INET, SOCK_DGRAM, 0);

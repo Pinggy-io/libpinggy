@@ -48,6 +48,17 @@ ConnectionListenerImpl::ConnectionListenerImpl(port_t port, bool ipv6):
 {
 }
 
+ConnectionListenerImpl::ConnectionListenerImpl(tString host, tPort port):
+        fd(InValidSocket),
+        port(port),
+        host(host),
+        flagsForChild(0),
+        ipv6(false),
+        blocking(true),
+        tryAgain(false)
+{
+}
+
 ConnectionListenerImpl::~ConnectionListenerImpl()
 {
     LOGT("Removing" << fd);
@@ -60,7 +71,26 @@ ConnectionListenerImpl::StartListening()
     if (IsValidSocket(fd)) {
         return true;
     }
-    if(!socketPath.empty()) {
+    if (!host.empty()) {
+        fd = app_tcp_listener_host(host.c_str(), std::to_string(port).c_str());
+        if(!IsValidSocket(fd)) {
+            return false;
+        }
+        {
+            sockaddr_ip sockAddr;
+            socklen_t sockLen;
+            bzero(&sockAddr, sizeof(sockAddr));
+            sockLen = sizeof(sockAddr);
+            int ret = app_getsockname(fd, (struct sockaddr *)&sockAddr, &sockLen);
+            if (ret < 0) {
+                LOGEF(GetFd(), "`" + tString(__func__) + "`");
+                sockAddr.addr.sa_family = AF_UNSPEC;
+            }
+            this->sockAddr = NewSocketAddressPtr(sockAddr);
+        }
+        ipv6 = sockAddr->IsIpv6();
+        port = sockAddr->GetPort();
+    } else if(!socketPath.empty()) {
         fd = app_uds_listener(socketPath.c_str());
         if (!IsValidSocket(fd)) {
             LOGF("Error listening `" << socketPath << "` error:", app_get_errno(), app_get_strerror(app_get_errno()));
@@ -78,7 +108,7 @@ ConnectionListenerImpl::StartListening()
             port = app_socket_port(fd);
             set_close_on_exec(fd);
         }
-        LOGI("Listening to `http://localhost:" << port << "`");
+        LOGI("Listening to `http://localhost:" << port << "` (" << fd << ")");
     }
     if (IsValidSocket(fd)) {
         blocking = is_blocking(fd);

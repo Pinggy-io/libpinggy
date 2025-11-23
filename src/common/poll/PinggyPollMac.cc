@@ -21,9 +21,9 @@
 #include <algorithm>
 #include <poll.h>
 
+#include <platform/assert_pinggy.h>
 #include <platform/Log.hh>
 #include <utils/Utils.hh>
-#include <platform/assert_pinggy.h>
 
 #define MAX_EVENTS 100
 

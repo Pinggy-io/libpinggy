@@ -41,6 +41,7 @@ TransportManager::TransportManager(net::NetworkConnectionPtr netConn, TransportM
             sendersNetConn(netConn),
             recversNetConn(netConn),
             eventHandler(eventHandler),
+            enablePinggyValue(false),
             readingHeader(true),
             expectedLen(HANDSHAKE_LENGTH),
             mismatchedEndianness(false),
@@ -66,6 +67,7 @@ TransportManager::TransportManager(net::NetworkConnectionPtr sendersNetConn, net
             sendersNetConn(sendersNetConn),
             recversNetConn(recversNetConn),
             eventHandler(eventHandler),
+            enablePinggyValue(false),
             readingHeader(true),
             expectedLen(HANDSHAKE_LENGTH),
             mismatchedEndianness(false),
@@ -200,10 +202,21 @@ TransportManager::parseBody(RawDataPtr stream)
     auto newPathRegistry = recverPathRegistry;
     recverPathRegistry->dirty = false;
     auto deserializer = NEW_DESERIALIZE_PTR(mismatchedEndianness);
-    deserializer->Parse(stream, newPathRegistry);
+
+    if (enablePinggyValue)
+        deserializer->Decode(stream, newPathRegistry);
+    else
+        deserializer->Parse(stream, newPathRegistry);
+
     if(!eventHandler)
         return;
-    eventHandler->HandleIncomingDeserialize(deserializer);
+
+    if (enablePinggyValue) {
+        auto &val = deserializer->getDecodedStream();
+        eventHandler->HandleIncomingPinggyValue(val);
+    } else {
+        eventHandler->HandleIncomingDeserialize(deserializer);
+    }
 }
 
 void TransportManager::closeConnections()
@@ -245,6 +258,14 @@ TransportManager::SendMsg(SerializerPtr serializer)
     sendOrQueueData(msgHeader);
     sendOrQueueData(rawBody);
     return true;
+}
+
+bool
+TransportManager::SendMsg(PinggyValue &v)
+{
+    auto serializer = GetSerializer();
+    serializer->encode(v);
+    return SendMsg(serializer);
 }
 
 bool

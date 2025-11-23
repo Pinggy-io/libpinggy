@@ -7,6 +7,7 @@ AddLibrary(utils
             RawData.cc
             StringUtils.cc
             Semaphore.cc
+            TunnelCommon.cc
 )
 
 

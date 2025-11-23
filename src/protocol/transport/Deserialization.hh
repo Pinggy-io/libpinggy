@@ -21,6 +21,7 @@
 #include "PathRegistry.hh"
 #include <vector>
 #include <platform/assert_pinggy.h>
+#include "PinggyValue.hh"
 
 DeclareClassWithSharedPtr(Deserializer);
 
@@ -40,11 +41,12 @@ private:
     std::map<std::string, DeserializerPtr> children;
     std::map<std::string, std::pair<tValueType, RawDataPtr>> literals;
 
-
     tValueType valueType; //for the current object
     tValueType contentType; //for the objects inside arrayOfObjects
     std::vector<RawDataPtr> literalsArray;
     std::vector<DeserializerPtr> arrayOfObjects;
+
+    PinggyValue memValue;
 
     bool mismatchedEndianness;
 
@@ -67,13 +69,33 @@ FOREACH_ALL_TYPE(DeclareArrayDeserialize)
     template<typename T>
     void deserialize_internal(T &val);
 
+#define DeclareDecodeLit(x) \
+    PinggyValue::PinggyInternalTypePtr \
+    decode##x(RawDataPtr stream, PathRegistryPtr pathRegistry);
+FOREACH_ANY_TYPE(DeclareDecodeLit)
+#undef DeclareDecodeLit
+
+    PinggyValue::PinggyInternalType_ObjectPtr
+    addValueToPath(PinggyValue::PinggyInternalType_ObjectPtr root, PathDefinitionPtr, PinggyValue::PinggyInternalTypePtr value);
+
+    PinggyValue::PinggyInternalTypePtr
+    decodeLit(RawDataPtr stream, tValueType valType, PathRegistryPtr pathRegistry);
+
     friend class TransportManager;
     Deserializer(bool mismatchedEndianness);
+
+    //this is private because we don't want to return a non referenced object
+    PinggyValue&
+    getDecodedStream()              { return memValue; }
+
 public:
     ~Deserializer();
 
     virtual void
     Parse(RawDataPtr stream, PathRegistryPtr pathRegistry, std::string curPath = "");
+
+    virtual void
+    Decode(RawDataPtr stream, PathRegistryPtr pathRegistry, std::string curPath = "");
 
     virtual tString
     Dump();
@@ -82,10 +104,12 @@ public:
     HasChild(tString key);
 
     template<typename T>
-    void Deserialize(tString key, T &val);
+    void
+    Deserialize(tString key, T &val);
 
     template<typename T>
-    void Deserialize(tString key, std::vector<T> &val);
+    void
+    Deserialize(tString key, std::vector<T> &val);
 
 #define DeclareDeserialize(x) \
     virtual void Deserialize(tString key, t##x &val, t##x defaultVal = x##_Default); \
