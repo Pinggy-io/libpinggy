@@ -124,6 +124,11 @@ bool RawData::AddData(RawDataPtr other)
     return AddData(other->Data, other->Len);
 }
 
+bool RawData::AddData(char c)
+{
+    return AddData((const void *)&c, 1);
+}
+
 RawDataPtr RawData::Concat(RawDataPtr other)
 {
     if (AddData(other))

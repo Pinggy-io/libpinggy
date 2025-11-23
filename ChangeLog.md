@@ -1,4 +1,13 @@
 
+# Changed Log
+
+### Sync-WithCore
+* There was issue with the netConn architecture. It is by default follows a decorator pattern. However, the problem lies with the poll handler. It was very difficult to handle which one is original and which one is the top layer. I am changing the architecture. Now the pollEventHandler is a seperate object and all the network layers are another seperate object. Any layer can call the poll object.
+* Added a GetString function to sharedPtr to easy loging.
+* Added mechanism to Add anyType of raw data to our RawData structure.
+* Fixing map, vector and set printing.
+* Formatting code.
+
 ### Feat-NewSession
 * Every thing seems working fine without any issue.
 * Currently I am working on basic stuff only. Not removing primary forwarding yet. I can work on that only after deployment or findout a way to make client backword compatible.

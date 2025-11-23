@@ -29,7 +29,11 @@ UdpConnection::SslError(int ret)
 
 
 UdpConnectionImpl::UdpConnectionImpl(tString host, tString port):
-            fd(INVALID_SOCKET), flags(0), lastReturn(0), blocking(false), tryAgain(false)
+        fd(INVALID_SOCKET),
+        flags(0),
+        lastReturn(0),
+        blocking(false),
+        tryAgain(false)
 {
     sockaddr_ip peerAddr;
     auto sock = app_udp_client_connect_host(host.c_str(), port.c_str(), &peerAddr);
@@ -41,6 +45,12 @@ UdpConnectionImpl::UdpConnectionImpl(tString host, tString port):
 
     netState.Udp = true;
     netState.Valid = IsValidSocket(fd);
+}
+
+void
+UdpConnectionImpl::__Init()
+{
+    pollEventObject = NewEventHandlerForPollableFdPtr(thisPtr);
 }
 
 //========================

@@ -17,6 +17,7 @@
 #include <Sdk.hh>
 #include <platform/Log.hh>
 #include <utils/Utils.hh>
+#include <utils/TemplateStreaming.hh>
 
 #include "cli_getopt.h"
 
