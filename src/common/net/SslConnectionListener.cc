@@ -90,29 +90,33 @@ serverNameCallback(SSL *ssl, int *al, void *arg)
     SslConnectionListener *sslCon = (SslConnectionListener *)arg;
     return sslCon->ServerNameCallback(ssl, al);
 }
-
+//==========
 SslConnectionListener::SslConnectionListener():
         connectionListener(nullptr),
-        initiated(false), selfSignedPkey(NULL)
+        initiated(false),
+        selfSignedPkey(NULL)
 {
 }
 
 SslConnectionListener::SslConnectionListener(tString path):
         connectionListener(NewConnectionListenerImplPtr(path)),
-        initiated(false), selfSignedPkey(NULL)
+        initiated(false),
+        selfSignedPkey(NULL)
 {
 }
 
 
 SslConnectionListener::SslConnectionListener(port_t port, bool ipv6) :
         connectionListener(NewConnectionListenerImplPtr(port, ipv6)),
-        initiated(false), selfSignedPkey(NULL)
+        initiated(false),
+        selfSignedPkey(NULL)
 {
 }
 
 SslConnectionListener::SslConnectionListener(ConnectionListenerPtr connListener):
         connectionListener(connListener),
-        initiated(false), selfSignedPkey(NULL)
+        initiated(false),
+        selfSignedPkey(NULL)
 {
     // Although it is not wise to call virtual function from constructor,
     //it is okay here as SetConnTypeForChild defined in base class
@@ -727,7 +731,7 @@ SslConnectionListener::DeregisterAcceptSslHandler(
         common::PollControllerPtr pollController)
 {
     if (threadPoolPtr) {
-        threadPoolPtr->DeregisterFDEvenHandler();
+        threadPoolPtr->DeregisterEventHandler();
         this->handler = nullptr;
     }
 }

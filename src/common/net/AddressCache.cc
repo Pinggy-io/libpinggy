@@ -37,5 +37,6 @@ AddressCache::SetAddrInfo(tString host, tString port, bool tcp, sock_addrinfo ad
     addrInfoMap[key] = addr;
 }
 
+std::shared_ptr<AddressCache> AddressCache::instance = nullptr;
 
 } // namespace net

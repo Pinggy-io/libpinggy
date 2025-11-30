@@ -64,7 +64,7 @@ public:
     StartListening() override;
 
     virtual bool
-    IsStarted() override { Assert(false); return false; }
+    IsStarted() override        { Assert(false); return false; }
 
     virtual NetworkConnectionPtr
     Accept() override;
@@ -85,10 +85,12 @@ public:
     GetListeningAddress() override;
 
     virtual void
-    SetRecvTimeoutms(uint16_t timeout) override {connectionListener->SetRecvTimeoutms(timeout);}
+    SetRecvTimeoutms(uint16_t timeout) override
+                                { connectionListener->SetRecvTimeoutms(timeout); }
 
     virtual void
-    SetSendTimeoutms(uint16_t timeout) override {connectionListener->SetSendTimeoutms(timeout);}
+    SetSendTimeoutms(uint16_t timeout) override
+                                { connectionListener->SetSendTimeoutms(timeout); }
 
     virtual void
     AcceptSslWithThread(NetworkConnectionPtr netConn, pinggy::VoidPtr ptr = nullptr);
@@ -106,13 +108,15 @@ public:
     EventOccured() override;
 
     virtual void
-    CleanupBeforeExec() { CloseConn(); if(threadPoolPtr) { threadPoolPtr->StopAfterFork(); }}
+    CleanupBeforeExec()         { CloseConn(); if(threadPoolPtr) { threadPoolPtr->StopAfterFork(); } }
 
     virtual void
-    SetFlagsForChild(uint32_t flags) override { if (connectionListener) connectionListener->SetFlagsForChild(flags); }
+    SetFlagsForChild(uint32_t flags) override
+                                { if (connectionListener) connectionListener->SetFlagsForChild(flags); }
 
     virtual uint32_t
-    FlagsForChild() const override { return connectionListener ? connectionListener->FlagsForChild() : 0; }
+    FlagsForChild() const override
+                                { return connectionListener ? connectionListener->FlagsForChild() : 0; }
 
     virtual int
     ServerNameCallback(SSL *ssl, int *);
@@ -121,19 +125,20 @@ public:
     ReloadCertificates();
 
     virtual tString
-    GetType() override { return Type(); }
+    GetType() override          { return Type(); }
 
     static tString
-    Type() { return TO_STR(SslConnectionListener); }
+    Type()                      { return TO_STR(SslConnectionListener); }
 
     virtual void
-    SetBlocking(bool block = true) override { if(connectionListener) connectionListener->SetBlocking(block); }
+    SetBlocking(bool block = true) override
+                                { if(connectionListener) connectionListener->SetBlocking(block); }
 
     virtual bool
-    IsBlocking() override { return connectionListener ? connectionListener->IsBlocking() : false; }
+    IsBlocking() override       { return connectionListener ? connectionListener->IsBlocking() : false; }
 
     virtual bool
-    TryAgain() override { return connectionListener ? connectionListener->TryAgain() : false; }
+    TryAgain() override         { return connectionListener ? connectionListener->TryAgain() : false; }
 
     //FDEventHandler
     virtual len_t
@@ -145,8 +150,6 @@ public:
     virtual len_t
     HandleFDErrorWPtr(PollableFDPtr, pinggy::VoidPtr ptr, int16_t) override;
 
-    virtual PollableFDPtr GetOrig() override { return connectionListener->GetOrig(); }
-
 
     virtual void
     SetAcceptRawSocket() override
@@ -155,6 +158,15 @@ public:
     virtual bool
     GetAcceptRawSocket() override
                                 { return connectionListener ? connectionListener->GetAcceptRawSocket(): false; }
+
+    //PollableFD
+    virtual EventHandlerForPollableFdPtr
+    GetPollEventHandler() override
+                                { return connectionListener->GetPollEventHandler(); }
+
+    virtual void
+    ErasePollEventHandler() override
+                                { connectionListener->ErasePollEventHandler(); }
 
 protected:
     virtual int

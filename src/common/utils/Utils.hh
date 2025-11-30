@@ -143,53 +143,26 @@ CreateTemporaryDirectory(tString templat="util-temp-XXXXX");
 bool
 DeleteDirTree(FsPath dirPath);
 
-template<typename T>
-std::ostream&
-operator<<(std::ostream& os, const std::vector<T>& vect)
-{
-    os << "[";
-    bool comma = false;
-    for (auto ele : vect) {
-        if (comma)
-            os << ", ";
-        comma = true;
-        os << ele;
-    }
-    os << "]";
-    return os;
-}
 
-template<typename K, typename V>
-std::ostream&
-operator<<(std::ostream& os, const std::map<K, V>& map)
-{
-    os << "{";
-    bool comma = false;
-    for (auto ele : map) {
-        if (comma)
-            os << ", ";
-        comma = true;
-        os << ele.first << ": " << ele.second;
-    }
-    os << "}";
-    return os;
+template< typename T, typename U, typename V >
+std::basic_ostream<U, V>&
+operator<<(std::basic_ostream<U, V>& os, const std::vector<T>& vect);
 
-}
+template<typename K, typename V, typename T, typename U >
+std::basic_ostream<T, U>&
+operator<<(std::basic_ostream<T, U>& os, const std::map<K, V>& map);
 
-template<typename T>
-std::ostream&
-operator<<(std::ostream& os, const std::set<T>& vect)
-{
-    os << "{";
-    bool comma = false;
-    for (auto ele : vect) {
-        if (comma)
-            os << ", ";
-        comma = true;
-        os << ele;
-    }
-    os << "}";
-    return os;
-}
+template< typename T, typename U, typename V >
+std::basic_ostream<U, V>&
+operator<<(std::basic_ostream<U, V>& os, const std::set<T>& vect);
+
+template<typename U, typename V, typename... Args >
+std::basic_ostream<U, V>&
+operator<<(std::basic_ostream<U, V>& os, const std::tuple<Args...>& t);
+
+template<typename K, typename V, typename T, typename U >
+std::basic_ostream<T, U>&
+operator<<(std::basic_ostream<T, U>& os, const std::pair<K, V>& pair);
+
 
 #endif /* SERVER_UTILS_HH_ */

@@ -22,14 +22,15 @@
 namespace net
 {
 
-class UdpConnection : public NetworkConnection {
+class UdpConnection : public NetworkConnection
+{
 public:
     virtual
     ~UdpConnection(){}
 
     virtual ssize_t
     Peek(void *buf, size_t nbyte) override
-                                {return -1;}
+                                { return -1; }
 
     virtual int
     SslError(int ret) override;
@@ -39,64 +40,127 @@ public:
 };
 DeclareSharedPtr(UdpConnection);
 
-class UdpConnectionImpl : public UdpConnection {
+class UdpConnectionImpl : public UdpConnection
+{
 public:
     UdpConnectionImpl(tString host, tString port);
-    ~UdpConnectionImpl() {}
-    virtual ssize_t Read(void *buf, size_t nbyte, int flags = 0) override {ABORT_WITH_MSG("Not Allowed"); return -1;}
-    virtual ssize_t Write(const void *buf, size_t nbyte, int flags = 0) override {ABORT_WITH_MSG("Not Allowed"); return -1;}
-    virtual ssize_t Peek(void *buf, size_t nbyte) override {ABORT_WITH_MSG("Not Allowed"); return -1;}
 
-    virtual std::tuple<ssize_t, RawDataPtr> Read(len_t nbyte, int flags = 0) override;
-    virtual ssize_t Write(RawDataPtr rwData, int flags = 0) override;
-    virtual std::tuple<ssize_t, RawDataPtr> Peek(len_t nbyte) override;
+    virtual
+    ~UdpConnectionImpl()        { }
 
-    virtual ssize_t LastReturn() override { return lastReturn; }
-    virtual sock_t GetFd() override {return fd;}
-    virtual void SetRecvTimeoutms(uint16_t timeout) override {set_recv_timeout_ms(fd, timeout);}
-    virtual void SetSendTimeoutms(uint16_t timeout) override {set_send_timeout_ms(fd, timeout);}
-    virtual int SslError(int ret) override;
-    virtual int ShutDown(int how) override {return app_shutdown(fd, how);}
-    virtual tString GetType() override { return Type(); }
-    static tString Type() { return TO_STR(UdpConnectionImpl); }
+    virtual void
+    __Init() override;
 
-    virtual tString GetServerName() override { return ""; }
+    virtual ssize_t
+    Read(void *buf, size_t nbyte, int flags = 0) override
+                                {ABORT_WITH_MSG("Not Allowed"); return -1;}
 
-    virtual SocketAddressPtr GetPeerAddress() override { return peerAddress; }
-    virtual SocketAddressPtr GetLocalAddress() override;
-    virtual bool EnableKeepAlive(int keepCnt, int keepIdleSec,
-            int keepIntvl, bool enable = true) override;
-    virtual bool ReassigntoLowerFd() override { return ReassigntoLowerFdPtr(&fd); }
+    virtual ssize_t
+    Write(const void *buf, size_t nbyte, int flags = 0) override
+                                {ABORT_WITH_MSG("Not Allowed"); return -1;}
 
-    virtual uint32_t Flags() const override { return flags; }
+    virtual ssize_t
+    Peek(void *buf, size_t nbyte) override
+                                {ABORT_WITH_MSG("Not Allowed"); return -1;}
 
-    void SetFlags(uint32_t flags) { this->flags = flags; }
+    virtual std::tuple<ssize_t, RawDataPtr>
+    Read(len_t nbyte, int flags = 0) override;
 
-    virtual void SetBlocking(bool block = true) override;
-    virtual bool IsBlocking() override { return blocking; }
-    virtual bool TryAgain() override { return tryAgain; }
+    virtual ssize_t
+    Write(RawDataPtr rwData, int flags = 0) override;
 
-    virtual PollableFDPtr
-    GetOrig() override { return thisPtr; }
+    virtual std::tuple<ssize_t, RawDataPtr>
+    Peek(len_t nbyte) override;
+
+    virtual ssize_t
+    LastReturn() override       { return lastReturn; }
+
+    virtual sock_t
+    GetFd() override            { return fd; }
+
+    virtual void
+    SetRecvTimeoutms(uint16_t timeout) override
+                                { set_recv_timeout_ms(fd, timeout); }
+
+    virtual void
+    SetSendTimeoutms(uint16_t timeout) override
+                                { set_send_timeout_ms(fd, timeout); }
+
+    virtual int
+    SslError(int ret) override;
+
+    virtual int
+    ShutDown(int how) override
+                                { return app_shutdown(fd, how); }
+
+    virtual tString
+    GetType() override          { return Type(); }
+
+    static tString
+    Type()                      { return TO_STR(UdpConnectionImpl); }
+
+    virtual tString
+    GetServerName() override    { return ""; }
+
+    virtual SocketAddressPtr
+    GetPeerAddress() override   { return peerAddress; }
+
+    virtual SocketAddressPtr
+    GetLocalAddress() override;
+
+    virtual bool
+    EnableKeepAlive(int keepCnt, int keepIdleSec, int keepIntvl, bool enable = true) override;
+
+    virtual bool
+    ReassigntoLowerFd() override
+                                { return ReassigntoLowerFdPtr(&fd); }
+
+    virtual uint32_t
+    Flags() const override      { return flags; }
+
+    void
+    SetFlags(uint32_t flags)    { this->flags = flags; }
+
+    virtual void
+    SetBlocking(bool block = true) override;
+
+    virtual bool
+    IsBlocking() override       { return blocking; }
+
+    virtual bool
+    TryAgain() override         { return tryAgain; }
+
 
     virtual tNetState
-    GetState() override { return netState; }
+    GetState() override         { return netState; }
 
 protected:
-    virtual int CloseNClear(tString) override;
+    virtual int
+    CloseNClear(tString) override;
+
+    virtual EventHandlerForPollableFdPtr
+    GetPollEventHandler() override
+                                { return pollEventObject; }
+
+    virtual void
+    ErasePollEventHandler() override
+                                { pollEventObject = nullptr; }
 
 private:
-    sock_t fd;
-    SocketAddressPtr peerAddress;
-    SocketAddressPtr localAddress;
-    uint32_t flags;
-    ssize_t lastReturn;
-    bool blocking;
-    bool tryAgain;
+    sock_t                      fd;
+    SocketAddressPtr            peerAddress;
+    SocketAddressPtr            localAddress;
+    uint32_t                    flags;
+    ssize_t                     lastReturn;
+    bool                        blocking;
+    bool                        tryAgain;
 
-    RawDataPtr rxData;
-    RawDataPtr txData;
-    tNetState netState;
+    RawDataPtr                  rxData;
+    RawDataPtr                  txData;
+    tNetState                   netState;
+    EventHandlerForPollableFdPtr
+                                pollEventObject;
+
 };
 DefineMakeSharedPtr(UdpConnectionImpl);
 

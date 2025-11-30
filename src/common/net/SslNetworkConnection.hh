@@ -139,9 +139,6 @@ public:
     virtual bool
     TryAgain() override         { return tryAgain; }
 
-    virtual PollableFDPtr
-    GetOrig() override          { return netConn->GetOrig(); }
-
     virtual tNetState
     GetState() override         { return netConn->GetState().NewWithSsl(); }
 
@@ -155,7 +152,8 @@ public:
     virtual len_t
     HandleFDError(PollableFDPtr, int16_t) override;
 
-    class SslNetworkConnectionException: public std::exception {
+    class SslNetworkConnectionException: public std::exception
+    {
     public:
         virtual NetworkConnectionPtr
         getNetConn() = 0;
@@ -199,6 +197,15 @@ CustomeException(Certificate);
 
     static SSL_CTX *
     CreateSslContext(int minVersion = TLS1_3_VERSION, int maxVersion = TLS1_3_VERSION, tString pem = "");
+
+    //PollableFD
+    virtual EventHandlerForPollableFdPtr
+    GetPollEventHandler() override
+                                { return netConn->GetPollEventHandler(); }
+
+    virtual void
+    ErasePollEventHandler() override
+                                { netConn->ErasePollEventHandler(); }
 
 protected:
     virtual int

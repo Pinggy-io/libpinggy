@@ -29,8 +29,11 @@ DeclareClassWithSharedPtr(DummyConnection);
 class DummyConnection: public virtual NetworkConnection
 {
 public:
-    virtual ~DummyConnection();
+    virtual
+    ~DummyConnection();
 
+    virtual void
+    __Init() override;
 
     static bool
     CreateDummyConnection(DummyConnectionPtr conns[2], int bufferLen = 0);
@@ -49,9 +52,6 @@ public:
     void
     SetServerName(const tString &name)
                                 { serverName = name; }
-
-    // virtual bool
-    // IsPollable() override       { return false; }
 
     virtual bool
     IsBlocking() override       { return false; }
@@ -130,35 +130,35 @@ public:
 
     //==
 
-    // virtual bool
-    // IsSendReady() override;
-
-    // virtual bool
-    // IsRecvReady() override;
-
     virtual bool
     TryAgain() override         { return tryAgain; }
+
     //PollableFD
     virtual void
-    WritePollEnabled() override;
+    EnableWritePoll() override;
 
     virtual void
-    WritePollDisabled() override;
+    DisableWritePoll() override;
 
     virtual void
-    ReadPollEnabled() override;
+    EnableReadPoll() override;
 
     virtual void
-    ReadPollDisabled() override;
+    DisableReadPoll() override;
 
     int16_t
     GetBufferSize();
 
-    virtual PollableFDPtr
-    GetOrig() override          { return thisPtr; }
-
     virtual tNetState
     GetState() override;
+
+    virtual EventHandlerForPollableFdPtr
+    GetPollEventHandler() override
+                                { return pollEventObject; }
+
+    virtual void
+    ErasePollEventHandler() override
+                                { pollEventObject = nullptr; }
 
 protected:
 
@@ -201,8 +201,10 @@ private:
     SocketAddressPtr            peerAddress;
     SocketAddressPtr            localAddress;
     tString                     serverName;
+    EventHandlerForPollableFdPtr
+                                pollEventObject;
 };
-DeclareSharedPtr(DummyConnection);
+DefineMakeSharedPtr(DummyConnection);
 
 } /* namespace net */
 
