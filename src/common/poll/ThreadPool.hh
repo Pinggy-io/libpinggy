@@ -34,45 +34,79 @@ namespace common {
 
 abstract class ThreadPoolEventHandler: virtual public pinggy::SharedObject {
 public:
-    virtual ~ThreadPoolEventHandler() {};
-    virtual void EventOccured() = 0;
+    virtual
+    ~ThreadPoolEventHandler() { };
+
+    virtual void
+    EventOccured() = 0;
 };
 
 DeclareSharedPtr(ThreadPoolEventHandler);
 
-class ThreadPool final : virtual public pinggy::SharedObject, public PollableFD
+class ThreadPool final : virtual public pinggy::SharedObject, public PollEventHandler
 {
 
 public:
     ThreadPool();
-    virtual ~ThreadPool();
-    virtual void Start(uint32_t numThreads=2);
-    virtual void QueueJob(const std::function<void()>& job);
-    virtual void Stop();
-    virtual void StopAfterFork();
-    virtual bool Busy();
-    virtual sock_t GetFd() override { return pollFd; };
-    virtual len_t HandlePollError(int16_t) override;
-    virtual len_t HandlePollRecv() override;
-    virtual void RegisterEventHandler(ThreadPoolEventHandlerPtr hndlr);
-    virtual PollableFDPtr GetOrig() override { return thisPtr; }
+
+    virtual
+    ~ThreadPool();
+
+    virtual void
+    Start(uint32_t numThreads=2);
+
+    virtual void
+    QueueJob(const std::function<void()>& job);
+
+    virtual void
+    Stop();
+
+    virtual void
+    StopAfterFork();
+
+    virtual bool
+    Busy();
+
+    virtual void
+    SetPollController(common::PollControllerPtr);
+
+    virtual void
+    RegisterEventHandler(ThreadPoolEventHandlerPtr hndlr);
+
+    virtual void
+    DeregisterEventHandler();
+
+    // PollEventHandler
+    virtual sock_t
+    GetFd() override            { return pollFd; };
+
+    virtual len_t
+    HandlePollError(int16_t) override;
+
+    virtual len_t
+    HandlePollRecv() override;
+
+
 
 protected:
-    virtual int CloseNClear(tString location) override { return 0; }
+    // virtual int CloseNClear(tString location) override { return 0; }
 
 private:
-    void threadLoop();
+    void
+    threadLoop();
 
-    bool started;
-    bool stopped;
-    bool should_terminate;           // Tells threads to stop looking for jobs
-    std::mutex queue_mutex;                  // Prevents data races to the job queue
-    std::condition_variable mutex_condition; // Allows threads to wait on new jobs or termination
-    std::vector<std::thread> threads;
-    std::queue<std::function<void()>> jobs;
-    sock_t pollFd;
-    sock_t notificationFd;
-    ThreadPoolEventHandlerPtr handler;
+    bool                        started;
+    bool                        stopped;
+    bool                        should_terminate;           // Tells threads to stop looking for jobs
+    std::mutex                  queue_mutex;                  // Prevents data races to the job queue
+    std::condition_variable     mutex_condition; // Allows threads to wait on new jobs or termination
+    std::vector<std::thread>    threads;
+    std::queue<std::function<void()>>
+                                jobs;
+    sock_t                      pollFd;
+    sock_t                      notificationFd;
+    ThreadPoolEventHandlerPtr   handler;
+    common::PollControllerPtr   pollController;
 };
 DefineMakeSharedPtr(ThreadPool);
 
