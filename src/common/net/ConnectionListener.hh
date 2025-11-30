@@ -160,6 +160,9 @@ public:
     virtual
     ~ConnectionListenerImpl();
 
+    virtual void
+    __Init() override;
+
     virtual bool
     StartListening() override;
 
@@ -219,8 +222,14 @@ public:
     virtual bool
     TryAgain() override         { return tryAgain; }
 
-    virtual PollableFDPtr
-    GetOrig() override          { return thisPtr; }
+    //PollableFD
+    virtual EventHandlerForPollableFdPtr
+    GetPollEventHandler() override
+                                { return pollEventObject; }
+
+    virtual void
+    ErasePollEventHandler() override
+                                { pollEventObject = nullptr; }
 
 protected:
     virtual int
@@ -236,6 +245,8 @@ private:
     bool                        blocking;
     bool                        tryAgain;
     SocketAddressPtr            sockAddr;
+    EventHandlerForPollableFdPtr
+                                pollEventObject;
 };
 
 DefineMakeSharedPtr(ConnectionListenerImpl);

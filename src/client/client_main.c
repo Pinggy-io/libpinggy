@@ -25,6 +25,7 @@
 #include "cli_getopt.h"
 
 #ifndef PLATFORM_CONFIG_INCLUDED
+
 #define PinggyVersionMajor 0
 #define PinggyVersionMinor 0
 #define PinggyVersionPatch 0
@@ -407,6 +408,7 @@ parseArguments(int argc, char* argv[])
 
     int opt;
     int longindex = 0;
+
     struct cli_option longopts[] = {
         {"help", cli_no_argument, 0, 'h'},
         {"version", cli_no_argument, 0, 'v'},

@@ -208,8 +208,13 @@ sock_t app_tcp_client_connect_ip(in_addr_t ip, port_t port);
 sock_t app_tcp_client_connect_host(const char* host, const char* port);
 sock_t app_udp_client_connect_host(const char* host, const char* port, sockaddr_ip* sockAddr);
 
+sock_t app_udp_client_connect_addr(sockaddr_ip sockAddr);
+
 struct sock_addrinfo *app_getaddrinfo_tcp(const char* host, const char* port);
 void app_freeaddrinfo(struct sock_addrinfo *res);
+
+int app_get_addr_for_host_port(const char *host, const char *port, sockaddr_ip *sockAddr);
+
 sock_t app_connect_nonblocking_socket(struct sock_addrinfo *res, int *connected);
 
 port_t app_socket_port(sock_t socket);

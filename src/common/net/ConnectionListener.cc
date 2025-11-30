@@ -25,8 +25,12 @@
 namespace net {
 
 ConnectionListenerImpl::ConnectionListenerImpl(sock_t fd):
-        fd(fd), port(0), flagsForChild(0), ipv6(false),
-        blocking(true), tryAgain(false)
+        fd(fd),
+        port(0),
+        flagsForChild(0),
+        ipv6(false),
+        blocking(true),
+        tryAgain(false)
 {
     if(IsValidSocket(fd)) {
         port = app_socket_port(fd);
@@ -35,16 +39,23 @@ ConnectionListenerImpl::ConnectionListenerImpl(sock_t fd):
 }
 
 ConnectionListenerImpl::ConnectionListenerImpl(std::string path):
-        fd(InValidSocket), port(0),
-        socketPath(path), flagsForChild(0), ipv6(false),
-        blocking(true), tryAgain(false)
+        fd(InValidSocket),
+        port(0),
+        socketPath(path),
+        flagsForChild(0),
+        ipv6(false),
+        blocking(true),
+        tryAgain(false)
 {
 }
 
 ConnectionListenerImpl::ConnectionListenerImpl(port_t port, bool ipv6):
-        fd(InValidSocket), port(port),
-        flagsForChild(0), ipv6(ipv6),
-        blocking(true), tryAgain(false)
+        fd(InValidSocket),
+        port(port),
+        flagsForChild(0),
+        ipv6(ipv6),
+        blocking(true),
+        tryAgain(false)
 {
 }
 
@@ -63,6 +74,12 @@ ConnectionListenerImpl::~ConnectionListenerImpl()
 {
     LOGT("Removing" << fd);
     CloseNCleanSocket(fd);
+}
+
+void
+ConnectionListenerImpl::__Init()
+{
+    pollEventObject = NewEventHandlerForPollableFdPtr(thisPtr);
 }
 
 bool
@@ -150,7 +167,7 @@ ConnectionListenerImpl::Accept()
     netConn->SetFlags(flagsForChild);
     netConn->SetConnType(ConnTypeForChild());
     netConn->SetBlocking(true);
-    netConn->SetPollController(GetPController());
+    netConn->SetPollController(GetPollController());
     return netConn;
 }
 

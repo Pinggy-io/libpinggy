@@ -130,6 +130,9 @@ void PollControllerLinux::RegisterHandler(common::PollEventHandlerPtr handler, b
     LOGT("adding fd:" << fd);
     Assert(fd > 0);
     Assert(pollfd > 0);
+    if (fds.find(fd) != fds.end()) {
+        LOGD("Fd already present: ", fd);
+    }
     Assert(fds.find(fd) == fds.end());
     fds[fd] = handler;
     socketState[fd] = NewFdMetaDataPtr(false, false, edgeTriggered);
