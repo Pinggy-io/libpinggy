@@ -634,10 +634,6 @@ Sdk::HandleSessionDisconnection(tString reason)
     if (!session)
         return;
 
-    // if (eventHandler)
-    //     eventHandler->OnDisconnected(reason, {reason});
-
-    // cleanup();
     cleanupNow = true;
     cleanupReason = reason;
 }
@@ -648,13 +644,9 @@ Sdk::HandleSessionConnectionReset()
     //Nothing much to do. just stop the poll controller if possible.
     baseConnection = nullptr; //it would be closed by sessios once this function returns.
 
-    // if (eventHandler)
-    //     eventHandler->OnDisconnected("Connection reset", {"Connection reset"});
-
-    // cleanup();
     cleanupNow = true;
-    // stopped = true;
     cleanupReason = "Connection reset";
+    //TODO there is a slight chance that something like keepAlive or ChannelConnectionForwarder might try to send data
 }
 
 void
@@ -1026,7 +1018,7 @@ Sdk::cleanup()
 void
 Sdk::sendKeepAlive()
 {
-    if (session) {
+    if (!cleanupNow && session) {
         auto tick = session->SendKeepAlive();
         pollController->SetTimeout(4*SECOND, thisPtr, &Sdk::keepAliveTimeout, tick);
         LOGT("Sending keepalive");
