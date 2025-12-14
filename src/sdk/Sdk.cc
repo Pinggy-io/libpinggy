@@ -637,8 +637,6 @@ void
 Sdk::HandleSessionConnectionReset()
 {
     LOGD("Connection Reset");
-    //Nothing much to do. just stop the poll controller if possible.
-    baseConnection = nullptr; //it would be closed by sessios once this function returns.
 
     releaseBaseConnection();
 
@@ -945,10 +943,6 @@ Sdk::keepAliveTimeout(tUint64 tick)
 {
     if (tick > (lastKeepAliveTickReceived+2) && !session->IsThereIncomingActivities()) {
         LOGI("Connection probably gone");
-        if (keepAliveTask) {
-            keepAliveTask->DisArm();
-            keepAliveTask = nullptr;
-        }
         releaseBaseConnection();
         lastError = "Tunnel seems unresponsive.";
 
@@ -1120,7 +1114,12 @@ Sdk::initiateReconnection()
 void
 Sdk::releaseBaseConnection()
 {
-    if (pollController && baseConnection) {
+    if (keepAliveTask) {
+        keepAliveTask->DisArm();
+        keepAliveTask = nullptr;
+    }
+
+    if (pollController && baseConnection) { //TODO I don't like this. However this best for the time being
         baseConnection->DeregisterFDEvenHandler();
         baseConnection->CloseConn();
         baseConnection = nullptr;
