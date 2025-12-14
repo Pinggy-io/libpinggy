@@ -351,8 +351,15 @@ Session::validRemoteChannel(tChannelId channelId)
 bool
 Session::sendMsg(ProtoMsgPtr msg, bool queue)
 {
-    if (endSent)
+    if (endSent) {
+        LOGE("Cannot send msg, end is already sent.");
         return false; //Assert might be appropriate
+    }
+
+    if (!transportManager) {
+        LOGE("Cannot send msg, TransportManager is not available.");
+        return false;
+    }
 
     if (msg->msgType == MsgType_Disconnect) {
         endSent = true;
