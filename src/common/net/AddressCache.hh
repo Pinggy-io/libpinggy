@@ -34,8 +34,9 @@ public:
 
     // Static method to access the single instance
     static std::shared_ptr<AddressCache> GetInstance() {
-        static std::shared_ptr<AddressCache> instance = std::shared_ptr<AddressCache>(new AddressCache()); // Guaranteed to be thread-safe in C++11+
-        return instance;
+        if (!AddressCache::instance)
+            AddressCache::instance = std::shared_ptr<AddressCache>(new AddressCache()); // Guaranteed to be thread-safe in C++11+
+        return AddressCache::instance;
     }
 
     sock_addrinfo
@@ -49,6 +50,9 @@ private:
 
     std::map<std::tuple<tString, tString, bool>, sock_addrinfo>
                                 addrInfoMap;
+
+    static std::shared_ptr<AddressCache>
+                                instance;
 };
 DefineMakeSharedPtr(AddressCache);
 

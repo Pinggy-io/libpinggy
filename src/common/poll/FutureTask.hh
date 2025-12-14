@@ -78,7 +78,8 @@ private:
 
 
 template<typename T, typename R, typename ...Args>
-inline void FutureTaskImplMem<T, R, Args...>::Fire()
+inline void
+FutureTaskImplMem<T, R, Args...>::Fire()
 {
     if (func)
         std::apply([this](Args ... a) {

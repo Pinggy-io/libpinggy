@@ -34,6 +34,9 @@
 
 namespace net {
 
+typedef sockaddr_ip tSockAddr;
+typedef socklen_t   tSockLen;
+
 
 DeclareClassWithSharedPtr(NetworkConnection);
 class NetworkConnectionException: public std::exception, public virtual pinggy::SharedObject
@@ -231,7 +234,7 @@ NLOHMANN_DECLARE_TYPE_NON_INTRUSIVE_CUSTOME_PTR(SocketStat);
 abstract class NetworkSocket : public virtual PollableFD {
 public:
     virtual
-    ~NetworkSocket()            {}
+    ~NetworkSocket()            { }
 
     virtual
     void SetRecvTimeoutms(uint16_t timeout) = 0;
@@ -249,7 +252,7 @@ public:
     bool IsBlocking() = 0;
 
     virtual bool
-    IsPollable() override       { return GetState().Pollable; }
+    IsPollable()                { return GetState().Pollable; }
 
     virtual bool
     IsRecvReady() override      { return GetState().RecvReady; }
@@ -446,6 +449,9 @@ public:
     virtual
     ~NetworkConnectionImpl();
 
+    virtual void
+    __Init() override;
+
     virtual tString
     GetConnectToAddr()          { return hostToConnect + ":" + portToConnect; }
 
@@ -522,8 +528,8 @@ public:
     Connect(NonBlockingConnectEventHandlerPtr handler,
             pinggy::VoidPtr ptr = nullptr, tString tag = "");
 
-    virtual PollableFDPtr
-    GetOrig() override          { return thisPtr; }
+    // virtual PollableFDPtr
+    // GetOrig() override          { return thisPtr; }
 
     virtual tNetState
     GetState() override         { return netState; }
@@ -548,6 +554,17 @@ protected:
 
     virtual len_t
     HandleConnect() override;
+
+    virtual len_t
+    HandleConnectError(tInt16 err) override;
+
+    virtual EventHandlerForPollableFdPtr
+    GetPollEventHandler() override
+                                { return pollEventObject; }
+
+    virtual void
+    ErasePollEventHandler() override
+                                { pollEventObject = nullptr; }
 
 private:
     void
@@ -581,6 +598,8 @@ private:
     tString                     connectEventTag;
     pinggy::VoidPtr             connectEventPtr;
     common::PollableTaskPtr     connectTimer;
+    EventHandlerForPollableFdPtr
+                                pollEventObject;
 
     tNetState                   netState;
 };
@@ -596,8 +615,5 @@ operator<<(std::ostream& os, const net::SocketAddressPtr& sa);
 
 std::ostream&
 operator<<(std::ostream& os, net::tConnType& connType);
-
-// std::ostream&
-// operator<<(std::ostream& os, const net::tConnType& ct);
 
 #endif /* CPP_COMMON_NETWORKCONNECTION_HH_ */

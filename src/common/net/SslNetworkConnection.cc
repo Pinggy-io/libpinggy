@@ -84,7 +84,8 @@ public:
     }
 
     virtual void
-    SslConnectionFailed(SslNetworkConnectionPtr sslConnPtr, pinggy::VoidPtr asyncConnectPtr) override {
+    SslConnectionFailed(SslNetworkConnectionPtr sslConnPtr, pinggy::VoidPtr asyncConnectPtr) override
+    {
         onFailed->Fire();
     }
 
@@ -539,8 +540,9 @@ len_t
 SslNetworkConnection::HandleFDError(PollableFDPtr fdPtr, int16_t ecode)
 {
     LOGD("Closing by `HandleFDErrorWTag` for fd: ", fdPtr->GetFd(), " errno: ", ecode);
-    netConn->DeregisterFDEvenHandler();
+    DeregisterFDEvenHandler();
     netConn->CloseConn();
+    netConn = nullptr;
     // SSL_free(ssl);
     asyncConnectHandler->SslConnectionFailed(thisPtr, asyncConnectPtr);
     return 0;
@@ -621,6 +623,7 @@ SslNetworkConnection::handleFD()
             DeregisterFDEvenHandler();
             asyncConnectHandler->SslConnectionFailed(thisPtr, asyncConnectPtr);
             netConn->CloseConn();
+            netConn = nullptr;
             // SSL_free(ssl);
             LOGD("SSL connection failed: ", netConn->GetPeerAddress(), netConn->GetFd());
             return 0;
@@ -648,9 +651,10 @@ SslNetworkConnection::handleFD()
                 netConn->DisableReadPoll();
                 return ret;
             default:
-                LOGE("Cannot accept as unknown error: ", sslErr, netConn->GetPeerAddress(), netConn->GetFd());
-                netConn->DeregisterFDEvenHandler();
-                netConn->CloseConn();
+                LOGE("Cannot connect as unknown error: ", sslErr, netConn->GetPeerAddress(), netConn->GetFd());
+                DeregisterFDEvenHandler();
+                // netConn->CloseConn();
+                // netConn = nullptr;
                 // SSL_free(ssl);
                 asyncConnectHandler->SslConnectionFailed(thisPtr, asyncConnectPtr);
             }
