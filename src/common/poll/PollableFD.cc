@@ -204,6 +204,7 @@ EventHandlerForPollableFd::DeregisterConnectHandler()
     }
     pollController->DeregisterHandler(thisPtr);
     redirectWriteEventsForConnection = false;
+    pollableFd = nullptr;
 }
 
 void
@@ -331,9 +332,10 @@ EventHandlerForPollableFd::HandlePollRecv()
 len_t
 EventHandlerForPollableFd::HandlePollSend()
 {
-    LOGT("Poll Send called: ", pollableFd->GetFd(), redirectWriteEventsForConnection);
+    auto lPollableFd = pollableFd; //So that pollableFd stays alive till the functionend
+    LOGT("Poll Send called: ", lPollableFd->GetFd(), redirectWriteEventsForConnection);
     if (redirectWriteEventsForConnection) {
-        return pollableFd->HandleConnect();
+        return lPollableFd->HandleConnect();
     }
     if (!registeredWithPollController)
         return 0;
