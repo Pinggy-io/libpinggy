@@ -602,14 +602,15 @@ SDKConfig::parseForwarding(tString forwardTo)
     }
 
     auto sl = StringToLower(fwdToSchema);
-    if (!sl.empty() && sl != TunnelType_HTTP && sl != TunnelType_TCP && sl != TunnelType_TLS && sl != TunnelType_TLSTCP && sl != TunnelType_UDP ) {
-        throw SdkConfigException("Invalid forwarding type `" + fwdToSchema + "`");
-    }
 
     bool localServerTls = false;
     if (sl == "https") { // very special case
         localServerTls = true;
         sl = TunnelType_HTTP;
+    }
+
+    if (!sl.empty() && sl != TunnelType_HTTP && sl != TunnelType_TCP && sl != TunnelType_TLS && sl != TunnelType_TLSTCP && sl != TunnelType_UDP ) {
+        throw SdkConfigException("Invalid forwarding type `" + fwdToSchema + "`");
     }
 
     auto mode = TunnelModeFromString(sl);
