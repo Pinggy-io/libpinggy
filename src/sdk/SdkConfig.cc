@@ -500,6 +500,7 @@ SdkForwardingPtr
 SDKConfig::parseForwarding(tString forwardingType, tString bindingUrl, tString forwardTo)
 {
     // Parse bindingUrl: [schema://]domain[:port]
+    auto origBindingUrl = bindingUrl;
     tString schema, domain, portStr;
     tPort port = 0;
 
@@ -570,7 +571,7 @@ SDKConfig::parseForwarding(tString forwardingType, tString bindingUrl, tString f
 
     forwarding->localServerTls          = fwdToSchema == "https";
 
-    forwarding->origBindingUrl          = bindingUrl;
+    forwarding->origBindingUrl          = origBindingUrl;
     forwarding->origForwardTo           = forwardTo;
     forwarding->origForwardingType      = forwardingType;
 
