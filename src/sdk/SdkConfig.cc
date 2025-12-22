@@ -29,8 +29,8 @@ namespace sdk
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_CUSTOME_NEW_PTR(SdkForwarding,
     (),
     (forwardingUrl,         address),
-    (bindingUrl,        listenAddress),
-    (mode,    type)
+    (bindingUrl,            listenAddress),
+    (mode,                  type)
 )
 
 struct HeaderMod : virtual public pinggy::SharedObject
@@ -97,17 +97,6 @@ SDKConfig::SDKConfig():
     allowPreflight(false)
 {
 }
-
-// tString SDKConfig::GetMode()
-// {
-//     return mode;
-// }
-
-// tString SDKConfig::GetUdpMode()
-// {
-//     return udpMode;
-// }
-
 
 tString
 SDKConfig::GetForwardings()
@@ -193,7 +182,7 @@ SDKConfig::SetForwarding(tString val)
         std::vector<SdkForwardingPtr> parsedForwardings;
         FROM_JSON_STR(parsedForwardings, val);
         ResetForwardings();
-        for (auto forward : parsedForwardings) {                   
+        for (auto forward : parsedForwardings) {
             AddForwarding(TunnelTypeFromTunnelMode(forward->mode), forward->bindingUrl, forward->forwardingUrl);
         }
     } catch (std::exception &e) {
@@ -507,7 +496,8 @@ SDKConfig::SetGlobalConfig(tString args)
  *
  *      port is mandatory and there is no default port. store it to SdkForwarding::fwdToPort
  */
-SdkForwardingPtr SDKConfig::parseForwarding(tString forwardingType, tString bindingUrl, tString forwardTo)
+SdkForwardingPtr
+SDKConfig::parseForwarding(tString forwardingType, tString bindingUrl, tString forwardTo)
 {
     // Parse bindingUrl: [schema://]domain[:port]
     tString schema, domain, portStr;
@@ -652,7 +642,8 @@ SDKConfig::parseForwarding(tString forwardTo)
     return forwarding;
 }
 
-HeaderModPtr HeaderMod::clone()
+HeaderModPtr
+HeaderMod::clone()
 {
     auto newMode = NewHeaderModPtr();
     newMode->action     = action;
@@ -663,7 +654,8 @@ HeaderModPtr HeaderMod::clone()
     return newMode;
 }
 
-UserPassPtr UserPass::clone()
+UserPassPtr
+UserPass::clone()
 {
     auto up = NewUserPassPtr();
     up->username = username;
