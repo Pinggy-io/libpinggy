@@ -193,8 +193,8 @@ SDKConfig::SetForwarding(tString val)
         std::vector<SdkForwardingPtr> parsedForwardings;
         FROM_JSON_STR(parsedForwardings, val);
         ResetForwardings();
-        for (auto forward : parsedForwardings) {
-            AddForwarding(forward->origForwardingType, forward->origBindingUrl, forward->origForwardTo);
+        for (auto forward : parsedForwardings) {                   
+            AddForwarding(TunnelTypeFromTunnelMode(forward->mode), forward->bindingUrl, forward->forwardingUrl);
         }
     } catch (std::exception &e) {
         ResetForwardings();
