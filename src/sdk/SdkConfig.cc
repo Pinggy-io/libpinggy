@@ -563,7 +563,7 @@ SDKConfig::parseForwarding(tString forwardingType, tString bindingUrl, tString f
     forwarding->mode                    = mode;
     forwarding->bindingDomain           = domain;
     forwarding->bindingPort             = port;
-    forwarding->bindingUrl             = domain + (port > 0 ? ":" + portStr : "");
+    forwarding->bindingUrl              = domain + (port > 0 ? ":" + portStr : "");
 
     forwarding->fwdToHost               = fwdToHost;
     forwarding->fwdToPort               = localPort;
@@ -628,7 +628,7 @@ SDKConfig::parseForwarding(tString forwardTo)
     forwarding->mode                    = mode;
     forwarding->bindingDomain           = "";
     forwarding->bindingPort             = 0;
-    forwarding->bindingUrl             = "";
+    forwarding->bindingUrl              = "";
 
     forwarding->fwdToHost               = fwdToHost;
     forwarding->fwdToPort               = localPort;
