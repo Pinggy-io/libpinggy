@@ -30,53 +30,88 @@ namespace pinggy {
 
 struct SharedObject: public std::enable_shared_from_this<SharedObject>
 {
-    virtual ~SharedObject(){};
-    virtual tUint64 Hash() { return (tUint64) this; }
-    std::shared_ptr<SharedObject> getptr() {
+    virtual
+    ~SharedObject()             { };
+
+    virtual tUint64
+    Hash()                      { return (tUint64) this; }
+
+    virtual void
+    __Init()                    { }
+
+    std::shared_ptr<SharedObject>
+    getptr()
+    {
         return shared_from_this();
     }
+
     template<typename D>
-    std::shared_ptr<D> DynamicPointerCast() noexcept {
+    std::shared_ptr<D>
+    DynamicPointerCast() noexcept
+    {
         return std::dynamic_pointer_cast<D>(shared_from_this());
     }
+
     template<typename D>
-    std::shared_ptr<D> StaticPointerCast() noexcept {
+    std::shared_ptr<D>
+    StaticPointerCast() noexcept
+    {
         return std::static_pointer_cast<D>(shared_from_this());
     }
 
     template<typename D>
-    void DynamicPointerCast(std::shared_ptr<D> &ptr) noexcept {
+    void
+    DynamicPointerCast(std::shared_ptr<D> &ptr) noexcept
+    {
         ptr = std::dynamic_pointer_cast<D>(shared_from_this());
     }
+
     template<typename D>
-    void StaticPointerCast(std::shared_ptr<D> &ptr) noexcept {
+    void
+    StaticPointerCast(std::shared_ptr<D> &ptr) noexcept
+    {
         ptr = std::static_pointer_cast<D>(shared_from_this());
+    }
+
+    virtual std::string
+    GetString() {
+        return std::to_string(Hash());
     }
 };
 
 template< class T, class U >
-std::shared_ptr<T> DynamicPointerCast(const std::shared_ptr<U>& r) noexcept {
+std::shared_ptr<T>
+DynamicPointerCast(const std::shared_ptr<U>& r) noexcept
+{
     return std::dynamic_pointer_cast<T>(r);
 }
 
 template< class T, class U >
-std::shared_ptr<T> DynamicPointerCast(T *,  const std::shared_ptr<U>& r) noexcept {
+std::shared_ptr<T>
+DynamicPointerCast(T *,  const std::shared_ptr<U>& r) noexcept
+{
     return std::dynamic_pointer_cast<T>(r);
 }
 
 template< class T, class U >
-std::shared_ptr<T> StaticPointerCast(const std::shared_ptr<U>& r) noexcept {
+std::shared_ptr<T>
+StaticPointerCast(const std::shared_ptr<U>& r) noexcept
+{
     return std::static_pointer_cast<T>(r);
 }
 
 template <typename T>
-bool operator<(const std::shared_ptr<T>& lhs, const std::shared_ptr<T>& rhs) {
+bool
+operator<(const std::shared_ptr<T>& lhs, const std::shared_ptr<T>& rhs)
+{
     return lhs->Hash() < rhs->Hash();
 }
 
 
 template <typename T>
-bool operator==(const std::shared_ptr<T>& lhs, const std::shared_ptr<T>& rhs) {
+bool
+operator==(const std::shared_ptr<T>& lhs, const std::shared_ptr<T>& rhs)
+{
     return (lhs && rhs) ? lhs->Hash() == rhs->Hash() : false;
 }
 
@@ -84,22 +119,29 @@ typedef std::shared_ptr<SharedObject> VoidPtr;
 
 #else
 
-struct SharedObject {
+struct SharedObject
+{
     virtual ~SharedObject(){};
 };
 
 template< class T, class U >
-T *DynamicPointerCast(U *r) noexcept {
+T *
+DynamicPointerCast(U *r) noexcept
+{
     return dynamic_cast<T*>(r);
 }
 
 template< class T, class U >
-T *DynamicPointerCast(T *t,  U *r) noexcept {
+T *
+DynamicPointerCast(T *t,  U *r) noexcept
+{
     return dynamic_cast<T*>(r);
 }
 
 template< class T, class U >
-T *StaticPointerCast(U *r) noexcept {
+T *
+StaticPointerCast(U *r) noexcept
+{
     return (T *)r;
 }
 
@@ -124,8 +166,8 @@ typedef pinggy::VoidPtr tVoidPtr;
 #define DefineMakeCustomSharedPtr(x, name) \
     DeclareSharedPtr(x, name) \
     template <typename ... Arguments> \
-    inline name New##x##Ptr(Arguments ... args) { return std::make_shared<x>(args...);} \
-    inline name New##x##Ptr(x *y) { return std::shared_ptr<x>(y);}
+    inline name New##x##Ptr(Arguments ... args) { auto _v = std::make_shared<x>(args...); _v->__Init(); return _v; } \
+    inline name New##x##Ptr(x *y) { auto _v = std::shared_ptr<x>(y); _v->__Init(); return _v;}
 
 #define DefineMakeSharedPtr(x) DefineMakeCustomSharedPtr(x, x##Ptr)
 
@@ -156,6 +198,18 @@ typedef pinggy::VoidPtr tVoidPtr;
     DeclareSharedPtr(x, x##Ptr);
 
 #define thisPtr pinggy::DynamicPointerCast(this, shared_from_this())
+
+
+template< typename T, typename U, typename V >
+void
+DumpPtr(std::basic_ostream<U, V>& os, const std::shared_ptr<T>& ptr)
+{
+    if (!ptr) {
+        os << "<null>";
+        return;
+    }
+    os << ptr->GetString();
+}
 
 #else
 
