@@ -28,9 +28,9 @@ namespace sdk
 
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_CUSTOME_NEW_PTR(SdkForwarding,
     (),
-    (origForwardTo,         address),
-    (origBindingUrl,        listenAddress),
-    (origForwardingType,    type)
+    (forwardingUrl,         address),
+    (bindingUrl,        listenAddress),
+    (mode,    type)
 )
 
 struct HeaderMod : virtual public pinggy::SharedObject
@@ -572,8 +572,12 @@ SdkForwardingPtr SDKConfig::parseForwarding(tString forwardingType, tString bind
     forwarding->mode                    = mode;
     forwarding->bindingDomain           = domain;
     forwarding->bindingPort             = port;
+    forwarding->bindingUrl             = domain + (port > 0 ? ":" + portStr : "");
+
     forwarding->fwdToHost               = fwdToHost;
     forwarding->fwdToPort               = localPort;
+    forwarding->forwardingUrl           = (fwdToSchema == "https" ? "https://" : "") + fwdToHost + ":" + localPortStr;
+
     forwarding->localServerTls          = fwdToSchema == "https";
 
     forwarding->origBindingUrl          = bindingUrl;
@@ -632,8 +636,12 @@ SDKConfig::parseForwarding(tString forwardTo)
     forwarding->mode                    = mode;
     forwarding->bindingDomain           = "";
     forwarding->bindingPort             = 0;
+    forwarding->bindingUrl             = "";
+
     forwarding->fwdToHost               = fwdToHost;
     forwarding->fwdToPort               = localPort;
+    forwarding->forwardingUrl           = (fwdToSchema == "https" ? "https://" : "") + fwdToHost + ":" + localPortStr;
+
     forwarding->localServerTls          = localServerTls;
 
     forwarding->origBindingUrl          = "";
@@ -669,8 +677,10 @@ SdkForwarding::Clone()
     newForwarding->mode               = mode;
     newForwarding->bindingPort        = bindingPort;
     newForwarding->bindingDomain      = bindingDomain;
+    newForwarding->bindingUrl         = bindingUrl;
     newForwarding->fwdToPort          = fwdToPort;
     newForwarding->fwdToHost          = fwdToHost;
+    newForwarding->forwardingUrl      = forwardingUrl;
     newForwarding->localServerTls     = localServerTls;
     newForwarding->origForwardTo      = origForwardTo;
     newForwarding->origBindingUrl     = origBindingUrl;
