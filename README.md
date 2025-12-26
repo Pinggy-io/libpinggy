@@ -38,9 +38,9 @@ Once OpenSSL is installed, manual build can be done using following commands
 mkdir build
 cmake ..
 cmake --build . -j --config Release //building the code \
-cmake --build . --config releaselib //releasing libpinggy and \
-cmake --build . --config releasessl //releasing ssl \
-cmake --build . --config distribute //creating libpinggy.tgz/zip \
+cmake --build . --target releaselib //releasing libpinggy and \
+cmake --build . --target releasessl //releasing ssl \
+cmake --build . --target distribute //creating libpinggy.tgz/zip \
 ```
 
 Also, one can use our build system. It will take care of openssl library as well. However, this is different for every os. However,
