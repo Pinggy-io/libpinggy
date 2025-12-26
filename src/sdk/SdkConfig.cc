@@ -28,9 +28,9 @@ namespace sdk
 
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_CUSTOME_NEW_PTR(SdkForwarding,
     (),
-    (origForwardTo,         address),
-    (origBindingUrl,        listenAddress),
-    (origForwardingType,    type)
+    (forwardingUrl,         address),
+    (bindingUrl,            listenAddress),
+    (mode,                  type)
 )
 
 struct HeaderMod : virtual public pinggy::SharedObject
@@ -97,17 +97,6 @@ SDKConfig::SDKConfig():
     allowPreflight(false)
 {
 }
-
-// tString SDKConfig::GetMode()
-// {
-//     return mode;
-// }
-
-// tString SDKConfig::GetUdpMode()
-// {
-//     return udpMode;
-// }
-
 
 tString
 SDKConfig::GetForwardings()
@@ -194,7 +183,7 @@ SDKConfig::SetForwarding(tString val)
         FROM_JSON_STR(parsedForwardings, val);
         ResetForwardings();
         for (auto forward : parsedForwardings) {
-            AddForwarding(forward->origForwardingType, forward->origBindingUrl, forward->origForwardTo);
+            AddForwarding(TunnelTypeFromTunnelMode(forward->mode), forward->bindingUrl, forward->forwardingUrl);
         }
     } catch (std::exception &e) {
         ResetForwardings();
@@ -507,9 +496,11 @@ SDKConfig::SetGlobalConfig(tString args)
  *
  *      port is mandatory and there is no default port. store it to SdkForwarding::fwdToPort
  */
-SdkForwardingPtr SDKConfig::parseForwarding(tString forwardingType, tString bindingUrl, tString forwardTo)
+SdkForwardingPtr
+SDKConfig::parseForwarding(tString forwardingType, tString bindingUrl, tString forwardTo)
 {
     // Parse bindingUrl: [schema://]domain[:port]
+    auto origBindingUrl = bindingUrl;
     tString schema, domain, portStr;
     tPort port = 0;
 
@@ -572,11 +563,15 @@ SdkForwardingPtr SDKConfig::parseForwarding(tString forwardingType, tString bind
     forwarding->mode                    = mode;
     forwarding->bindingDomain           = domain;
     forwarding->bindingPort             = port;
+    forwarding->bindingUrl              = domain + (port > 0 ? ":" + portStr : "");
+
     forwarding->fwdToHost               = fwdToHost;
     forwarding->fwdToPort               = localPort;
+    forwarding->forwardingUrl           = (fwdToSchema == "https" ? "https://" : "") + fwdToHost + ":" + localPortStr;
+
     forwarding->localServerTls          = fwdToSchema == "https";
 
-    forwarding->origBindingUrl          = bindingUrl;
+    forwarding->origBindingUrl          = origBindingUrl;
     forwarding->origForwardTo           = forwardTo;
     forwarding->origForwardingType      = forwardingType;
 
@@ -598,14 +593,15 @@ SDKConfig::parseForwarding(tString forwardTo)
     }
 
     auto sl = StringToLower(fwdToSchema);
-    if (!sl.empty() && sl != TunnelType_HTTP && sl != TunnelType_TCP && sl != TunnelType_TLS && sl != TunnelType_TLSTCP && sl != TunnelType_UDP ) {
-        throw SdkConfigException("Invalid forwarding type `" + fwdToSchema + "`");
-    }
 
     bool localServerTls = false;
     if (sl == "https") { // very special case
         localServerTls = true;
         sl = TunnelType_HTTP;
+    }
+
+    if (!sl.empty() && sl != TunnelType_HTTP && sl != TunnelType_TCP && sl != TunnelType_TLS && sl != TunnelType_TLSTCP && sl != TunnelType_UDP ) {
+        throw SdkConfigException("Invalid forwarding type `" + fwdToSchema + "`");
     }
 
     auto mode = TunnelModeFromString(sl);
@@ -632,8 +628,12 @@ SDKConfig::parseForwarding(tString forwardTo)
     forwarding->mode                    = mode;
     forwarding->bindingDomain           = "";
     forwarding->bindingPort             = 0;
+    forwarding->bindingUrl              = "";
+
     forwarding->fwdToHost               = fwdToHost;
     forwarding->fwdToPort               = localPort;
+    forwarding->forwardingUrl           = (fwdToSchema == "https" ? "https://" : "") + fwdToHost + ":" + localPortStr;
+
     forwarding->localServerTls          = localServerTls;
 
     forwarding->origBindingUrl          = "";
@@ -643,7 +643,8 @@ SDKConfig::parseForwarding(tString forwardTo)
     return forwarding;
 }
 
-HeaderModPtr HeaderMod::clone()
+HeaderModPtr
+HeaderMod::clone()
 {
     auto newMode = NewHeaderModPtr();
     newMode->action     = action;
@@ -654,7 +655,8 @@ HeaderModPtr HeaderMod::clone()
     return newMode;
 }
 
-UserPassPtr UserPass::clone()
+UserPassPtr
+UserPass::clone()
 {
     auto up = NewUserPassPtr();
     up->username = username;
@@ -669,8 +671,10 @@ SdkForwarding::Clone()
     newForwarding->mode               = mode;
     newForwarding->bindingPort        = bindingPort;
     newForwarding->bindingDomain      = bindingDomain;
+    newForwarding->bindingUrl         = bindingUrl;
     newForwarding->fwdToPort          = fwdToPort;
     newForwarding->fwdToHost          = fwdToHost;
+    newForwarding->forwardingUrl      = forwardingUrl;
     newForwarding->localServerTls     = localServerTls;
     newForwarding->origForwardTo      = origForwardTo;
     newForwarding->origBindingUrl     = origBindingUrl;

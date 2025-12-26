@@ -43,8 +43,10 @@ struct SdkForwarding: virtual public pinggy::SharedObject
     TunnelMode                  mode;
     tPort                       bindingPort;
     tString                     bindingDomain;
+    tString                     bindingUrl;
     tPort                       fwdToPort;
     tString                     fwdToHost;
+    tString                     forwardingUrl;
     bool                        localServerTls = false;
 
     tString                     origForwardTo;

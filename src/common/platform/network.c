@@ -440,7 +440,6 @@ sock_t app_tcp_listener_host(const char* host, const char *port)
 
     sock_t sock = InValidSocket;
     for(rp = res; rp != NULL; rp=rp->ai_next) {
-        if (rp->ai_family == AF_INET6)
         sock = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
         if(!IsValidSocket(sock)) {
             LOGEE("Cannot listen");

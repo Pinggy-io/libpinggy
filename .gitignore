@@ -237,6 +237,7 @@ cython_debug/
 /pinggyserver
 /pinggyclient
 /pinggy.h
+.idea
 
 mycert.pem
 
