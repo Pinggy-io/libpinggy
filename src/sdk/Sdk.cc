@@ -507,7 +507,7 @@ Sdk::HandleSessionRemoteForwardingSucceeded(protocol::tReqId reqId, tForwardingI
     updateForwardMap(remoteForwardings);
 
     if (eventHandler && forwarding->NewFlag) {
-        eventHandler->OnAdditionalForwardingSucceeded(forwarding->OrigBindingUrl, forwarding->OrigForwardTo, forwarding->OrigForwardingType);
+        eventHandler->OnAdditionalForwardingSucceeded(forwarding->ForwardingId);
     }
 }
 
@@ -547,7 +547,7 @@ Sdk::HandleSessionRemoteForwardingFailed(protocol::tReqId reqId, tString error)
     pendingAdditionalRemoteForwardingMap.erase(reqId);
 
     if (eventHandler && forwarding->NewFlag) {
-        eventHandler->OnAdditionalForwardingFailed(forwarding->OrigBindingUrl, forwarding->OrigForwardTo, forwarding->OrigForwardingType, error);
+        eventHandler->OnAdditionalForwardingFailed(forwarding->ForwardingId, error);
     }
 }
 
@@ -585,7 +585,7 @@ Sdk::HandleSessionNewChannelRequest(protocol::ChannelPtr channel)
             netConnImpl->Connect(thisPtr, channel);
             return; //we will handle this in different place
         } catch(...) {
-            LOGE("Could not connect to", forwarding->OrigForwardTo);
+            LOGE("Could not connect to", forwarding->ForwardingUrl);
             channel->Reject("Could not connect to provided address");
             return;
         }
@@ -600,11 +600,11 @@ Sdk::HandleSessionNewChannelRequest(protocol::ChannelPtr channel)
         try {
             netConn = net::NewUdpConnectionImplPtr(toHost, std::to_string(toPort));
         } catch(const std::exception& e) {
-            LOGE("Could not connect to", forwarding->OrigForwardTo, " due to ", e.what());
+            LOGE("Could not connect to", forwarding->ForwardingUrl, " due to ", e.what());
             channel->Reject("Could not connect to provided address");
             return;
         } catch(...) {
-            LOGE("Could not connect to", forwarding->OrigForwardTo);
+            LOGE("Could not connect to", forwarding->ForwardingUrl);
             channel->Reject("Could not connect to provided address");
             return;
         }

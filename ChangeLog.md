@@ -16,6 +16,9 @@
 
 ### sdk-fixes
 * Renaming some variables
+* Callback argument modified
+    1. pinggy_on_additional_forwarding_succeeded_cb_t
+    1. pinggy_on_additional_forwarding_failed_cb_t
 
 ### Feat-NewSession
 * Every thing seems working fine without any issue.

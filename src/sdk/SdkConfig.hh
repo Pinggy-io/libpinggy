@@ -49,9 +49,6 @@ struct SdkForwarding: virtual public pinggy::SharedObject
     tString                     ForwardingUrl;
     bool                        LocalServerTls = false;
 
-    tString                     OrigForwardTo;
-    tString                     OrigBindingUrl;
-    tString                     OrigForwardingType;
     bool                        NewFlag = true;
     tUint64                     ForwardingId;
 
