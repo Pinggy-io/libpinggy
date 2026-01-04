@@ -1,4 +1,7 @@
 
+### sdk-fixes
+* Renaming some variables
+
 ### Feat-NewSession
 * Every thing seems working fine without any issue.
 * Currently I am working on basic stuff only. Not removing primary forwarding yet. I can work on that only after deployment or findout a way to make client backword compatible.
