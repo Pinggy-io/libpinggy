@@ -593,9 +593,6 @@ SDKConfig::parseForwarding(tString forwardingType, tString bindingUrl, tString f
 
     forwarding->LocalServerTls          = fwdToSchema == "https";
 
-    forwarding->OrigBindingUrl          = origBindingUrl;
-    forwarding->OrigForwardTo           = forwardTo;
-    forwarding->OrigForwardingType      = forwardingType;
     forwarding->ForwardingId            = FORWARDING_IDS_ATOMIC++;
 
     return forwarding;
@@ -638,9 +635,6 @@ SDKConfig::parseForwarding(tString forwardTo)
 
     forwarding->LocalServerTls          = localServerTls;
 
-    forwarding->OrigBindingUrl          = "";
-    forwarding->OrigForwardTo           = forwardTo;
-    forwarding->OrigForwardingType      = "";
     forwarding->ForwardingId            = FORWARDING_IDS_ATOMIC++;
 
     return forwarding;
@@ -671,17 +665,16 @@ SdkForwardingPtr
 SdkForwarding::Clone()
 {
     auto newForwarding = NewSdkForwardingPtr();
-    newForwarding->Mode               = Mode;
-    newForwarding->BindingPort        = BindingPort;
-    newForwarding->BindingDomain      = BindingDomain;
-    newForwarding->BindingUrl         = BindingUrl;
-    newForwarding->FwdToPort          = FwdToPort;
-    newForwarding->FwdToHost          = FwdToHost;
-    newForwarding->ForwardingUrl      = ForwardingUrl;
-    newForwarding->LocalServerTls     = LocalServerTls;
-    newForwarding->OrigForwardTo      = OrigForwardTo;
-    newForwarding->OrigBindingUrl     = OrigBindingUrl;
-    newForwarding->OrigForwardingType = OrigForwardingType;
+    newForwarding->Mode             = Mode;
+    newForwarding->BindingPort      = BindingPort;
+    newForwarding->BindingDomain    = BindingDomain;
+    newForwarding->BindingUrl       = BindingUrl;
+    newForwarding->FwdToPort        = FwdToPort;
+    newForwarding->FwdToHost        = FwdToHost;
+    newForwarding->ForwardingUrl    = ForwardingUrl;
+    newForwarding->LocalServerTls   = LocalServerTls;
+    newForwarding->NewFlag          = NewFlag;
+    newForwarding->ForwardingId     = ForwardingId;
 
     return newForwarding;
 }

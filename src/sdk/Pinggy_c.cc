@@ -284,17 +284,17 @@ public:
         onTunnelFailedCB(onTunnelFailedUserData, sdk, message.c_str());
     }
     virtual pinggy_void_t
-    OnAdditionalForwardingSucceeded(tString bindAddress, tString forwardTo, tString forwardingType) override
+    OnAdditionalForwardingSucceeded(tUint64 forwardingId) override
     {
         if (!onAdditionalForwardingSucceededCB) return;
-        onAdditionalForwardingSucceededCB(onAdditionalForwardingSucceededUserData, sdk, bindAddress.c_str(), forwardTo.c_str(), forwardingType.c_str());
+        onAdditionalForwardingSucceededCB(onAdditionalForwardingSucceededUserData, sdk, forwardingId);
     }
     virtual pinggy_void_t
-    OnAdditionalForwardingFailed(tString bindAddress, tString forwardTo, tString forwardingType, tString error) override
+    OnAdditionalForwardingFailed(tUint64 forwardingId, tString error) override
     {
         if (!onAdditionalForwardingFailedCB) return;
         auto cError = error;
-        onAdditionalForwardingFailedCB(onAdditionalForwardingFailedUserData, sdk, bindAddress.c_str(), forwardTo.c_str(), forwardingType.c_str(), cError.c_str());
+        onAdditionalForwardingFailedCB(onAdditionalForwardingFailedUserData, sdk, forwardingId, cError.c_str());
     }
     virtual pinggy_void_t
     OnForwardingsChanged(tString changedMap) override

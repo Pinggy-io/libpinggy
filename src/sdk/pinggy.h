@@ -140,6 +140,7 @@ typedef int16_t                 pinggy_len_t;
 typedef uint32_t                pinggy_capa_t;
 typedef uint32_t               *pinggy_capa_p_t;
 typedef uint32_t                pinggy_uint32_t;
+typedef uint32_t                pinggy_uint64_t;
 typedef uint16_t                pinggy_uint16_t;
 typedef int32_t                 pinggy_int32_t;
 typedef int32_t                 pinggy_raw_len_t;
@@ -241,7 +242,7 @@ typedef pinggy_void_t (*pinggy_on_tunnel_failed_cb_t)               \
  * @param forwarding_type The forwarding type as a string.
  */
 typedef pinggy_void_t (*pinggy_on_additional_forwarding_succeeded_cb_t)         \
-                            (pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_const_char_p_t bind_addr, pinggy_const_char_p_t forward_to_addr, pinggy_const_char_p_t forwarding_type);
+                            (pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_uint64_t forwarding_id);
 
 /**
  * @typedef pinggy_on_additional_forwarding_failed_cb_t
@@ -255,7 +256,7 @@ typedef pinggy_void_t (*pinggy_on_additional_forwarding_succeeded_cb_t)         
  * @param error Error message string.
  */
 typedef pinggy_void_t (*pinggy_on_additional_forwarding_failed_cb_t)            \
-                            (pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_const_char_p_t bind_addr, pinggy_const_char_p_t forward_to_addr, pinggy_const_char_p_t forwarding_type, pinggy_const_char_p_t error);
+                            (pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_uint64_t forwarding_id, pinggy_const_char_p_t error);
 
 /**
  * @typedef pinggy_on_forwardings_changed_cb_t
