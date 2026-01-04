@@ -20,17 +20,21 @@
 #include <platform/Log.hh>
 #include <platform/network.h>
 #include "SdkException.hh"
+#include <atomic>
 
 namespace sdk
 {
+
+std::atomic_uint64_t            FORWARDING_IDS_ATOMIC(0);
 
 #define MAX_RECONNECTION_TRY 20
 
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_CUSTOME_NEW_PTR(SdkForwarding,
     (),
-    (forwardingUrl,         address),
-    (bindingUrl,            listenAddress),
-    (mode,                  type)
+    (ForwardingUrl,         address),
+    (BindingUrl,            listenAddress),
+    (Mode,                  type),
+    (ForwardingId,          id)
 )
 
 struct HeaderMod : virtual public pinggy::SharedObject
@@ -145,8 +149,6 @@ SDKConfig::GetIpWhiteList()
     return val;
 }
 
-#undef TO_JSON_STR
-
 
 #define FROM_JSON_STR(x, y)             \
     do {                                \
@@ -183,7 +185,7 @@ SDKConfig::SetForwarding(tString val)
         FROM_JSON_STR(parsedForwardings, val);
         ResetForwardings();
         for (auto forward : parsedForwardings) {
-            AddForwarding(TunnelTypeFromTunnelMode(forward->mode), forward->bindingUrl, forward->forwardingUrl);
+            AddForwarding(TunnelTypeFromTunnelMode(forward->Mode), forward->BindingUrl, forward->ForwardingUrl);
         }
     } catch (std::exception &e) {
         ResetForwardings();
@@ -217,6 +219,7 @@ SDKConfig::SetIpWhiteList(tString val)
 }
 
 #undef FROM_JSON_STR
+#undef TO_JSON_STR
 
 void
 SDKConfig::resetArguments() {
@@ -522,9 +525,9 @@ parseForwardTo(tString forwardTo)
  *
  *      bindingUrl may or may not contain a schema. if schema is ignored if exists.
  *
- *      Domain is domain only, no ip addess is allowed. It would be put to SdkForwarding::bindingDomain
+ *      Domain is domain only, no ip addess is allowed. It would be put to SdkForwarding::BindingDomain
  *
- *      Port would be port to SdkForwarding::bindingPort. Port is useful only for [tcp, tlstcp, udp]. Port should be
+ *      Port would be port to SdkForwarding::BindingPort. Port is useful only for [tcp, tlstcp, udp]. Port should be
  *      valid or zero (for all the registered port for the token). Server rejects forwarding with invalid port for forwarding type
  *      [tcp, tlstcp, udp].
  *
@@ -533,9 +536,9 @@ parseForwardTo(tString forwardTo)
  *
  *      schema stored to SdkForwarding::fwdToSchema. You can ignore it unless SdkForwarding::mode is http and schema is https.
  *
- *      default host is localhost unless provided. store it to SdkForwarding::fwdToHost
+ *      default host is localhost unless provided. store it to SdkForwarding::FwdToHost
  *
- *      port is mandatory and there is no default port. store it to SdkForwarding::fwdToPort
+ *      port is mandatory and there is no default port. store it to SdkForwarding::FwdToPort
  */
 SdkForwardingPtr
 SDKConfig::parseForwarding(tString forwardingType, tString bindingUrl, tString forwardTo)
@@ -579,20 +582,21 @@ SDKConfig::parseForwarding(tString forwardingType, tString bindingUrl, tString f
 
     // Create SdkForwarding object
     auto forwarding = NewSdkForwardingPtr();
-    forwarding->mode                    = mode;
-    forwarding->bindingDomain           = domain;
-    forwarding->bindingPort             = port;
-    forwarding->bindingUrl              = domain + (port > 0 ? ":" + portStr : "");
+    forwarding->Mode                    = mode;
+    forwarding->BindingDomain           = domain;
+    forwarding->BindingPort             = port;
+    forwarding->BindingUrl              = domain + (port > 0 ? ":" + portStr : "");
 
-    forwarding->fwdToHost               = fwdToHost;
-    forwarding->fwdToPort               = localPort;
-    forwarding->forwardingUrl           = (fwdToSchema == "https" ? "https://" : "") + fwdToHost + ":" + localPortStr;
+    forwarding->FwdToHost               = fwdToHost;
+    forwarding->FwdToPort               = localPort;
+    forwarding->ForwardingUrl           = (fwdToSchema == "https" ? "https://" : "") + fwdToHost + ":" + localPortStr;
 
-    forwarding->localServerTls          = fwdToSchema == "https";
+    forwarding->LocalServerTls          = fwdToSchema == "https";
 
-    forwarding->origBindingUrl          = origBindingUrl;
-    forwarding->origForwardTo           = forwardTo;
-    forwarding->origForwardingType      = forwardingType;
+    forwarding->OrigBindingUrl          = origBindingUrl;
+    forwarding->OrigForwardTo           = forwardTo;
+    forwarding->OrigForwardingType      = forwardingType;
+    forwarding->ForwardingId            = FORWARDING_IDS_ATOMIC++;
 
     return forwarding;
 }
@@ -623,20 +627,21 @@ SDKConfig::parseForwarding(tString forwardTo)
 
     // Create SdkForwarding object
     auto forwarding = NewSdkForwardingPtr();
-    forwarding->mode                    = mode;
-    forwarding->bindingDomain           = "";
-    forwarding->bindingPort             = 0;
-    forwarding->bindingUrl              = "";
+    forwarding->Mode                    = mode;
+    forwarding->BindingDomain           = "";
+    forwarding->BindingPort             = 0;
+    forwarding->BindingUrl              = "";
 
-    forwarding->fwdToHost               = fwdToHost;
-    forwarding->fwdToPort               = localPort;
-    forwarding->forwardingUrl           = (fwdToSchema == "https" ? "https://" : "") + fwdToHost + ":" + localPortStr;
+    forwarding->FwdToHost               = fwdToHost;
+    forwarding->FwdToPort               = localPort;
+    forwarding->ForwardingUrl           = (fwdToSchema == "https" ? "https://" : "") + fwdToHost + ":" + localPortStr;
 
-    forwarding->localServerTls          = localServerTls;
+    forwarding->LocalServerTls          = localServerTls;
 
-    forwarding->origBindingUrl          = "";
-    forwarding->origForwardTo           = forwardTo;
-    forwarding->origForwardingType      = "";
+    forwarding->OrigBindingUrl          = "";
+    forwarding->OrigForwardTo           = forwardTo;
+    forwarding->OrigForwardingType      = "";
+    forwarding->ForwardingId            = FORWARDING_IDS_ATOMIC++;
 
     return forwarding;
 }
@@ -666,17 +671,17 @@ SdkForwardingPtr
 SdkForwarding::Clone()
 {
     auto newForwarding = NewSdkForwardingPtr();
-    newForwarding->mode               = mode;
-    newForwarding->bindingPort        = bindingPort;
-    newForwarding->bindingDomain      = bindingDomain;
-    newForwarding->bindingUrl         = bindingUrl;
-    newForwarding->fwdToPort          = fwdToPort;
-    newForwarding->fwdToHost          = fwdToHost;
-    newForwarding->forwardingUrl      = forwardingUrl;
-    newForwarding->localServerTls     = localServerTls;
-    newForwarding->origForwardTo      = origForwardTo;
-    newForwarding->origBindingUrl     = origBindingUrl;
-    newForwarding->origForwardingType = origForwardingType;
+    newForwarding->Mode               = Mode;
+    newForwarding->BindingPort        = BindingPort;
+    newForwarding->BindingDomain      = BindingDomain;
+    newForwarding->BindingUrl         = BindingUrl;
+    newForwarding->FwdToPort          = FwdToPort;
+    newForwarding->FwdToHost          = FwdToHost;
+    newForwarding->ForwardingUrl      = ForwardingUrl;
+    newForwarding->LocalServerTls     = LocalServerTls;
+    newForwarding->OrigForwardTo      = OrigForwardTo;
+    newForwarding->OrigBindingUrl     = OrigBindingUrl;
+    newForwarding->OrigForwardingType = OrigForwardingType;
 
     return newForwarding;
 }

@@ -1277,7 +1277,7 @@ pinggy_tunnel_request_additional_forwarding(pinggy_ref_t ref, pinggy_const_char_
         return;
     }
     try {
-        //tString forwardingType, tString bindingUrl, tString forwardTo
+        //tString forwardingType, tString BindingUrl, tString forwardTo
         return sdk->RequestAdditionalForwarding(EmptyStringIfNull(forwarding_type), EmptyStringIfNull(bindingAddr), EmptyStringIfNull(forwardTo));
     } catch (const std::exception &e) {
         if (exception_callback) {

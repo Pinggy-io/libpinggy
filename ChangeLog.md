@@ -14,6 +14,9 @@
 * Adding `__Init` in `pinggy::SharedPtr`. It would be call from `New*Ptr` function.
 * Adding new logging module to print `vector`, `map`, `tuple`.
 
+### sdk-fixes
+* Renaming some variables
+
 ### Feat-NewSession
 * Every thing seems working fine without any issue.
 * Currently I am working on basic stuff only. Not removing primary forwarding yet. I can work on that only after deployment or findout a way to make client backword compatible.
