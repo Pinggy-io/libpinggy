@@ -64,11 +64,22 @@ struct RawData : virtual pinggy::SharedObject{
     bool
     AddData(RawDataPtr other);
 
+    bool
+    AddData(char c);
+
+    template<typename T>
+    bool
+    AddData(T m);
+
     RawDataPtr
     Concat(RawDataPtr other);
 
     char *
     Consume(RawData::tLen len = -1);
+
+    template<typename T>
+    T
+    Read();
 
     char *
     GetData() { return Data+Offset; }
@@ -141,5 +152,22 @@ inline RawDataPtr operator+(RawDataPtr rdp, const RawDataPtr &rdp1) {
 typedef RawData **RawDataPtrPtr;
 #endif
 
+template <typename T>
+inline bool
+RawData::AddData(T m)
+{
+    return AddData((const void *)&m, sizeof(m));
+}
+
+template <typename T>
+inline T
+RawData::Read()
+{
+    auto data = GetData();
+    T ele = *((T *)data);
+    Consume(sizeof(T));
+    return ele;
+}
 
 #endif /* COMMON_RAWDATA_HH_ */
+
