@@ -471,6 +471,47 @@ SDKConfig::SetGlobalConfig(tString args)
 
 }
 
+inline std::tuple<tString, tString, tString, tPort>
+parseForwardTo(tString forwardTo)
+{
+    // Parse forwardTo: [schema://][host:]port
+    tString fwdToSchema, fwdToHost = "localhost", localPortStr;
+    tPort localPort = 0;
+    tString forwardToRest = forwardTo;
+
+    auto fwdSchemaSplit = SplitString(forwardToRest, "://", 1);
+    if (fwdSchemaSplit.size() == 2) {
+        fwdToSchema = StringToLower(fwdSchemaSplit[0]);
+        forwardToRest = fwdSchemaSplit[1];
+    }
+
+    if (forwardToRest[0] == '[') {
+        auto pos = forwardToRest.find(']');
+        if (pos == forwardToRest.npos)
+            throw SdkConfigException("Invalid format in forwardTo");
+        fwdToHost = forwardToRest.substr(1, pos-1);
+        pos = forwardTo.find(':', pos);
+        if (pos == forwardToRest.npos)
+            throw SdkConfigException("Invalid format in forwardTo");
+        localPortStr = forwardToRest.substr(pos+1);
+    } else {
+        auto fwdHostPortSplit = SplitString(forwardToRest, ":", 1);
+        if (fwdHostPortSplit.size() == 2) {
+            fwdToHost = fwdHostPortSplit[0];
+            localPortStr = fwdHostPortSplit[1];
+        } else {
+            localPortStr = forwardToRest;
+        }
+    }
+    try {
+        localPort = static_cast<tPort>(std::stoi(localPortStr));
+    } catch (...) {
+        throw SdkConfigException("Invalid or missing port in forwardTo");
+    }
+
+    return {fwdToSchema, fwdToHost, localPortStr, localPort};
+}
+
 /**
  * AddForwarding adds new forwarding to the forwarding list sdkForwardingList
  * @param forwardingType
@@ -534,29 +575,7 @@ SDKConfig::parseForwarding(tString forwardingType, tString bindingUrl, tString f
         mode = TunnelMode::HTTP;
     }
 
-    // Parse forwardTo: [schema://][host:]port
-    tString fwdToSchema, fwdToHost = "localhost", localPortStr;
-    tPort localPort = 0;
-    tString forwardToRest = forwardTo;
-
-    auto fwdSchemaSplit = SplitString(forwardToRest, "://", 1);
-    if (fwdSchemaSplit.size() == 2) {
-        fwdToSchema = StringToLower(fwdSchemaSplit[0]);
-        forwardToRest = fwdSchemaSplit[1];
-    }
-
-    auto fwdHostPortSplit = SplitString(forwardToRest, ":", 1);
-    if (fwdHostPortSplit.size() == 2) {
-        fwdToHost = fwdHostPortSplit[0];
-        localPortStr = fwdHostPortSplit[1];
-    } else {
-        localPortStr = forwardToRest;
-    }
-    try {
-        localPort = static_cast<tPort>(std::stoi(localPortStr));
-    } catch (...) {
-        throw SdkConfigException("Invalid or missing port in forwardTo");
-    }
+    auto [fwdToSchema, fwdToHost, localPortStr, localPort] = parseForwardTo(forwardTo);
 
     // Create SdkForwarding object
     auto forwarding = NewSdkForwardingPtr();
@@ -582,15 +601,7 @@ SdkForwardingPtr
 SDKConfig::parseForwarding(tString forwardTo)
 {
     // Parse forwardTo: [schema://][host:]port
-    tString fwdToSchema, fwdToHost = "localhost", localPortStr;
-    tPort localPort = 0;
-    tString forwardToRest = forwardTo;
-
-    auto fwdSchemaSplit = SplitString(forwardToRest, "://", 1);
-    if (fwdSchemaSplit.size() == 2) {
-        fwdToSchema = StringToLower(fwdSchemaSplit[0]);
-        forwardToRest = fwdSchemaSplit[1];
-    }
+    auto [fwdToSchema, fwdToHost, localPortStr, localPort] = parseForwardTo(forwardTo);
 
     auto sl = StringToLower(fwdToSchema);
 
@@ -608,19 +619,6 @@ SDKConfig::parseForwarding(tString forwardTo)
     // Determine mode
     if (mode == TunnelMode::None) {
         mode = TunnelMode::HTTP;
-    }
-
-    auto fwdHostPortSplit = SplitString(forwardToRest, ":", 1);
-    if (fwdHostPortSplit.size() == 2) {
-        fwdToHost = fwdHostPortSplit[0];
-        localPortStr = fwdHostPortSplit[1];
-    } else {
-        localPortStr = forwardToRest;
-    }
-    try {
-        localPort = static_cast<tPort>(std::stoi(localPortStr));
-    } catch (...) {
-        throw SdkConfigException("Invalid or missing port in forwardTo");
     }
 
     // Create SdkForwarding object
