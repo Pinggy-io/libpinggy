@@ -140,6 +140,7 @@ typedef int16_t                 pinggy_len_t;
 typedef uint32_t                pinggy_capa_t;
 typedef uint32_t               *pinggy_capa_p_t;
 typedef uint32_t                pinggy_uint32_t;
+typedef uint32_t                pinggy_uint64_t;
 typedef uint16_t                pinggy_uint16_t;
 typedef int32_t                 pinggy_int32_t;
 typedef int32_t                 pinggy_raw_len_t;
@@ -241,7 +242,7 @@ typedef pinggy_void_t (*pinggy_on_tunnel_failed_cb_t)               \
  * @param forwarding_type The forwarding type as a string.
  */
 typedef pinggy_void_t (*pinggy_on_additional_forwarding_succeeded_cb_t)         \
-                            (pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_const_char_p_t bind_addr, pinggy_const_char_p_t forward_to_addr, pinggy_const_char_p_t forwarding_type);
+                            (pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_uint64_t forwarding_id);
 
 /**
  * @typedef pinggy_on_additional_forwarding_failed_cb_t
@@ -255,7 +256,7 @@ typedef pinggy_void_t (*pinggy_on_additional_forwarding_succeeded_cb_t)         
  * @param error Error message string.
  */
 typedef pinggy_void_t (*pinggy_on_additional_forwarding_failed_cb_t)            \
-                            (pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_const_char_p_t bind_addr, pinggy_const_char_p_t forward_to_addr, pinggy_const_char_p_t forwarding_type, pinggy_const_char_p_t error);
+                            (pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_uint64_t forwarding_id, pinggy_const_char_p_t error);
 
 /**
  * @typedef pinggy_on_forwardings_changed_cb_t
@@ -1237,9 +1238,20 @@ pinggy_tunnel_start_web_debugging(pinggy_ref_t tunnel, pinggy_const_char_p_t lis
  * @param remote_binding_url  Null-terminated string specifying the remote binding address. It can contain schema. `forwarding_type` would be derived from the schema if it is empty.
  * @param forward_to          Null-terminated string specifying the local forwarding address.
  * @param forwarding_type     It is equivalen to tunnel_type. It can be one of [http, tcp, tls, tlstcp, udp]
+ * @returns Forwarding which can be used later to find out the orignal forwardings.
  */
-PINGGY_EXPORT pinggy_void_t
+PINGGY_EXPORT pinggy_uint64_t
 pinggy_tunnel_request_additional_forwarding(pinggy_ref_t tunnel, pinggy_const_char_p_t remote_binding_url, pinggy_const_char_p_t forward_to, pinggy_const_char_p_t forwarding_type);
+
+/**
+ * @brief Requests additional remote forwarding from the server. (It is simple the function `pinggy_config_add_forwarding_simple`)
+ *
+ * @param tunnel              Reference to the tunnel object.
+ * @param forward_to          Null-terminated string specifying the local forwarding address.
+ * @returns Forwarding which can be used later to find out the orignal forwardings.
+ */
+PINGGY_EXPORT pinggy_uint64_t
+pinggy_tunnel_request_additional_forwarding_simple(pinggy_ref_t tunnel, pinggy_char_p_t forward_to);
 
 /**
  * @brief Starts continuous usage updates for the tunnel.

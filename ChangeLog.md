@@ -14,6 +14,16 @@
 * Adding `__Init` in `pinggy::SharedPtr`. It would be call from `New*Ptr` function.
 * Adding new logging module to print `vector`, `map`, `tuple`.
 
+### sdk-fixes
+* Renaming some variables
+* Callback argument modified
+    1. pinggy_on_additional_forwarding_succeeded_cb_t
+    1. pinggy_on_additional_forwarding_failed_cb_t
+* Function return type changed
+    1. pinggy_tunnel_request_additional_forwarding
+* Function added
+    1. pinggy_tunnel_request_additional_forwarding_simple
+
 ### Feat-NewSession
 * Every thing seems working fine without any issue.
 * Currently I am working on basic stuff only. Not removing primary forwarding yet. I can work on that only after deployment or findout a way to make client backword compatible.

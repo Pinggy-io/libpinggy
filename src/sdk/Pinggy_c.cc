@@ -284,17 +284,17 @@ public:
         onTunnelFailedCB(onTunnelFailedUserData, sdk, message.c_str());
     }
     virtual pinggy_void_t
-    OnAdditionalForwardingSucceeded(tString bindAddress, tString forwardTo, tString forwardingType) override
+    OnAdditionalForwardingSucceeded(tUint64 forwardingId) override
     {
         if (!onAdditionalForwardingSucceededCB) return;
-        onAdditionalForwardingSucceededCB(onAdditionalForwardingSucceededUserData, sdk, bindAddress.c_str(), forwardTo.c_str(), forwardingType.c_str());
+        onAdditionalForwardingSucceededCB(onAdditionalForwardingSucceededUserData, sdk, forwardingId);
     }
     virtual pinggy_void_t
-    OnAdditionalForwardingFailed(tString bindAddress, tString forwardTo, tString forwardingType, tString error) override
+    OnAdditionalForwardingFailed(tUint64 forwardingId, tString error) override
     {
         if (!onAdditionalForwardingFailedCB) return;
         auto cError = error;
-        onAdditionalForwardingFailedCB(onAdditionalForwardingFailedUserData, sdk, bindAddress.c_str(), forwardTo.c_str(), forwardingType.c_str(), cError.c_str());
+        onAdditionalForwardingFailedCB(onAdditionalForwardingFailedUserData, sdk, forwardingId, cError.c_str());
     }
     virtual pinggy_void_t
     OnForwardingsChanged(tString changedMap) override
@@ -1268,16 +1268,16 @@ pinggy_tunnel_start_web_debugging(pinggy_ref_t ref, pinggy_const_char_p_t listen
     return pinggy_false;
 }
 
-PINGGY_EXPORT pinggy_void_t
+PINGGY_EXPORT pinggy_uint64_t
 pinggy_tunnel_request_additional_forwarding(pinggy_ref_t ref, pinggy_const_char_p_t bindingAddr, pinggy_const_char_p_t forwardTo, pinggy_const_char_p_t forwarding_type)
 {
     auto sdk =  getSdk(ref);
     if (sdk == nullptr) {
         LOGE("null sdk");
-        return;
+        return 0;
     }
     try {
-        //tString forwardingType, tString bindingUrl, tString forwardTo
+        //tString forwardingType, tString BindingUrl, tString forwardTo
         return sdk->RequestAdditionalForwarding(EmptyStringIfNull(forwarding_type), EmptyStringIfNull(bindingAddr), EmptyStringIfNull(forwardTo));
     } catch (const std::exception &e) {
         if (exception_callback) {
@@ -1285,7 +1285,28 @@ pinggy_tunnel_request_additional_forwarding(pinggy_ref_t ref, pinggy_const_char_
         } else {
             LOGE("No exception handler found");
         }
-        return;
+        return 0;
+    }
+}
+
+PINGGY_EXPORT pinggy_uint64_t
+pinggy_tunnel_request_additional_forwarding_simple(pinggy_ref_t ref, pinggy_char_p_t forward_to)
+{
+    auto sdk =  getSdk(ref);
+    if (sdk == nullptr) {
+        LOGE("null sdk");
+        return 0;
+    }
+    try {
+        //tString forwardingType, tString BindingUrl, tString forwardTo
+        return sdk->RequestAdditionalForwarding(EmptyStringIfNull(forward_to));
+    } catch (const std::exception &e) {
+        if (exception_callback) {
+            exception_callback("CPP exception:", e.what());
+        } else {
+            LOGE("No exception handler found");
+        }
+        return 0;
     }
 }
 
