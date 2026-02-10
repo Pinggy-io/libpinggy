@@ -291,7 +291,7 @@ Sdk::StartWebDebugging(tString addr)
     return bindAddr ? bindAddr->ToString() : "";
 }
 
-void PINGGY_ATTRIBUTE_FUNC
+tUint64 PINGGY_ATTRIBUTE_FUNC
 Sdk::RequestAdditionalForwarding(tString forwardingType, tString bindingUrl, tString forwardTo)
 {
     if (state >= SdkState::Stopped) {
@@ -312,9 +312,11 @@ Sdk::RequestAdditionalForwarding(tString forwardingType, tString bindingUrl, tSt
     additionalForwardings.push_back(forwarding);
 
     internalRequestAdditionalRemoteForwarding(forwarding);
+
+    return forwarding->ForwardingId;
 }
 
-void
+tUint64 PINGGY_ATTRIBUTE_FUNC
 Sdk::RequestAdditionalForwarding(tString forwardTo)
 {
     if (state >= SdkState::Stopped) {
@@ -335,6 +337,8 @@ Sdk::RequestAdditionalForwarding(tString forwardTo)
     additionalForwardings.push_back(forwarding);
 
     internalRequestAdditionalRemoteForwarding(forwarding);
+
+    return forwarding->ForwardingId;
 }
 
 SdkState
@@ -440,7 +444,7 @@ Sdk::HandleSessionRemoteForwardingSucceeded(protocol::tReqId reqId, tForwardingI
             this->urls = urls;
 
         if (sdkForwardings.find(forwardingId) != sdkForwardings.end()) {
-            ABORT_WITH_MSG("This not supposed to happen: ", forwardingId); //cannot test it ever
+            ABORT_WITH_MSG("Received same forwardingId twice from server. This is not supposed to happen: ", forwardingId); //cannot test it ever
             return;
         }
 
@@ -504,7 +508,7 @@ Sdk::HandleSessionRemoteForwardingSucceeded(protocol::tReqId reqId, tForwardingI
     updateForwardMap(remoteForwardings);
 
     if (eventHandler && forwarding->NewFlag) {
-        eventHandler->OnAdditionalForwardingSucceeded(forwarding->ForwardingId);
+        eventHandler->OnAdditionalForwardingSucceeded(forwarding->ForwardingId); //this forwarding id is local.
     }
 }
 

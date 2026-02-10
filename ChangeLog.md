@@ -19,6 +19,10 @@
 * Callback argument modified
     1. pinggy_on_additional_forwarding_succeeded_cb_t
     1. pinggy_on_additional_forwarding_failed_cb_t
+* Function return type changed
+    1. pinggy_tunnel_request_additional_forwarding
+* Function added
+    1. pinggy_tunnel_request_additional_forwarding_simple
 
 ### Feat-NewSession
 * Every thing seems working fine without any issue.
