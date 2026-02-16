@@ -166,7 +166,11 @@ void PollControllerGeneric::DeregisterHandler(PollEventHandlerPtr handler)
     }
     sock_t fd = handler->GetFd();
     LOGT( "removing fd:" << fd);
-    Assert(fds.find(fd) != fds.end());
+    if(fds.find(fd) == fds.end()) {
+        LOGD("Attempted to deregister fd that doesn't exist: " << fd);
+        return;
+    }
+
 
     enableDisableHandler(fd, POLLIN, false);
     enableDisableHandler(fd, POLLOUT, false); //this will remove it automatically.
