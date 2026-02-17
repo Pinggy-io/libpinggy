@@ -54,7 +54,7 @@ if "%NATIVE_ARCHES%"=="" (
 
 
 for %%i in (%NATIVE_ARCHES%) do (
-    for %%j in (%NATIVE_ARCHES%) do (
+    for %%j in (%NATIVE_RUNTIMES%) do (
 
         cd "%PROJECT_ROOT%"
 
