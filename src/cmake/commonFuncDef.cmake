@@ -91,6 +91,18 @@ function(CopyHeaders target dependecy srcFile destDir)
     add_dependencies(releaselib ${target})
 endfunction()
 
+function(CopyVersionedHeaders target dependecy srcFile destDir)
+    get_filename_component(FILENAME_WE ${srcFile} NAME_WE)
+    get_filename_component(FILE_EXT ${srcFile} EXT)
+    set(DEST_FILE "${destDir}/${FILENAME_WE}-${Pinggy_VERSION}${FILE_EXT}")
+    add_custom_target(${target}
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different "${CMAKE_CURRENT_SOURCE_DIR}/${srcFile}" "${DEST_FILE}"
+        DEPENDS ${dependecy}
+        COMMENT ${cmnt}
+    )
+    add_dependencies(releaselib ${target})
+endfunction()
+
 
 function(SetupSSL)
     find_package(OpenSSL 3.0.3)
