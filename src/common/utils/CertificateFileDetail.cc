@@ -21,6 +21,8 @@
 #include <platform/platform.h>
 #include "CertificateFileDetail.hh"
 
+#include "TemplateStreaming.hh"
+
 #ifdef __WINDOWS_OS__
 static std::string getRealPath(const std::string& path) {
     char rPath[MAX_PATH];
@@ -65,3 +67,4 @@ bool CertificateFileDetail::IsModified(bool update)
     return ret;
 }
 
+INCLUDE_MEMORY_DUMP_DEFINITION

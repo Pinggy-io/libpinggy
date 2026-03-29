@@ -16,6 +16,7 @@
 
 #include "Session.hh"
 #include "Channel.hh"
+#include <utils/TemplateStreaming.hh> //this needs to be the last include
 
 
 namespace protocol
@@ -684,3 +685,5 @@ Session::handleDeserializedMsg(ProtoMsgPtr protoMsg)
 }
 
 } // namespace protocol
+
+INCLUDE_MEMORY_DUMP_DEFINITION

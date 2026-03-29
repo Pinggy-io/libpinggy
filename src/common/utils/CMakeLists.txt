@@ -1,6 +1,7 @@
 
 AddLibrary(utils
             STATIC
+            NetworkStreamer.cc
             Utils.cc
             UtilsJson.cc
             CertificateFileDetail.cc

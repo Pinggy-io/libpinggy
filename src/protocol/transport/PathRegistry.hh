@@ -37,6 +37,8 @@ struct PathDefinition : public pinggy::SharedObject
     tValueType                  ValType;
     PathDefinition(): PathId(ROOT_PATH_ID), Parent(0), ValType(ValueType_Invalid)
                                 { }
+
+    DefineMandatoryClassFunctionsWOSuper(PathDefinition);
 };
 DefineMakeSharedPtr(PathDefinition);
 
@@ -102,6 +104,8 @@ public:
 
     tString
     DumpPaths();
+
+    DefineMandatoryClassFunctionsWOSuper(PathRegistry);
 };
 
 DefineMakePrivateSharedPtr(PathRegistry);

@@ -20,6 +20,7 @@
 #include <platform/Log.hh>
 #include <platform/network.h>
 #include "SdkException.hh"
+#include <utils/TemplateStreaming.hh> //this needs to be the last include
 
 namespace sdk
 {
@@ -47,6 +48,8 @@ struct HeaderMod : virtual public pinggy::SharedObject
 
     HeaderModPtr
     clone();
+
+    DefineMandatoryFileLocalClassFunctionsWOSuper(HeaderMod);
 };
 DefineMakeSharedPtr(HeaderMod);
 
@@ -72,6 +75,8 @@ struct UserPass : virtual public pinggy::SharedObject
 
     UserPassPtr
     clone();
+
+    DefineMandatoryFileLocalClassFunctionsWOSuper(UserPass);
 };
 DefineMakeSharedPtr(UserPass);
 
@@ -682,3 +687,5 @@ SdkForwarding::Clone()
 }
 
 } // namespace sdk
+
+INCLUDE_MEMORY_DUMP_DEFINITION

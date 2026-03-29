@@ -24,6 +24,7 @@
 #include <utils/Json.hh>
 #include <platform/platform.h>
 #include "AddressCache.hh"
+#include <utils/TemplateStreaming.hh> //this needs to be the last include
 
 
 namespace net {
@@ -694,3 +695,5 @@ operator<<(std::ostream &os, net::tConnType &connType)
     os << "}";
     return os;
 }
+
+INCLUDE_MEMORY_DUMP_DEFINITION

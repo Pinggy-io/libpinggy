@@ -22,6 +22,7 @@
 #include <set>
 #include "SslConnectionListener.hh"
 #include "SslNetConnBio.hh"
+#include <utils/TemplateStreaming.hh> //this needs to be the last include
 
 
 namespace net {
@@ -79,6 +80,8 @@ struct PendingSsl : virtual public pinggy::SharedObject {
     SSL                        *ssl;
     NetworkConnectionPtr        netConn;
     pinggy::VoidPtr             ptr;
+
+    DefineMandatoryFileLocalClassFunctionsWOSuper(PendingSsl);
 };
 DefineMakeSharedPtr(PendingSsl);
 
@@ -792,3 +795,6 @@ SslConnectionListener::EventOccured()
 }
 
 } /* namespace net */
+
+INCLUDE_MEMORY_DUMP_DEFINITION
+

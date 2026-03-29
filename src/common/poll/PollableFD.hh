@@ -24,7 +24,7 @@ DeclareClassWithSharedPtr(PollableFD);
 
 abstract class FDEventHandler : public virtual pinggy::SharedObject
 {
-    public:
+public:
 
     virtual len_t
     HandleFDRead(PollableFDPtr) {ABORT_WITH_MSG("Not implemented"); return 0;}
@@ -54,7 +54,7 @@ abstract class FDEventHandler : public virtual pinggy::SharedObject
     virtual len_t
     HandleFDErrorWPtr(PollableFDPtr, pinggy::VoidPtr, int16_t) {ABORT_WITH_MSG("Not implemented"); return 0;}
 };
-DefineMakeSharedPtr(FDEventHandler);
+DeclareSharedPtr(FDEventHandler);
 
 #ifndef __WINDOWS_OS__
 #define __CloseConn_2(x, ...) __CloseNReport(__FILE__ ":" APP_CONVERT_TO_STRING(__LINE__))
@@ -154,6 +154,7 @@ public:
     virtual bool
     IsSendReady() override;
 
+    DefineMandatoryClassFunctionsWOSuper(EventHandlerForPollableFd);
 
 private:
     void

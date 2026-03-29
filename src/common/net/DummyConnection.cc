@@ -19,14 +19,18 @@
 #include <utils/Utils.hh>
 #include <queue>
 #include <openssl/ssl.h>
-//#include
+#include <utils/TemplateStreaming.hh> //this needs to be the last include
 
 namespace net {
 struct DummyMetaData : public virtual pinggy::SharedObject {
     DummyMetaData(): closed(false) {}
-    virtual ~DummyMetaData(){}
-    std::queue<RawDataPtr> queue;
-    bool closed;
+    virtual
+    ~DummyMetaData(){}
+
+    std::queue<RawDataPtr>      queue;
+    bool                        closed;
+
+    DefineMandatoryFileLocalClassFunctionsWOSuper(DummyMetaData);
 };
 DefineMakeSharedPtr(DummyMetaData);
 
@@ -344,3 +348,5 @@ DummyConnection::EventHandlerRegistered()
 }
 
 } /* namespace net */
+
+INCLUDE_MEMORY_DUMP_DEFINITION

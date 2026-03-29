@@ -19,33 +19,77 @@
 #include <utils/Utils.hh>
 #include <platform/assert_pinggy.h>
 #include "PinggyPollGeneric.hh"
+#include <utils/TemplateStreaming.hh> //this needs to be the last include
 
 
 namespace common {
 struct FdMetaData : public virtual PollState {
-    bool in, out, et;
-    bool dummyIn, dummyOut;
+    bool                        in;
+    bool                        out;
+    bool                        et;
+    bool                        dummyIn;
+    bool                        dummyOut;
+
     FdMetaData(bool in, bool out, bool et): in(in), out(out), et(et), dummyIn(false), dummyOut(false) {}
-    int GetNumOps() const { return !!in + !!out; }
-    virtual bool IsReadEnable() override {return in;}
-    virtual bool IsWriteEnable() override {return out;}
-    virtual bool IsReadEdgeTriggerEnable() override {return et;}
-    virtual bool IsDummyReadEnabled() override {return dummyIn;}
-    virtual bool IsDummyWriteEnabled() override {return dummyOut;}
-    virtual bool IsPollable() override {return true;}
+
+    int
+    GetNumOps() const           { return !!in + !!out; }
+
+    virtual bool
+    IsReadEnable() override     {return in;}
+
+    virtual bool
+    IsWriteEnable() override    {return out;}
+
+    virtual bool
+    IsReadEdgeTriggerEnable() override
+                                {return et;}
+
+    virtual bool
+    IsDummyReadEnabled() override
+                                {return dummyIn;}
+
+    virtual bool
+    IsDummyWriteEnabled() override
+                                {return dummyOut;}
+
+    virtual bool
+    IsPollable() override       {return true;}
+
+    DefineMandatoryFileLocalClassFunctionsWOSuper(FdMetaData);
+
 };
 DefineMakeSharedPtr(FdMetaData);
 
 struct NonPollableMetaData : public virtual PollState {
-    bool in, out;
-    bool dummyIn, dummyOut;
+    bool                        in;
+    bool                        out;
+    bool                        dummyIn;
+    bool                        dummyOut;
     NonPollableMetaData(): in(false), out(false), dummyIn(false), dummyOut(false) {}
-    virtual bool IsReadEnable() override {return in;}
-    virtual bool IsWriteEnable() override {return out;}
-    virtual bool IsReadEdgeTriggerEnable() override {return false;}
-    virtual bool IsDummyReadEnabled() override {return dummyIn;}
-    virtual bool IsDummyWriteEnabled() override {return dummyOut;}
-    virtual bool IsPollable() override {return false;}
+
+    virtual bool
+    IsReadEnable() override     {return in;}
+
+    virtual bool
+    IsWriteEnable() override    {return out;}
+
+    virtual bool
+    IsReadEdgeTriggerEnable() override
+                                {return false;}
+
+    virtual bool
+    IsDummyReadEnabled() override
+                                {return dummyIn;}
+
+    virtual bool
+    IsDummyWriteEnabled() override
+                                {return dummyOut;}
+
+    virtual bool
+    IsPollable() override       {return false;}
+
+    DefineMandatoryFileLocalClassFunctionsWOSuper(NonPollableMetaData);
 };
 DefineMakeSharedPtr(NonPollableMetaData);
 
@@ -502,3 +546,5 @@ void PollControllerGeneric::pollNonPollables()
 }
 
 } // namespace common
+
+INCLUDE_MEMORY_DUMP_DEFINITION

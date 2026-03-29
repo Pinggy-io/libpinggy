@@ -18,6 +18,7 @@
 #include <platform/assert_pinggy.h>
 #include <map>
 #include <utils/Utils.hh>
+#include <utils/TemplateStreaming.hh> //this needs to be the last include
 
 
 const std::map<tValueType, tString> typeToTypeNameMap = {
@@ -67,16 +68,24 @@ class ArrayContainer: virtual public pinggy::SharedObject
 {
 public:
     ArrayContainer(tValueType valueType): valueType(valueType) {}
-    virtual ~ArrayContainer() {};
+    virtual
+    ~ArrayContainer() {};
 
-    tString dump();
+    tString
+    dump();
 
-    tValueType valueType;
-    std::vector<ArrayContainerPtr> literalsArray;
-    std::vector<RawDataPtr> literals;
-    std::vector<DeserializerPtr> arrayOfObjects;
+    tValueType                  valueType;
+    std::vector<ArrayContainerPtr>
+                                literalsArray;
+    std::vector<RawDataPtr>
+                                literals;
+    std::vector<DeserializerPtr>
+                                arrayOfObjects;
+
+    DefineMandatoryFileLocalClassFunctionsWOSuper(ArrayContainer);
 };
 DefineMakeSharedPtr(ArrayContainer);
+
 class CustingException : public std::exception {
 private:
     tString msg;
@@ -614,3 +623,5 @@ tString ArrayContainer::dump()
 }
 
 //========================================
+
+INCLUDE_MEMORY_DUMP_DEFINITION

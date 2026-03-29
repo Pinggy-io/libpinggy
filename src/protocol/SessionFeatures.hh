@@ -86,6 +86,8 @@ public:
     IsPrimaryForwardingModeEnabled()
                                 { return primaryForwardingMode; }
 
+    DefineMandatoryClassFunctionsWOSuper(SessionFeatures);
+
 private:
 
     void

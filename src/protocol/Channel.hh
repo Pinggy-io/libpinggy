@@ -124,6 +124,8 @@ public:
     std::shared_ptr<T>
     GetUserPtr()                { return userPtr ? userPtr->DynamicPointerCast<T>(): nullptr; }
 
+    DefineMandatoryClassFunctionsWOSuper(Channel);
+
 private:
     Channel(SessionPtr, SessionFeaturesPtr); //constructor
 

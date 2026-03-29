@@ -39,7 +39,7 @@ typedef socklen_t   tSockLen;
 
 
 DeclareClassWithSharedPtr(NetworkConnection);
-class NetworkConnectionException: public std::exception, public virtual pinggy::SharedObject
+class NetworkConnectionException: public std::exception
 {
 public:
     NetworkConnectionException(tString message, NetworkConnectionPtr netConn) : message(message), netConn(netConn){}
@@ -80,7 +80,7 @@ enum tConnType_Src : tUint8 {
     ConnType_Src_Local,
     ConnType_Src_Redirect,
     ConnType_Src_Dashboard,
-    ConnType_Src_BashUsages,
+    ConnType_Src_BashUsages
 };
 
 enum tConnType_Cnt : tUint8 {
@@ -226,6 +226,7 @@ struct SocketStat: public virtual pinggy::SharedObject {
     uint32_t                    LastAckSent;
     uint32_t                    LastDataRecv;
     uint32_t                    LastAckRecv;
+    DefineMandatoryClassFunctionsWOSuper(SocketStat);
 };
 DefineMakeSharedPtr(SocketStat);
 
@@ -267,7 +268,6 @@ protected:
     virtual bool
     ReassigntoLowerFdPtr(sock_t *fd) final;
 };
-
 DeclareSharedPtr(NetworkSocket);
 
 class SocketAddress final : public virtual pinggy::SharedObject {
@@ -305,6 +305,8 @@ public:
     const sockaddr_ip
     GetSockAddr() const         { return sockAddr; }
 
+    DefineMandatoryClassFunctionsWOSuper(SocketAddress);
+
 private:
     void
     parseSockaddr();
@@ -325,7 +327,7 @@ public:
     NetworkConnection()         { connType.Raw = 0; }
 
     virtual
-    ~NetworkConnection()        {}
+    ~NetworkConnection()        { LOGD("Cleaning up: ", this); }
 
     virtual std::tuple<ssize_t, RawDataPtr>
     Read(len_t nbyte, int flags = 0);
@@ -436,7 +438,8 @@ public:
     HandleConnectionFailed(NetworkConnectionImplPtr)
                                 { return 0; }
 };
-DefineMakeSharedPtr(NonBlockingConnectEventHandler);
+DeclareSharedPtr(NonBlockingConnectEventHandler);
+
 class NetworkConnectionImpl: public NetworkConnection
 {
 public:
@@ -547,6 +550,8 @@ public:
 
     static std::tuple<NetworkConnectionImplPtr, NetworkConnectionImplPtr>
     CreateConnectionPair();
+
+    DefineMandatoryClassFunctionsWOSuper(NetworkConnectionImpl);
 
 protected:
     virtual int

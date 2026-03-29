@@ -128,6 +128,18 @@ typedef uint16_t        tUint16;
 typedef uint32_t        tUint32;
 typedef uint64_t        tUint64;
 
+#define PINGGY_PRIMITIVES_TYPES(f) \
+        f(tInt8) \
+        f(tInt16) \
+        f(tInt32) \
+        f(tInt64) \
+        f(tUint8) \
+        f(tUint16) \
+        f(tUint32) \
+        f(tUint64) \
+        f(float) \
+        f(double) \
+
 
 #ifdef __cplusplus
 #include <string>

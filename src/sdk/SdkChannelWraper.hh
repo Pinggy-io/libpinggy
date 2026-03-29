@@ -43,6 +43,8 @@ public:
     virtual void
     ChannelCleanup(SdkChannelWraperPtr) = 0;
 
+    DefineMandatoryClassFunctionsWOSuper(SdkChannelEventHandler);
+
 private:
     /* data */
 };
@@ -141,6 +143,8 @@ public:
 
     virtual void
     ChannelCleanup(protocol::ChannelPtr) override;
+
+    DefineMandatoryClassFunctionsWOSuper(SdkChannelWraper);
 
 private:
     protocol::ChannelPtr        channel;

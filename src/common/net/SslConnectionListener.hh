@@ -168,6 +168,8 @@ public:
     ErasePollEventHandler() override
                                 { connectionListener->ErasePollEventHandler(); }
 
+    DefineMandatoryClassFunctionsWOSuper(SslConnectionListener);
+
 protected:
     virtual int
     CloseNClear(tString) override;

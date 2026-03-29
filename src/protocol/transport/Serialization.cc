@@ -18,6 +18,7 @@
 #include <platform/assert_pinggy.h>
 
 #include "TransportManager.hh"
+#include <utils/TemplateStreaming.hh> //this needs to be the last include
 
 #define _SWAP_U16(x) ((x & 0xff) << 8) | ((x & 0xff00) >> 8)
 #define SWAP_16(x) _SWAP_U16(((uint16_t)x))
@@ -220,3 +221,5 @@ Serializer::encodeLiterals(PinggyValue::PinggyInternalTypePtr value, tPathId par
 
 //================
 
+
+INCLUDE_MEMORY_DUMP_DEFINITION

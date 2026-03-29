@@ -18,6 +18,7 @@
 #include "Serialization.hh"
 #include "Deserialization.hh"
 #include <platform/assert_pinggy.h>
+#include <utils/TemplateStreaming.hh> //this needs to be the last include
 
 #define HANDSHAKE_LENGTH 256
 
@@ -380,3 +381,4 @@ TransportManager::HandleFDError(PollableFDPtr, int16_t)
     return 0;
 }
 
+INCLUDE_MEMORY_DUMP_DEFINITION

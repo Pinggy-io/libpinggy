@@ -19,6 +19,7 @@
 
 #include <platform/Log.hh>
 #include "ConnectionListener.hh"
+#include <utils/TemplateStreaming.hh> //this needs to be the last include
 
 #define MAX_CONSECUTIVE_OPEN_FILE_ERROR 1024
 
@@ -263,3 +264,6 @@ ConnectionListener::AcceptSocket()
 }
 
 } /* namespace net */
+
+INCLUDE_MEMORY_DUMP_DEFINITION
+

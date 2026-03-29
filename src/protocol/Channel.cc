@@ -16,6 +16,7 @@
 
 #include "Channel.hh"
 #include "Session.hh"
+#include <utils/TemplateStreaming.hh> //this needs to be the last include
 
 namespace protocol
 {
@@ -533,3 +534,5 @@ Channel::closeTimeoutTriggered()
 }
 
 } // namespace protocol
+
+INCLUDE_MEMORY_DUMP_DEFINITION

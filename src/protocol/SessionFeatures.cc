@@ -15,6 +15,8 @@
  * limitations under the License.
  */
 
+#include "SessionFeatures.hh"
+#include <utils/TemplateStreaming.hh> //this needs to be the last include
 
 namespace protocol
 {
@@ -71,3 +73,5 @@ SessionFeatures::resetToDefault()
 }
 
 } // namespace protocol
+
+INCLUDE_MEMORY_DUMP_DEFINITION

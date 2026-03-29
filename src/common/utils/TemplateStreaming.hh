@@ -18,6 +18,20 @@
  #define __SRC_CPP_PUBLIC_COMMON_UTILS_TEMPLATELOGGING_HH__
 
 #include "Utils.hh"
+#include <platform/Log.hh>
+#include <type_traits>
+
+template <typename T, typename = void>
+struct pinggy_is_complete : std::false_type {};
+
+template <typename T>
+struct pinggy_is_complete<T, decltype(void(sizeof(T)))> : std::true_type {};
+
+template <typename T>
+struct pinggy_is_bool : std::false_type {};
+
+template <>
+struct pinggy_is_bool<bool> : std::true_type {};
 
 template< typename T, typename U, typename V >
 inline void
@@ -112,5 +126,280 @@ operator<<(std::basic_ostream<T, U>& os, const std::pair<K, V>& pair)
     return os;
 }
 
+//======
 
- #endif // __SRC_CPP_PUBLIC_COMMON_UTILS_TEMPLATELOGGING_HH__
+inline tString
+quoteString(tString var)
+{
+    return "\"" + var + "\"";
+}
+
+template <typename T>
+inline size_t
+DumpMemoryUsages(std::ostream &os, tString varName, const std::vector<T> &vect)
+{
+    size_t size = 0; //= sizeof(vect);
+    if (!varName.empty())
+        os << quoteString(varName) << ": ";
+
+    os << "{\"type\":\"vector\",\"numelem\":" << vect.size() << ",\"capacity\":" << vect.capacity() << ",\"elements\":[";
+
+    bool first = true;
+    size += vect.capacity() * sizeof(T);
+    for (auto && elem : vect) {
+        if (!first)
+            os << ",";
+        size += DumpMemoryUsages(os, "", elem);
+        first = false;
+    }
+
+    os << "],\"Consumed\":" << size << "}";
+    return size;
+}
+
+template <typename T>
+inline size_t
+DumpMemoryUsages(std::ostream &os, tString varName, const std::queue<T> &queue)
+{
+    size_t size = 0; //sizeof(queue);
+    if (!varName.empty())
+        os << quoteString(varName) << ": ";
+
+    auto nvect = queue;
+
+    os << "{\"type\":\"queue\",\"size\":" << nvect.size() << ",\"elements\":[";
+    bool first = true;
+    size = queue.size() * sizeof(T);
+    while(nvect.size()) {
+        if (!first) os << ",";
+        auto elem = nvect.front();
+        nvect.pop();
+        size += DumpMemoryUsages(os, "", elem);
+        first = false;
+    }
+    os << "],\"Consumed\":" << size << "}";
+    return size;
+}
+
+template <typename K, typename V>
+inline size_t
+DumpMemoryUsages(std::ostream &os, tString varName, const std::map<K, V> &map)
+{
+    size_t size = 0;// sizeof(map);
+
+    if (!varName.empty())
+        os << quoteString(varName) << ": ";
+    os << "{\"type\":\"map\",\"numelem\":" << map.size() << ",\"elements\":[";
+    bool first = true;
+    size += map.size() * (sizeof(K) + sizeof(V));
+    for (auto elem : map) {
+        if (!first)
+            os << ",";
+        os << "{";
+        size += DumpMemoryUsages(os, "key", elem.first);
+        os << ",";
+        size += DumpMemoryUsages(os, "val", elem.second);
+        os << "}";
+        first = false;
+    }
+    os << "],\"Consumed\":" << size << "}";
+    return size;
+}
+
+template <typename T>
+inline size_t
+DumpMemoryUsages(std::ostream &os, tString varName, const std::set<T> &vect)
+{
+    size_t size = 0; //sizeof(vect);
+    if (!varName.empty())
+        os << quoteString(varName) << ": ";
+
+    os << "{\"type\":\"set\",\"numelem\":" << vect.size() << ",\"elements\":[";
+
+    bool first = true;
+    size += vect.size() * sizeof(T);
+    for (auto elem : vect) {
+        if (!first)
+            os << ",";
+        size += DumpMemoryUsages(os, "", elem);
+        first = false;
+    }
+
+    os << "],\"Consumed\":" << size << "}";
+    return size;
+}
+
+template <typename... Args>
+inline size_t
+DumpMemoryUsages(std::ostream &os, tString varName, const std::tuple<Args...> &t)
+{
+
+    size_t size = 0; // sizeof(t);
+
+    if (!varName.empty())
+        os << quoteString(varName) << ": ";
+
+    os << "{\"type\":\"tuple\",\"elements\":[";
+
+    auto cnt = 0;
+    bool first = true;
+    for_each_in_tuple(t, [&](const auto& x) {
+        if (!first) os << ",";
+        size += sizeof(x);
+        size += DumpMemoryUsages(os, "", x);
+        first = false;
+        cnt += 1;
+    });
+
+    os << "],\"capacity\":" << cnt << ",\"Consumed\":" << size << "}";
+    return size;
+}
+
+template <typename K, typename V>
+inline size_t
+DumpMemoryUsages(std::ostream &os, tString varName, const std::pair<K, V> &pair)
+{
+    size_t size = 0; // sizeof(pair);
+    if (!varName.empty())
+        os << quoteString(varName) << ": ";
+
+    os << "{\"type\":\"pair\",\"elements\":{";
+    size += sizeof(K);
+    size += DumpMemoryUsages(os, "key", pair.first);
+    os << ",";
+    size += sizeof(V);
+    size += DumpMemoryUsages(os, "val", pair.second);
+    os << "},\"Consumed\":" << size << "}";
+    return size;
+}
+
+template<typename T>
+void __print_primitive_value(std::ostream &os, const T& value) {
+    if constexpr (std::is_pointer_v<T>) {
+        os << ", \"value\":" << static_cast<const void*>(value);
+    } else if constexpr (std::is_arithmetic_v<T>) {
+        os << ", \"value\":" << value;
+    }
+}
+
+#define __pp_ff(T) \
+inline constexpr std::string_view \
+_p_type_name(const T &x) { return TO_STR(T); } \
+inline constexpr std::string_view \
+_p_type_name(const T * &x) { return "*" TO_STR(T); }
+PINGGY_PRIMITIVES_TYPES(__pp_ff)
+
+template<typename T>
+inline constexpr std::string_view
+_p_type_name(const T &x) { if constexpr (std::is_function_v<T>) return "function"; return ""; }
+
+inline constexpr std::string_view
+_p_type_name(const bool &x) { return "bool"; }
+
+template <typename T>
+inline size_t
+DumpMemoryUsages(std::ostream &os, tString varName, const T &val)
+{
+    if (!varName.empty())
+        os << quoteString(varName) << ": ";
+    size_t size = 0;
+
+    os << "{\"type\":\"primitive<" << _p_type_name(val) << ">\",\"size\":" << sizeof(val);
+
+    if constexpr (std::is_pointer_v<T> && std::is_same_v<std::remove_cv_t<std::remove_pointer_t<T>>, char>) {
+        if (val && std::strlen(val) < 16) {
+            os << ", \"value\":" << val;
+        }
+    } else if constexpr (std::is_function_v<T>) {
+        os << "";
+    } else if constexpr (std::is_pointer_v<T>) {
+        if constexpr (std::is_function_v<std::remove_pointer_t<std::decay_t<T>>> || std::is_function_v<std::remove_reference_t<T>>) {
+            os << "";
+        } else {
+            os << ", \"value\":\"" << static_cast<const void*>(val) << "\"";\
+        }
+    } else if constexpr (std::is_same_v<T, tInt8>) {
+        std::cout << ", \"value\":" << static_cast<int>(val);
+    } else if constexpr (std::is_same_v<T, tUint8>) {
+        std::cout << ", \"value\":" << static_cast<tUint>(val);
+    } else if constexpr (pinggy_is_bool<T>::value) {
+        os << ", \"value\":" << (val ? "true" : "false");
+    } else if constexpr (std::is_arithmetic_v<T>) {
+        os << ", \"value\":" << val;
+    }
+
+    os << "}";
+    return size;
+}
+
+template <typename T>
+inline size_t
+__dumpMemoryUsagesImpl(std::ostream &os, tString varName, const std::shared_ptr<T> &ptr, std::true_type)
+{
+    size_t size = 0; // sizeof(std::shared_ptr<T>);
+    if (!varName.empty())
+        os << quoteString(varName) << ": ";
+
+    if (ptr) {
+        if (!ptr->IsMemoryDumpingAllowed()) {
+            os << "\"<already accounted (" << static_cast<const void*>(ptr.get()) << ")>\"";
+            return size;
+        }
+        size += ptr->MemberClsSize();
+        os << "{\"type\":\"shared_ptr<" << ptr->MemberClsName();
+        os << "(" << static_cast<const void*>(ptr.get()) << ")>\",\"content\":";
+        size += ptr->DumpMemory(os);
+        os << "}";
+    } else {
+        os << "null";
+    }
+
+    return size;
+}
+
+template <typename T>
+inline size_t
+__dumpMemoryUsagesImpl(std::ostream &os, tString varName, const std::shared_ptr<T> &ptr, std::false_type)
+{
+    size_t size = 0; // as it is incomplete
+    if (!varName.empty())
+        os << quoteString(varName) << ": ";
+
+    if (ptr)
+        os << "{\"type\":\"shared_ptr<incompleteType(" << static_cast<const void*>(ptr.get()) <<")>\"}";
+    else
+        os << "null";
+    return size;
+}
+
+template <typename T>
+inline size_t
+DumpMemoryUsages(std::ostream &os, tString varName, const std::shared_ptr<T> &ptr)
+{
+    return __dumpMemoryUsagesImpl(os, varName, ptr, pinggy_is_complete<T>{});
+}
+
+template <typename T>
+inline size_t
+DumpMemoryUsages(std::ostream &os, tString varName, const std::weak_ptr<T> &wptr)
+{
+    auto aptr = wptr.lock();
+    size_t size = 0;
+    if (aptr)
+        size += sizeof(aptr);
+    size += DumpMemoryUsages(os, varName, aptr);
+    return size;
+}
+
+template <typename T>
+inline size_t DumpMemoryUsages(std::ostream &os, tString varName, const T *t)
+{
+    ABORT_WITH_MSG("Not allowed");
+    return 0;
+}
+
+//==============
+
+
+
+#endif // __SRC_CPP_PUBLIC_COMMON_UTILS_TEMPLATELOGGING_HH__

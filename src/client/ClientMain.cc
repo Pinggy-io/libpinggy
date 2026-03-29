@@ -17,9 +17,9 @@
 #include <Sdk.hh>
 #include <platform/Log.hh>
 #include <utils/Utils.hh>
-#include <utils/TemplateStreaming.hh>
-
 #include "cli_getopt.h"
+
+#include <utils/TemplateStreaming.hh> //this needs to be the last include
 
 #ifndef PLATFORM_CONFIG_INCLUDED
 
@@ -57,6 +57,8 @@ struct ClientConfig : virtual public pinggy::SharedObject
     tString                     WebDebuggerAddr = "localhost:4300";
     bool                        EnableWebDebugger;
     tString                     Mode;
+
+    DefineMandatoryFileLocalClassFunctionsWOSuper(ClientConfig);
 };
 
 DefineMakeSharedPtr(ClientConfig);  // macro for the clientconfig
@@ -457,6 +459,8 @@ struct ClientSdkEventHandler : virtual public sdk::SdkEventHandler
         std::cout << "Update msg: " << msg << std::endl;
     }
 
+    DefineMandatoryFileLocalClassFunctionsWOSuper(ClientSdkEventHandler);
+
     tString                     error;
     ClientConfigPtr             config;
     sdk::SdkWPtr                sdk;
@@ -528,3 +532,5 @@ CLI arguments → parseArguments()
 
 
 */
+
+INCLUDE_MEMORY_DUMP_DEFINITION

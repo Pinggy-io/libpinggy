@@ -19,6 +19,7 @@
 #include <shared_mutex>
 #include <exception>
 #include <platform/app_foreach_macro.h>
+#include <utils/TemplateStreaming.hh> //this needs to be the last include
 
 #define PINGGY_TYPETEST_ENABLED
 
@@ -177,6 +178,8 @@ struct ApiChannelEventHandler: public virtual sdk::SdkChannelEventHandler
         channelCleanupCB(channelCleanupUserData, channelRef);
         pinggy_free_ref(channelRef);
     }
+
+    DefineMandatoryClassFunctionsNoDump(ApiChannelEventHandler);
 
 };
 DefineMakeSharedPtr(ApiChannelEventHandler)
@@ -365,6 +368,8 @@ public:
         if (!onUsageUpdateCB) return;
         onUsageUpdateCB(onUsageUpdateUserData, sdk, update.c_str());
     }
+
+    DefineMandatoryFileLocalClassFunctionsWOSuper(ApiEventHandler);
 
 #undef GetCStringArray
 #undef ReleaseCStringArray
@@ -1826,3 +1831,5 @@ DEFINE_CONFIG_GET_FUNC(pinggy_build_os, PINGGY_BUILD_OS);
 #ifdef __cplusplus
 }
 #endif //__cplusplus
+
+INCLUDE_MEMORY_DUMP_DEFINITION

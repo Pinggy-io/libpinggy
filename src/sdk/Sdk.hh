@@ -264,6 +264,8 @@ public:
     virtual void
     ChannelCleanup(protocol::ChannelPtr) override;
 
+    DefineMandatoryClassFunctionsWOSuper(Sdk);
+
 private:
     void
     authenticate();

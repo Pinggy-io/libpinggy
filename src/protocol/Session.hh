@@ -220,6 +220,8 @@ public:
     virtual void
     HandleReadyToSendBuffer() override;
 
+    DefineMandatoryClassFunctionsWOSuper(Session);
+
 private:
     uint16_t
     getChannelNewId();
