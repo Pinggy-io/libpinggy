@@ -140,7 +140,7 @@ typedef int16_t                 pinggy_len_t;
 typedef uint32_t                pinggy_capa_t;
 typedef uint32_t               *pinggy_capa_p_t;
 typedef uint32_t                pinggy_uint32_t;
-typedef uint32_t                pinggy_uint64_t;
+typedef uint64_t                pinggy_uint64_t;
 typedef uint16_t                pinggy_uint16_t;
 typedef int32_t                 pinggy_int32_t;
 typedef int32_t                 pinggy_raw_len_t;
