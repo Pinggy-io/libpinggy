@@ -19,6 +19,7 @@
 #include <platform/Log.hh>
 #include <openssl/err.h>
 #include "SslNetConnBio.hh"
+#include <utils/TemplateStreaming.hh> //this needs to be the last include
 
 namespace net {
 
@@ -88,6 +89,8 @@ public:
     {
         onFailed->Fire();
     }
+
+    DefineMandatoryFileLocalClassFunctionsWOSuper(SslConnectFutureTaskHandler);
 
 private:
     common::TaskPtr             onSuccess;
@@ -701,3 +704,5 @@ SslNetworkConnection::CreateSslContext(int minVersion, int maxVersion, tString c
 }
 
 } /* namespace net */
+
+INCLUDE_MEMORY_DUMP_DEFINITION

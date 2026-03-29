@@ -104,6 +104,8 @@ public:
     virtual void
     ChannelCleanup(ChannelPtr) override;
 
+    DefineMandatoryClassFunctionsWOSuper(ChannelConnectionForwarder);
+
 private:
 
     void

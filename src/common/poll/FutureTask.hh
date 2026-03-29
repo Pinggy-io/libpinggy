@@ -27,19 +27,24 @@ class FutureTaskImplStatic: public Task
 {
 public:
     FutureTaskImplStatic(R (*func)(Args ...), Args ...args): func(func), data(std::make_tuple(args...))
-                                {}
+                                { }
     template<typename A1>
     FutureTaskImplStatic(R (*func)(A1, Args ...), Args ...args): func(func), data(std::make_tuple(args...))
-                                {}
+                                { }
 
     virtual
-    ~FutureTaskImplStatic()     {}
+    ~FutureTaskImplStatic()     { }
 
     virtual void
     Fire() override             { if (func) std::apply(func, data); }
 
     virtual void
     DisArm() override           { func=nullptr; }
+
+    virtual size_t
+    DumpMemory(std::ostream& os) override;
+
+    DefineMandatoryTemplateClassFunctions(FutureTaskImplStatic, R, Args...);
 
 private:
     typedef R (*tFunc)(Args...);
@@ -50,20 +55,25 @@ private:
 };
 
 template<typename T, typename R, typename ... Args>
-class FutureTaskImplMem: public Task
+class FutureTaskImplMember: public Task
 {
 public:
-    FutureTaskImplMem(std::shared_ptr<T> _t, R (T::*func)(Args ...), Args ...args): t(_t), func(func), data(std::make_tuple(args...))
-                                {}
+    FutureTaskImplMember(std::shared_ptr<T> _t, R (T::*func)(Args ...), Args ...args): t(_t), func(func), data(std::make_tuple(args...))
+                                { }
 
     virtual
-    ~FutureTaskImplMem()        {}
+    ~FutureTaskImplMember()     { }
 
     virtual void
     Fire() override;
 
     virtual void
     DisArm() override           { func=nullptr; }
+
+    virtual size_t
+    DumpMemory(std::ostream& os) override;
+
+    DefineMandatoryTemplateClassFunctions(FutureTaskImplMember, T, R, Args...);
 
 private:
     typedef R (T::*tMemFunc)(Args...);
@@ -76,15 +86,86 @@ private:
 };
 
 
+//It will retain reference for sometime. So that a object own't get deleted immediately.
+template<typename ... Args>
+class FutureTaskImplRetainer: public Task
+{
+public:
+    FutureTaskImplRetainer(std::shared_ptr<Args> ...args): isActive(true), data(std::make_tuple(args...))
+                                { }
+
+    virtual
+    ~FutureTaskImplRetainer()   { }
+
+    virtual void
+    Fire() override             { }
+
+    virtual void
+    DisArm() override           { isActive = false; }
+
+    virtual size_t
+    DumpMemory(std::ostream& os) override;
+
+    DefineMandatoryTemplateClassFunctions(FutureTaskImplRetainer, Args...);
+    // std::shared_ptr<FutureTaskImplRetainer<Args...>>
+    // __GetTestObj()
+    // {
+    //     return thisPtr->DynamicPointerCast<FutureTaskImplRetainer<Args...>>();
+    // }
+
+private:
+    bool                        isActive;
+    std::tuple<std::shared_ptr<Args>...>
+                                data;
+};
+
+
 
 template<typename T, typename R, typename ...Args>
 inline void
-FutureTaskImplMem<T, R, Args...>::Fire()
+FutureTaskImplMember<T, R, Args...>::Fire()
 {
     if (func)
         std::apply([this](Args ... a) {
             (this->t.get()->*func)(a...);
         }, data);
+}
+
+template<typename R, typename ... Args>
+inline size_t
+FutureTaskImplStatic<R, Args...>::DumpMemory(std::ostream& os)
+{
+    os << "{\"type\":\"FutureTaskImplStatic\",\"members\":{";
+    size_t size = sizeof(func) + sizeof(data);
+    os << "\"funcPtr\":{\"type\":\"primitive\",\"size\":" << sizeof(func) << "},";
+    os << "\"tupleData\":{\"type\":\"tuple\",\"size\":" << sizeof(data) << "}";
+    os << "},\"Consumed\":" << size << "}";
+    return size;
+}
+
+template<typename T, typename R, typename ... Args>
+inline size_t
+FutureTaskImplMember<T, R, Args...>::DumpMemory(std::ostream& os)
+{
+    os << "{\"type\":\"FutureTaskImplMember\",\"members\":{";
+    size_t size = sizeof(t) + sizeof(func) + sizeof(data);
+    os << "\"objectPtr\":{\"type\":\"shared_ptr\",\"size\":" << sizeof(t) << "},";
+    os << "\"memfuncPtr\":{\"type\":\"primitive\",\"size\":" << sizeof(func) << "},";
+    os << "\"tupleData\":{\"type\":\"primitive\",\"size\":" << sizeof(data) << "}";
+    os << "},\"Consumed\":" << size << "}";
+    return size;
+}
+
+template<typename ... Args>
+inline size_t
+FutureTaskImplRetainer<Args...>::DumpMemory(std::ostream& os)
+{
+    os << "{\"type\":\"FutureTaskImplRetainer\",\"members\":{";
+    size_t size = sizeof(isActive) + sizeof(data);
+    os << "\"isActive\":{\"type\":\"primitive\",\"size\":" << sizeof(isActive) << "},";
+    os << "\"retainedData\":{\"type\":\"primitive\",\"size\":" << sizeof(data) << "}";
+    os << "},\"Consumed\":" << size << "}";
+    return size;
 }
 
 template<typename R, typename ... Args>
@@ -95,10 +176,17 @@ NewFutureTaskImplPtr(R (*func)(Args ...), Args ...args)
 }
 
 template<typename T, typename R, typename ... Args>
-std::shared_ptr<FutureTaskImplMem<T, R, Args...> >
+std::shared_ptr<FutureTaskImplMember<T, R, Args...> >
 NewFutureTaskImplPtr(std::shared_ptr<T> t, R (T::*func)(Args ...), Args ...args)
 {
-    return std::make_shared<FutureTaskImplMem<T, R, Args...>>(t, func, args...);
+    return std::make_shared<FutureTaskImplMember<T, R, Args...>>(t, func, args...);
+}
+
+template<typename ... Args>
+std::shared_ptr<FutureTaskImplRetainer<Args...> >
+NewFutureTaskImplRetainerPtr(std::shared_ptr<Args> ...args)
+{
+    return std::make_shared<FutureTaskImplRetainer<Args...>>(args...);
 }
 
 } // namespace common

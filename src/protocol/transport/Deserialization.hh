@@ -116,6 +116,8 @@ public:
     virtual void Deserialize(tString key, std::vector<t##x> &val);
 FOREACH_ALL_TYPE(DeclareDeserialize)
 #undef DeclareDeserialize
+
+    DefineMandatoryClassFunctionsWOSuper(Deserializer);
 };
 DefineMakeSharedPtr(Deserializer);
 #define NEW_DESERIALIZE_PTR(...) NewDeserializerPtr(new Deserializer(__VA_ARGS__))

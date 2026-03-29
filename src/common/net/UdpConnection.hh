@@ -134,6 +134,8 @@ public:
     virtual tNetState
     GetState() override         { return netState; }
 
+    DefineMandatoryClassFunctionsWOSuper(UdpConnectionImpl);
+
 protected:
     virtual int
     CloseNClear(tString) override;

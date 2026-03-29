@@ -32,10 +32,20 @@ class CertificateFileDetail: public pinggy::SharedObject
     std::filesystem::file_time_type lastMod;
 public:
     CertificateFileDetail(std::string keyPath, std::string certPath);
-    virtual ~CertificateFileDetail();
-    std::string GetKeyPath() const { return keyPath.string(); }
-    std::string GetCertPath() const { return certPath.string(); }
-    bool IsModified(bool update = false);
+
+    virtual
+    ~CertificateFileDetail();
+
+    tString
+    GetKeyPath() const          { return keyPath.string(); }
+
+    tString
+    GetCertPath() const         { return certPath.string(); }
+
+    bool
+    IsModified(bool update = false);
+
+    DefineMandatoryClassFunctionsWOSuper(CertificateFileDetail);
 };
 
 DefineMakeSharedPtr(CertificateFileDetail);

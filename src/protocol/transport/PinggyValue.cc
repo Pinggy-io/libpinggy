@@ -401,3 +401,5 @@ PinggyValue::HasChildWithKey(tString key)
 
     return ptr->HasChildWithKey(key);
 }
+
+INCLUDE_MEMORY_DUMP_DEFINITION

@@ -24,6 +24,10 @@
 #include <platform/assert_pinggy.h>
 #include <platform/Log.hh>
 #include <utils/Utils.hh>
+#include <utils/TemplateStreaming.hh>
+
+PRIMARY_DEPENDENT_HEADERS(PinggyPollLinux.hh)
+PRIMARY_DEPENDENT_HEADERS(PinggyPollCommon.hh)
 
 #define MAX_EVENTS 100
 
@@ -97,7 +101,7 @@ tInt32 PollControllerLinux::PollOnce(tInt32 argTimeout)
         auto timeout = GetNextTaskTimeout(argTimeout);
         localTimeSpec = timespec{
                             .tv_sec  = (time_t)(timeout / SECOND),
-                            .tv_nsec = (time_t)(timeout % SECOND),
+                            .tv_nsec = (time_t)((timeout % SECOND)*NANOS_IN_MILLI),
                         };
         localTimeSpecPtr = &localTimeSpec;
     }
@@ -234,3 +238,5 @@ void PollControllerLinux::registerNotificationFd()
 }
 
 } /* namespace common */
+
+INCLUDE_MEMORY_DUMP_DEFINITION

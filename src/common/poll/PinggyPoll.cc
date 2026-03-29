@@ -15,6 +15,33 @@
  */
 
 #include "PinggyPoll.hh"
+#include <utils/TemplateStreaming.hh> //this needs to be the last include
+
+
+
+template <typename T>
+inline size_t
+DumpMemoryUsages(std::ostream &os, tString varName, const PriorityQueueMinHeap<T> &vect)
+{
+    size_t size = 0; //sizeof(vect);
+    if (!varName.empty())
+        os << quoteString(varName) << ": ";
+
+    auto nvect = vect;
+
+    os << "{\"type\":\"priority_queue\",\"size\":" << nvect.size() << ",\"elements\":[";
+    bool first = true;
+    size += vect.size() * sizeof(T);
+    while(nvect.size()) {
+        if (!first) os << ",";
+        auto elem = nvect.top();
+        nvect.pop();
+        size += DumpMemoryUsages(os, "", elem);
+        first = false;
+    }
+    os << "],\"Consumed\":" << size << "}";
+    return size;
+}
 
 namespace common {
 
@@ -23,23 +50,25 @@ PollController::PollController() : pollTime(GetCurrentTimeInMS()), waitForTask(t
 }
 
 PollableTaskPtr
-PollController::AddFutureTask(tDuration timeout, tDuration align, bool repeat, TaskPtr task)
+PollController::AddFutureTask(TaskSchedule schedule, tDuration timeout, tDuration align, bool repeat, TaskPtr task)
 {
     auto curTime = pollTime;
     auto deadline = curTime + timeout;
-    if (align > 0) {
-        align = (align / MILLISECOND) * MILLISECOND;
-    }
-    align = align > 0 ? align : MILLISECOND;
+    if (schedule == TaskSchedule::Timer) { //we do not need any of the following computation for
+        if (align > 0) {
+            align = (align / MILLISECOND) * MILLISECOND;
+        }
+        align = align > 0 ? align : MILLISECOND;
 
-    tDuration misaligned = timeout%align;
-    timeout += (misaligned ? (align - misaligned) : 0); //aligning timeout
-    if (timeout == 0) {
-        timeout += align;
+        tDuration misaligned = timeout%align;
+        timeout += (misaligned ? (align - misaligned) : 0); //aligning timeout
+        if (timeout == 0) {
+            timeout += align;
+        }
+        deadline = curTime + timeout;
+        misaligned = deadline%align;
+        deadline += (misaligned ? (align - misaligned) : 0);
     }
-    deadline = curTime + timeout;
-    misaligned = deadline%align;
-    deadline += (misaligned ? (align - misaligned) : 0);
 
     auto pollableTask = NewPollableTaskPtr(task);
     pollableTask->deadline          = deadline;
@@ -47,7 +76,20 @@ PollController::AddFutureTask(tDuration timeout, tDuration align, bool repeat, T
     pollableTask->timeout           = timeout;
     pollableTask->alignment         = align;
 
-    taskQueue.push(pollableTask);
+    switch (schedule)
+    {
+    case TaskSchedule::Timer:
+        taskQueue.push(pollableTask);
+        break;
+
+    case TaskSchedule::NextBreak:
+        immediateTaskQueue.push(pollableTask);
+        break;
+
+    default:
+        Assert("Unknown taskSchedule types");
+
+    }
 
     LOGT("pushing ", pollableTask->deadline);
 
@@ -67,8 +109,12 @@ PollController::GetNextTaskTimeout(int argTimeout)
         task = nullptr;
     }
 
-    if (!task)
+    if (!task) {
+        if (immediateTaskQueue.size()) {
+            return argTimeout < 0 ? SECOND : (argTimeout*MILLISECOND);
+        }
         return 0;
+    }
 
     if (task->deadline <= pollTime) //task already pending. Need to execute immidiately.
         return 0;
@@ -90,6 +136,12 @@ void
 PollController::ExecuteCurrentTasks()
 {
     pollTime = GetCurrentTimeInMS();
+
+    while (immediateTaskQueue.size() > 0) {
+        auto task = immediateTaskQueue.top();
+        immediateTaskQueue.pop();
+        task->Fire();
+    }
 
     while (taskQueue.size() > 0) {
         auto task = taskQueue.top();
@@ -121,3 +173,5 @@ PollController::CleanupAllTasks()
 }
 
 }; // NameSpace Common
+
+INCLUDE_MEMORY_DUMP_DEFINITION

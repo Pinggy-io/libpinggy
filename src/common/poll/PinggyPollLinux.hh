@@ -40,23 +40,59 @@ class PollControllerLinux: public PollController
 {
 public:
     PollControllerLinux();
-    virtual ~PollControllerLinux();
-    virtual tInt32 PollOnce(tInt32 timeout = -1) override;
-    virtual void StartPolling() override;
-    virtual void DisableReader(PollEventHandlerPtr handler) override;
-    virtual void DeregisterHandler(PollEventHandlerPtr handler) override;
-    virtual void EnableReader(PollEventHandlerPtr handler) override;
-    virtual void DisableWriter(PollEventHandlerPtr handler) override;
-    virtual void EnableWriter(PollEventHandlerPtr handler) override;
-    virtual void RaiseReadPoll(PollEventHandlerPtr handler) override;
-    virtual void RaiseWritePoll(PollEventHandlerPtr handler) override;
-    virtual void RegisterHandler(PollEventHandlerPtr handler, bool edgeTriggered = false) override;
-    virtual PollStatePtr RetrieveState(PollEventHandlerPtr handler) override;
-    virtual void RestoreState(PollEventHandlerPtr handler, PollStatePtr state) override;
-    virtual void DeregisterAllHandlers() override;
-    virtual int GetFd() override { return pollfd; }
-    virtual void CleanupAfterFork() override;
-    virtual void StopPolling() override {stopPolling = true;}
+
+    virtual
+    ~PollControllerLinux();
+
+    virtual tInt32
+    PollOnce(tInt32 timeout = -1) override;
+
+    virtual void
+    StartPolling() override;
+
+    virtual void
+    DisableReader(PollEventHandlerPtr handler) override;
+
+    virtual void
+    DeregisterHandler(PollEventHandlerPtr handler) override;
+
+    virtual void
+    EnableReader(PollEventHandlerPtr handler) override;
+
+    virtual void
+    DisableWriter(PollEventHandlerPtr handler) override;
+
+    virtual void
+    EnableWriter(PollEventHandlerPtr handler) override;
+
+    virtual void
+    RaiseReadPoll(PollEventHandlerPtr handler) override;
+
+    virtual void
+    RaiseWritePoll(PollEventHandlerPtr handler) override;
+
+    virtual void
+    RegisterHandler(PollEventHandlerPtr handler, bool edgeTriggered = false) override;
+
+    virtual PollStatePtr
+    RetrieveState(PollEventHandlerPtr handler) override;
+
+    virtual void
+    RestoreState(PollEventHandlerPtr handler, PollStatePtr state) override;
+
+    virtual void
+    DeregisterAllHandlers() override;
+
+    virtual int
+    GetFd() override            { return pollfd; }
+
+    virtual void
+    CleanupAfterFork() override;
+
+    virtual void
+    StopPolling() override      { stopPolling = true; }
+
+    DefineMandatoryClassFunctionsWithSuper(PollControllerLinux, PollController);
 
 private:
     void enableDisableHandler(sock_t fd, uint mode, bool enable);
@@ -65,25 +101,31 @@ private:
 
     void pollNonPollables();
 
-    sock_t pollfd;
-    bool reinit;
-    std::map<sock_t, PollEventHandlerPtr> fds;
-    std::map<sock_t, FdMetaDataPtr > socketState;
+    sock_t                      pollfd;
+    bool                        reinit;
+    std::map<sock_t, PollEventHandlerPtr>
+                                fds;
+    std::map<sock_t, FdMetaDataPtr>
+                                socketState;
 
 #ifdef __LINUX_OS__
-    struct epoll_event *pollEvents;
+    struct epoll_event         *pollEvents;
 #elif defined(__MAC_OS__)
-    struct kevent *pollEvents;
+    struct kevent              *pollEvents;
 #endif // __LINUX_OS__
-    int numEvents;
-    std::set<sock_t> dummyReadPoll;
-    std::set<PollEventHandlerPtr> dummyRead4NonPollables;
-    std::set<PollEventHandlerPtr> dummyWrite4NonPollables;
-    sock_t notificationFd, notificationReceiverFd;
-    bool notified;
-    bool stopPolling;
-    bool polling;
-    std::map<PollEventHandlerPtr, NonPollableMetaDataPtr> nonPollables;
+    int                         numEvents;
+    std::set<sock_t>            dummyReadPoll;
+    std::set<PollEventHandlerPtr>
+                                dummyRead4NonPollables;
+    std::set<PollEventHandlerPtr>
+                                dummyWrite4NonPollables;
+    sock_t                      notificationFd;
+    sock_t                      notificationReceiverFd;
+    bool                        notified;
+    bool                        stopPolling;
+    bool                        polling;
+    std::map<PollEventHandlerPtr, NonPollableMetaDataPtr>
+                                nonPollables;
 };
 
 DefineMakeSharedPtr(PollControllerLinux);

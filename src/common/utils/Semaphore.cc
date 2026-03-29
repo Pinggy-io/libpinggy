@@ -15,6 +15,7 @@
  */
 
 #include "Semaphore.hh"
+#include "TemplateStreaming.hh"
 
 
 #if __cplusplus < 202002L
@@ -43,3 +44,5 @@ void Semaphore::Wait()
     semaphore.acquire();
 }
 #endif
+
+INCLUDE_MEMORY_DUMP_DEFINITION

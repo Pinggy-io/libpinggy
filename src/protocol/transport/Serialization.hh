@@ -132,16 +132,23 @@ FOREACH_ALL_TYPE(DeclareSerializeMemFuncHeader)
 #undef DeclareSerializeMemFuncHeader
 
     template<typename T>
-    SerializerPtr Serialize(std::string, std::vector<T> t);
+    SerializerPtr
+    Serialize(std::string, std::vector<T> t);
 
     template<typename T>
-    SerializerPtr Serialize(std::string, T t);
+    SerializerPtr
+    Serialize(std::string, T t);
 
-    RawDataPtr GetStream() { return stream; }
+    RawDataPtr
+    GetStream()                 { return stream; }
 
-    PathRegistryPtr GetPathRegistry() { return pathRegistry; }
+    PathRegistryPtr
+    GetPathRegistry()           { return pathRegistry; }
 
-    bool Send();
+    bool
+    Send();
+
+    DefineMandatoryClassFunctionsWOSuper(Serializer);
 };
 DefineMakePrivateSharedPtr(Serializer)
 #define NEW_SERIALIZE_PTR(...) NewSerializerPtr(new Serializer(__VA_ARGS__))

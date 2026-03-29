@@ -33,7 +33,8 @@ public:
     AddressCache& operator=(const AddressCache&) = delete;
 
     // Static method to access the single instance
-    static std::shared_ptr<AddressCache> GetInstance() {
+    static std::shared_ptr<AddressCache> GetInstance()
+    {
         if (!AddressCache::instance)
             AddressCache::instance = std::shared_ptr<AddressCache>(new AddressCache()); // Guaranteed to be thread-safe in C++11+
         return AddressCache::instance;
@@ -44,6 +45,8 @@ public:
 
     void
     SetAddrInfo(tString host, tString port, bool tcp, sock_addrinfo addr);
+
+    DefineMandatoryClassFunctionsWOSuper(AddressCache);
 
 private:
     AddressCache()              { }

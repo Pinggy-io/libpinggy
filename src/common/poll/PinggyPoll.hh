@@ -34,6 +34,12 @@ using PriorityQueueMinHeap = std::priority_queue<eleType, std::vector<eleType>, 
 
 namespace common {
 
+enum class TaskSchedule {
+    Timer       = 0,
+    NextBreak,
+    // Immediate, //Not being used now
+};
+
 abstract class PollEventHandler : public virtual pinggy::SharedObject {
 public:
     virtual
@@ -107,8 +113,10 @@ DeclareSharedPtr(PollState);
 #define  SECOND             (1000*MILLISECOND)
 #define  MINUTE             (60*SECOND)
 #define  HOUR               (60*MINUTE)
-// #define  MILLIS_IN_SECOND   (1000L)
-// #define  NANOS_IN_MILLI     (1000L)
+#define  MILLIS_IN_SECOND   (1000L)
+#define  MICROS_IN_MILLI    (1000L)
+#define  NANOS_IN_MICRO     (1000L)
+#define  NANOS_IN_MILLI     (NANOS_IN_MICRO * NANOS_IN_MICRO)
 
 class PollController;
 class PollableTask : public virtual pinggy::SharedObject{
@@ -127,6 +135,8 @@ public:
 
     virtual tUint64
     Hash() override final       { return deadline; }
+
+    DefineMandatoryClassFunctionsWOSuper(PollableTask);
 
 private:
     friend class PollController;
@@ -194,7 +204,9 @@ public:
     StopPolling() = 0;
 
     virtual PollableTaskPtr
-    AddFutureTask(tDuration timeout, tDuration align, bool repeat, TaskPtr task) final;
+    AddFutureTask(TaskSchedule, tDuration timeout, tDuration align, bool repeat, TaskPtr task) final;
+
+    //================
 
     template<typename ...Args>
     PollableTaskPtr
@@ -230,6 +242,20 @@ public:
     PollableTaskPtr
     SetInterval(tDuration timeout, tDuration align, std::shared_ptr<T> _t, void (T::*func)(Args ...), Args ...args);
 
+    //=========================
+
+    template<typename T, typename ...Args>
+    PollableTaskPtr
+    RetainObject(tDuration timeout, tDuration align, std::shared_ptr<T> t, Args ...args);
+
+    template<typename T, typename ...Args>
+    PollableTaskPtr
+    RetainObject(tDuration timeout, std::shared_ptr<T> t, Args ...args);
+
+    template<typename T, typename ...Args>
+    PollableTaskPtr
+    RetainObject(std::shared_ptr<T> t, Args ...args);
+
     virtual tTime
     GetPollTime() final         { return pollTime; }
 
@@ -237,21 +263,24 @@ public:
     SetWaitForFutureTask(bool waitForTask) final
                                 { this->waitForTask = waitForTask; }
 
-protected:
+    DefineMandatoryAbsClassFunctionsWOSuper(PollController);
 
     // returns 0 or positive. 0 means immediate
     virtual tDuration
     GetNextTaskTimeout(int timeout = -1) final; //zero if no deadline
 
     virtual bool
-    HaveFutureTasks(int timeout = -1) final { return taskQueue.size() > 0 || timeout > -1; }
+    HaveFutureTasks(int timeout = -1) final
+                            { return taskQueue.size() > 0 || immediateTaskQueue.size() > 0 || timeout > -1; }
+
+    virtual void
+    ExecuteCurrentTasks() final;
+
+protected:
 
     virtual bool
     WaitForFutureTask() final
                             { return waitForTask; }
-
-    virtual void
-    ExecuteCurrentTasks() final;
 
     virtual void
     CleanupAllTasks() final;
@@ -260,6 +289,9 @@ private:
     // std::priority_queue<PollableTaskPtr, std::vector<PollableTaskPtr>, std::greater<PollableTaskPtr>>;
     PriorityQueueMinHeap<PollableTaskPtr>
                                 taskQueue;
+
+    PriorityQueueMinHeap<PollableTaskPtr>
+                                immediateTaskQueue;
 
     tTime                       pollTime;
     bool                        waitForTask; //Whether poll should wait for task or not when all the fds are gone
@@ -279,7 +311,7 @@ inline PollableTaskPtr
 PollController::SetTimeout(tDuration timeout, tDuration align, void(* func)(Args...), Args ...args)
 {
     auto task = NewFutureTaskImplPtr(func, args...);
-    return AddFutureTask(timeout, align, false, task);
+    return AddFutureTask(TaskSchedule::Timer, timeout, align, false, task);
 }
 
 template<typename T, typename ...Args>
@@ -294,35 +326,62 @@ inline PollableTaskPtr
 PollController::SetTimeout(tDuration timeout, tDuration align, std::shared_ptr<T> _t, void (T::*func)(Args...), Args ...args)
 {
     auto task = NewFutureTaskImplPtr(_t, func, args...);
-    return AddFutureTask(timeout, align, false, task);
+    return AddFutureTask(TaskSchedule::Timer, timeout, align, false, task);
 }
 
 //============
 
 template<typename ...Args>
-inline PollableTaskPtr PollController::SetInterval(tDuration timeout, void(*func)(Args...), Args ...args)
+inline PollableTaskPtr
+PollController::SetInterval(tDuration timeout, void(*func)(Args...), Args ...args)
 {
     return SetInterval(timeout, SECOND, func, args...);
 }
 
 template<typename ...Args>
-inline PollableTaskPtr PollController::SetInterval(tDuration timeout, tDuration align, void(*func)(Args...), Args ...args)
+inline PollableTaskPtr
+PollController::SetInterval(tDuration timeout, tDuration align, void(*func)(Args...), Args ...args)
 {
     auto task = NewFutureTaskImplPtr(func, args...);
-    return AddFutureTask(timeout, align, true, task);
+    return AddFutureTask(TaskSchedule::Timer, timeout, align, true, task);
 }
 
 template<typename T, typename ...Args>
-inline PollableTaskPtr PollController::SetInterval(tDuration timeout, std::shared_ptr<T> _t, void(T::* func)(Args...), Args ...args)
+inline PollableTaskPtr
+PollController::SetInterval(tDuration timeout, std::shared_ptr<T> _t, void(T::* func)(Args...), Args ...args)
 {
     return SetInterval(timeout, SECOND, _t, func, args...);
 }
 
 template<typename T, typename ...Args>
-inline PollableTaskPtr PollController::SetInterval(tDuration timeout, tDuration align, std::shared_ptr<T> _t, void(T::* func)(Args...), Args ...args)
+inline PollableTaskPtr
+PollController::SetInterval(tDuration timeout, tDuration align, std::shared_ptr<T> _t, void(T::* func)(Args...), Args ...args)
 {
     auto task = NewFutureTaskImplPtr(_t, func, args...);
-    return AddFutureTask(timeout, align, true, task);
+    return AddFutureTask(TaskSchedule::Timer, timeout, align, true, task);
+}
+
+template <typename T, typename... Args>
+inline PollableTaskPtr
+PollController::RetainObject(tDuration timeout, tDuration align, std::shared_ptr<T> t, Args... args)
+{
+    auto task = NewFutureTaskImplRetainerPtr(t, args...);
+    return AddFutureTask(TaskSchedule::Timer, timeout, align, false, task);
+}
+
+template <typename T, typename... Args>
+inline PollableTaskPtr
+PollController::RetainObject(tDuration timeout, std::shared_ptr<T> t, Args... args)
+{
+    return RetainObject(timeout, SECOND, t, args...);
+}
+
+template <typename T, typename... Args>
+inline PollableTaskPtr
+PollController::RetainObject(std::shared_ptr<T> t, Args... args)
+{
+    auto task = NewFutureTaskImplRetainerPtr(t, args...);
+    return AddFutureTask(TaskSchedule::NextBreak, SECOND, SECOND, false, task);
 }
 
 }; //NameSpace Common

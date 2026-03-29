@@ -77,24 +77,35 @@ struct RawData : virtual pinggy::SharedObject{
     char *
     Consume(RawData::tLen len = -1);
 
+    RawData::tLen
+    Consume(char *buf, RawData::tLen capa);
+
     template<typename T>
     T
     Read();
 
     char *
-    GetData() { return Data+Offset; }
+    GetData()                   { return Data+Offset; }
+
+    RawData::tLen
+    GetData(char *buf, RawData::tLen capa);
 
     char *
-    GetWritableData() { return Data+Offset+Len; }
+    GetWritableData()           { return Data+Offset+Len; }
 
     tString
-    ToString() { return tString(GetData(), Len);}
+    ToString()                  { return tString(GetData(), Len);}
 
     void
     ReAlign();
 
     RawData::tLen
-    WritableCapa() { return Capa - Offset - Len; }
+    WritableCapa()              { return Capa - Offset - Len; }
+
+#define RAW_DATA_EXTRA_SIZE (Capa > 0 ? sizeof(*Data)*Capa : 0)
+
+    DefineMandatoryClassFunctionsWOSuperWithExcessSize(RawData, RAW_DATA_EXTRA_SIZE);
+        //we are using macro because we cannot find any other mechanism parse these functions yet.
 
     char *                      Data;
     RawData::tLen               Len;

@@ -160,6 +160,8 @@ public:
     ErasePollEventHandler() override
                                 { pollEventObject = nullptr; }
 
+    DefineMandatoryClassFunctionsWOSuper(DummyConnection);
+
 protected:
 
     virtual int

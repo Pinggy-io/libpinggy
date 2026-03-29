@@ -32,7 +32,8 @@
 // using Semaphore = std::counting_semaphore<>;
 #endif
 
-class Semaphore: public virtual pinggy::SharedObject {
+class Semaphore: public virtual pinggy::SharedObject
+{
 public:
 #if __cplusplus < 202002L
     explicit Semaphore(int count = 1) : count(count) {}
@@ -43,6 +44,8 @@ public:
 
     void Wait();
 
+    DefineMandatoryClassFunctionsWOSuper(Semaphore);
+
 private:
 #if __cplusplus < 202002L
     std::mutex mutex; // Mutex for synchronizing access
@@ -52,7 +55,6 @@ private:
     std::counting_semaphore semaphore;
 #endif
 };
-
 DefineMakeSharedPtr(Semaphore);
 
 

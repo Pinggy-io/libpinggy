@@ -32,7 +32,8 @@
 //based on https://stackoverflow.com/questions/15752659/thread-pooling-in-c11
 namespace common {
 
-abstract class ThreadPoolEventHandler: virtual public pinggy::SharedObject {
+abstract class ThreadPoolEventHandler: virtual public pinggy::SharedObject
+{
 public:
     virtual
     ~ThreadPoolEventHandler() { };
@@ -86,6 +87,7 @@ public:
     virtual len_t
     HandlePollRecv() override;
 
+    DefineMandatoryClassFunctionsWOSuper(ThreadPool);
 
 
 protected:

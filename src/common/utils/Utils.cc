@@ -31,6 +31,8 @@
 #include <platform/assert_pinggy.h> //platform
 #include <platform/Log.hh> //platform
 
+#include "TemplateStreaming.hh" //this needs to be the last include
+
 static std::regex urlRegex = std::regex(R"(^(?:(\w+):\/\/)?([^\/:#?]+)(?::(\d+))?([^?#]*)(?:\?([^#]*))?(?:#(.*))?$)");
 static std::regex urlRegexIpv6 = std::regex("^(.*?):\\/\\/(\\[?[^\\]/]+\\]?)?(?::([0-9]+))?(\\/.*)?$");
 
@@ -167,6 +169,20 @@ operator<<(std::ostream &os, const UrlPtr &url)
     return os;
 }
 
+
+size_t
+DumpMemoryUsages(std::ostream &os, tString varName, const tString &val)
+{
+    if (!varName.empty())
+        os << "\"" << varName << "\": ";
+    os << "{\"type\":\"string\",\"capacity\":" << val.capacity();
+    if (val.length() < 16 && val.length() > 0) {
+        os << ", \"value\":\"" << val << "\"";
+    }
+    os << "}";
+    return val.capacity();
+}
+
 #ifdef __WINDOWS_OS__
 FsPath
 CreateTemporaryDirectory(const tString &templat)
@@ -249,3 +265,6 @@ DeleteDirTree(FsPath dirPathArg)
     return true;
 }
 #endif //__WINDOWS_OS__
+
+
+INCLUDE_MEMORY_DUMP_DEFINITION

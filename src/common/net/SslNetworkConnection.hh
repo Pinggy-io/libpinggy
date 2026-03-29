@@ -207,6 +207,8 @@ CustomeException(Certificate);
     ErasePollEventHandler() override
                                 { netConn->ErasePollEventHandler(); }
 
+    DefineMandatoryClassFunctionsWOSuper(SslNetworkConnection);
+
 protected:
     virtual int
     CloseNClear(tString) override;

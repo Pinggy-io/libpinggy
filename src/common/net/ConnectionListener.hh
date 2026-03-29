@@ -25,7 +25,7 @@ namespace net {
 
 DeclareClassWithSharedPtr(ConnectionListener);
 
-class ConnectionListenerException: public std::exception, public virtual pinggy::SharedObject
+class ConnectionListenerException: public std::exception
 {
 public:
     ConnectionListenerException(tString message, ConnectionListenerPtr connListener) : message(message), connListener(connListener)
@@ -53,7 +53,7 @@ public:
                                 { }
 
     virtual void
-    NewVisitor(NetworkConnectionPtr netCon) = 0;
+    NewVisitor(NetworkConnectionPtr netConn) = 0;
 
     virtual void
     NewVisitorSocket(sock_t fd, ConnectionListenerPtr listener)
@@ -230,6 +230,8 @@ public:
     virtual void
     ErasePollEventHandler() override
                                 { pollEventObject = nullptr; }
+
+    DefineMandatoryClassFunctionsWOSuper(ConnectionListenerImpl);
 
 protected:
     virtual int

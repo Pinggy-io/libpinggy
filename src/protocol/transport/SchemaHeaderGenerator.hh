@@ -115,6 +115,8 @@ public:                                                                         
                         _SCHEMA_HEADER_DefineVarDefaultArgument, __VA_ARGS__)   \
                             tInt32 __UNUSED_ARG__ = 0);                         \
     virtual ~ ClassName##ClassSuffix() {}                                       \
+    DefineMandatoryClassFunctionsNoDump(ClassName##ClassSuffix);                \
+    virtual size_t DumpMemory(std::ostream &os) override;                       \
 };                                                                              \
 DefineMakeSharedPtr(ClassName##ClassSuffix);                                    \
 
@@ -145,6 +147,8 @@ public:                                                                         
     virtual ~ RootClass##ClassSuffix () {}                                      \
     const t##ClassSuffix##Type ClassSmallSuffix##Type;                          \
     static tString ClassSuffix##Type##Str[];                                    \
+    DefineMandatoryClassFunctionsNoDump(RootClass##ClassSuffix);                \
+    virtual size_t DumpMemory(std::ostream &os) override;                       \
 };                                                                              \
 DefineMakeSharedPtr(RootClass##ClassSuffix)                                     \
                                                                                 \
@@ -245,6 +249,8 @@ Definition(_SCHEMA_HEADER_DefineProtocolClass,(RootClass, ClassSuffix))         
         virtual net::NetworkConnectionPtr GetNetConn() { return netConn; }                          \
         virtual pinggy::VoidPtr GetPtr() { return ptr; }                                            \
         virtual void EnablePinggyValueMode(bool enable = true) final;                               \
+        DefineMandatoryClassFunctionsNoDump(HandlingClassName);                                     \
+        virtual size_t DumpMemory(std::ostream &os) override;                                       \
                                                                                                     \
     private:                                                                                        \
         net::NetworkConnectionPtr netConn;                                                          \

@@ -19,14 +19,14 @@
 
 #include "SchemaHeaderGenerator.hh"
 #include <algorithm>
+#include <utils/TemplateStreaming.hh>
 
 //==============================================================================
 //    Define exception
 //==============================================================================
 
 #define _SCHEMA_BODY_DefineExceptionClasses(RootClass, ClassSuffix)             \
-class RootClass##ClassSuffix##SerializationException:public std::exception,     \
-    public virtual pinggy::SharedObject                                         \
+class RootClass##ClassSuffix##SerializationException:public std::exception      \
 {                                                                               \
 public:                                                                         \
     RootClass##ClassSuffix##SerializationException(tString message) :           \
@@ -40,8 +40,7 @@ private:                                                                        
     tString                     message;                                        \
 };                                                                              \
                                                                                 \
-class RootClass##ClassSuffix##DeserializationException:public std::exception,   \
-        public virtual pinggy::SharedObject                                     \
+class RootClass##ClassSuffix##DeserializationException:public std::exception    \
 {                                                                               \
 public:                                                                         \
     RootClass##ClassSuffix##DeserializationException(tString message) :         \
@@ -108,6 +107,26 @@ ClassName##ClassSuffix::ClassName##ClassSuffix(                                 
 #define _SCHEMA_BODY_DefineMsgConstructor(x, vars, ...)                         \
     _SCHEMA_HEADER_StripParenAndExpand(_SCHEMA_BODY_DefineMsgConstructor_, x,   \
         _SCHEMA_HEADER_StripParen vars, __VA_ARGS__)
+
+
+#define _SCHEMA_BODY_DefineDumpMemoryFunction_VarStriper2_(x, y, ...) y
+
+#define _SCHEMA_BODY_DefineDumpMemoryFunction_VarStriper_(x) _SCHEMA_BODY_DefineDumpMemoryFunction_VarStriper2_ x
+
+#define _SCHEMA_BODY_DefineDumpMemoryFunction_(ClassName, RootClass,            \
+    ClassSuffix, ClassSmallSuffix, ...)                                         \
+    size_t ClassName##ClassSuffix::DumpMemory(std::ostream &os)                 \
+    {                                                                           \
+        DEFINE_DUMP_MEMORY_BODY_SUPER_F(                                        \
+            _SCHEMA_BODY_DefineDumpMemoryFunction_VarStriper_,                  \
+            ClassName##ClassSuffix, RootClass##ClassSuffix,                     \
+            __VA_ARGS__                                                         \
+        );                                                                      \
+    }
+
+#define _SCHEMA_BODY_DefineDumpMemoryFunction(x, vars, ...)                     \
+    _SCHEMA_HEADER_StripParenAndExpand(_SCHEMA_BODY_DefineDumpMemoryFunction_,  \
+        x, _SCHEMA_HEADER_StripParen vars, __VA_ARGS__)
 
 
 //==============================================================================
@@ -433,6 +452,14 @@ Definition(_SCHEMA_BODY_DefineToPinggyValue, (RootClass,                        
 #define _SCHEMA_BODY_DefineMsgTypeStr(y, x, ...)                                \
     APP_CONVERT_TO_STRING(x##Type_##y),
 
+#define _SCHEMA_BODY_RootClassMemDump(RootClass, ClassSuffix,                   \
+        ClassSmallSuffix)                                                       \
+    size_t RootClass##ClassSuffix::DumpMemory(std::ostream &os)                 \
+    {                                                                           \
+        DEFINE_DUMP_MEMORY_BODY(RootClass##ClassSuffix,                         \
+            ClassSmallSuffix##Type);                                            \
+    }
+
 //==============================================================================
 
 #define SCHEMA_BODY__DEFINE_BODIES(RootClass, ClassSuffix,                      \
@@ -441,6 +468,8 @@ Definition(_SCHEMA_BODY_DefineToPinggyValue, (RootClass,                        
         Definition(_SCHEMA_BODY_DefineMsgConstructor, (RootClass, ClassSuffix)) \
         Definition(_SCHEMA_BODY_DefineProtocolFunctions, (RootClass,            \
             ClassSuffix, ClassSmallSuffix))                                     \
+        Definition(_SCHEMA_BODY_DefineDumpMemoryFunction, (RootClass,           \
+            ClassSuffix, ClassSmallSuffix))                                     \
         _SCHEMA_BODY_DefineStaticMap(RootClass, ClassSuffix,                    \
             ClassSmallSuffix, Definition)                                       \
         _SCHEMA_BODY_DefineInflateFunction(RootClass, ClassSuffix,              \
@@ -448,7 +477,8 @@ Definition(_SCHEMA_BODY_DefineToPinggyValue, (RootClass,                        
         _SCHEMA_BODY_DefineDeflateFunction(RootClass, ClassSuffix,              \
             ClassSmallSuffix, Definition)                                       \
         tString RootClass##ClassSuffix::ClassSuffix##Type##Str[] = {"Invalid",  \
-            Definition(_SCHEMA_BODY_DefineMsgTypeStr, ClassSuffix) "All"};
+            Definition(_SCHEMA_BODY_DefineMsgTypeStr, ClassSuffix) "All"};      \
+        _SCHEMA_BODY_RootClassMemDump(RootClass, ClassSuffix, ClassSmallSuffix)
 
 //==============================================================================
 
@@ -665,6 +695,18 @@ void HandlingClassName::EnablePinggyValueMode(bool enable) {                    
     if (transportManager) {                                                     \
         transportManager->EnablePinggyValueMode(enable);                        \
     }                                                                           \
+}                                                                               \
+                                                                                \
+size_t HandlingClassName::DumpMemory(std::ostream &os) {                        \
+    DEFINE_DUMP_MEMORY_BODY(HandlingClassName,                                  \
+        netConn,                                                                \
+        transportManager,                                                       \
+        sendQueue,                                                              \
+        eventHandler,                                                           \
+        ptr,                                                                    \
+        running,                                                                \
+        pinggyValueMode                                                         \
+    );                                                                          \
 }                                                                               \
                                                                                 \
 bool HandlingClassName::Start(bool handshakeRequired) {                         \

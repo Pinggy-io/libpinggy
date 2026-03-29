@@ -133,6 +133,8 @@ public:
 
     virtual len_t
     HandleFDError(PollableFDPtr, int16_t) override;
+
+    DefineMandatoryClassFunctionsWOSuper(TransportManager);
 };
 DefineMakeSharedPtr(TransportManager);
 

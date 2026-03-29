@@ -15,6 +15,7 @@
  */
 
 #include "SslNetConnBio.hh"
+#include <utils/TemplateStreaming.hh> //this needs to be the last include
 
 namespace net
 {
@@ -234,3 +235,5 @@ setNetConnOrigFunc(BIO *bio, tString func)
 }
 
 } // namespace net
+
+INCLUDE_MEMORY_DUMP_DEFINITION

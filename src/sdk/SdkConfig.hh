@@ -56,6 +56,8 @@ struct SdkForwarding: virtual public pinggy::SharedObject
 
     SdkForwardingPtr
     Clone();
+
+    DefineMandatoryClassFunctionsWOSuper(SdkForwarding);
 };
 DefineMakeSharedPtr(SdkForwarding);
 
@@ -280,6 +282,8 @@ struct SDKConfig: virtual public pinggy::SharedObject
 
     void
     SetGlobalConfig(tString args);
+
+    DefineMandatoryClassFunctionsWOSuper(SDKConfig);
 
 private:
     friend class Sdk;
