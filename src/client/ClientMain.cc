@@ -418,7 +418,10 @@ struct ClientSdkEventHandler : virtual public sdk::SdkEventHandler
     virtual void
     OnWillReconnect(tString error, std::vector<tString> messages) override
     {
-        std::cout << "Reconnecting" << std::endl;
+        std::cout << "Will Reconnect: error: " << error << std::endl;
+        for (auto s : messages) {
+            std::cout << "    " << s << std::endl;
+        }
     }
 
     virtual void

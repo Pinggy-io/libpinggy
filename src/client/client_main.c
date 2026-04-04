@@ -39,29 +39,29 @@ static const char *ConnMode_TLSTCP    = "tlstcp";
 static const char *ConnMode_UDP       = "udp";
 
 // --- Helper: String Vector (to replace std::vector<tString>) ---
-typedef struct 
+typedef struct
 {
     char         **items;
     size_t         size;
 } StringVector;
 
-void 
-Vector_Init(StringVector *v) 
-{ 
-    v->items = NULL; v->size = 0; 
+void
+Vector_Init(StringVector *v)
+{
+    v->items = NULL; v->size = 0;
 }
 
-void 
-Vector_Push(StringVector *v, const char *str) 
+void
+Vector_Push(StringVector *v, const char *str)
 {
     v->items = (char**)realloc(v->items, sizeof(char*) * (v->size + 1));
     v->items[v->size++] = strdup(str);
 }
 
-void 
-Vector_Free(StringVector *v) 
+void
+Vector_Free(StringVector *v)
 {
-    if (!v) 
+    if (!v)
     {
         return;
     }
@@ -73,13 +73,13 @@ Vector_Free(StringVector *v)
 }
 
 // Helper to split strings (like Utils.hh)
-StringVector 
-SplitString(const char *str, const char *delim) 
+StringVector
+SplitString(const char *str, const char *delim)
 {
     StringVector v; Vector_Init(&v);
     char *dup = strdup(str);
     char *token = strtok(dup, delim);
-    while(token) { 
+    while(token) {
         Vector_Push(&v, token);
         token = strtok(NULL, delim);
     }
@@ -88,20 +88,20 @@ SplitString(const char *str, const char *delim)
 }
 
 // --- Structure for client configuration ---
-typedef struct 
+typedef struct
 {
     StringVector        forwardings; // for storing the list of reverse tunnels
     pinggy_ref_t        SdkConfig;
     char               *WebDebuggerAddr;
     bool                EnableWebDebugger;
     char                *Mode;
-    
+
     // Added for C context
-    pinggy_ref_t        tunnel_ref; 
-    char               *error; 
+    pinggy_ref_t        tunnel_ref;
+    char               *error;
 } ClientConfig;
 
-ClientConfig 
+ClientConfig
 *NewClientConfigPtr()
 {
     ClientConfig *cfg = (ClientConfig*)calloc(1, sizeof(ClientConfig));
@@ -113,8 +113,8 @@ ClientConfig
     return cfg;
 }
 
-void 
-FreeClientConfig(ClientConfig *cfg) 
+void
+FreeClientConfig(ClientConfig *cfg)
 {
     if(!cfg) return;
     Vector_Free(&cfg->forwardings);
@@ -130,16 +130,16 @@ FreeClientConfig(ClientConfig *cfg)
 // function to parse forwarding address
 // -R [[[schema//]remotehost[/port]:]0:]localhost:localport
 
-StringVector 
+StringVector
 parseForwarding(const char *val)
 {
     StringVector result;
     Vector_Init(&result);
-    
+
     if (!val) return result;
     char *value = strdup(val);
     char *p = value;
-    
+
     while (*p != '\0') {
         if (*p == '[') {
             // IPv6 address in brackets
@@ -155,7 +155,7 @@ parseForwarding(const char *val)
             ipv6[len] = '\0';
             Vector_Push(&result, ipv6);
             free(ipv6);
-            
+
             p = close + 1;
             if (*p == ':') p++;
             else break;
@@ -182,7 +182,7 @@ typedef struct {
     int           port;
 } HostnameTuple;
 
-HostnameTuple 
+HostnameTuple
 parseHostname(const char *host)
 {
     HostnameTuple t = {NULL, NULL, 0};
@@ -209,25 +209,25 @@ parseHostname(const char *host)
     t.hostname = strdup(curr_hostname);
 
     // Schema validation logic from C++
-    if (strcmp(t.schema, ConnMode_HTTP) != 0 && strcmp(t.schema, ConnMode_TCP) != 0 && 
-        strcmp(t.schema, ConnMode_TLS) != 0 && strcmp(t.schema, ConnMode_TLSTCP) != 0 && 
+    if (strcmp(t.schema, ConnMode_HTTP) != 0 && strcmp(t.schema, ConnMode_TCP) != 0 &&
+        strcmp(t.schema, ConnMode_TLS) != 0 && strcmp(t.schema, ConnMode_TLSTCP) != 0 &&
         strcmp(t.schema, ConnMode_UDP) != 0) {
         free(t.schema);
         t.schema = strdup("");
     }
-    
+
     free(copy);
     return t;
 }
 
 // called when the user provides -R
-bool 
+bool
 parseReverseTunnel(ClientConfig *config)
 {
     for (size_t i = 0; i < config->forwardings.size; i++) {
         char *value = config->forwardings.items[i];
         StringVector values = parseForwarding(value);
-        
+
         if (values.size < 2) {
             Vector_Free(&values);
             return false;
@@ -235,7 +235,7 @@ parseReverseTunnel(ClientConfig *config)
 
         // forwardTo = values[size-2] + ":" + values[size-1]
         char forwardTo[512];
-        snprintf(forwardTo, sizeof(forwardTo), "%s:%s", 
+        snprintf(forwardTo, sizeof(forwardTo), "%s:%s",
                  values.items[values.size - 2], values.items[values.size - 1]);
 
         // Mimic try/catch block logic
@@ -245,32 +245,32 @@ parseReverseTunnel(ClientConfig *config)
         } else {
             char *remoteHost = values.items[values.size - 4];
             HostnameTuple ht = parseHostname(remoteHost);
-            
+
             if (!ht.hostname || strlen(ht.hostname) == 0) {
                 if (ht.hostname) free(ht.hostname);
                 ht.hostname = strdup("localhost");
             }
-            
+
             char hostname_full[512];
             snprintf(hostname_full, sizeof(hostname_full), "%s:%d", ht.hostname, ht.port);
-            
+
             if (!ht.schema || strlen(ht.schema) == 0) {
                 pinggy_config_add_forwarding(config->SdkConfig, config->Mode, hostname_full, forwardTo);
             } else {
                 pinggy_config_add_forwarding(config->SdkConfig, ht.schema, hostname_full, forwardTo);
             }
-            
+
             if (ht.schema) free(ht.schema);
             if (ht.hostname) free(ht.hostname);
         }
-        
+
         Vector_Free(&values);
     }
     return true;
 }
 
 // called when the user provides -L
-bool 
+bool
 parseForwardTunnel(ClientConfig *config, const char *value)
 {
     StringVector values = parseForwarding(value);
@@ -280,19 +280,19 @@ parseForwardTunnel(ClientConfig *config, const char *value)
     }
 
     char newAddr[512];
-    snprintf(newAddr, sizeof(newAddr), "%s:%s", 
+    snprintf(newAddr, sizeof(newAddr), "%s:%s",
              values.items[values.size - 2], values.items[values.size - 1]);
-    
+
     if(config->WebDebuggerAddr) free(config->WebDebuggerAddr);
     config->WebDebuggerAddr = strdup(newAddr);
     config->EnableWebDebugger = true;
-    
+
     Vector_Free(&values);
     return true;
 }
 
 // parseUser: tcp+token -> Mode=tcp, Token=token
-bool 
+bool
 parseUser(ClientConfig *config, const char *user)
 {
     StringVector values = SplitString(user, "+");
@@ -304,11 +304,11 @@ parseUser(ClientConfig *config, const char *user)
         char sl[256];
         strncpy(sl, s, 255); sl[255] = '\0';
         for(char *p=sl; *p; ++p) *p = tolower((unsigned char)*p);
-        
-        if (strcmp(sl, ConnMode_HTTP) == 0 || strcmp(sl, ConnMode_TCP) == 0 || 
-            strcmp(sl, ConnMode_TLS) == 0 || strcmp(sl, ConnMode_TLSTCP) == 0 || 
+
+        if (strcmp(sl, ConnMode_HTTP) == 0 || strcmp(sl, ConnMode_TCP) == 0 ||
+            strcmp(sl, ConnMode_TLS) == 0 || strcmp(sl, ConnMode_TLSTCP) == 0 ||
             strcmp(sl, ConnMode_UDP) == 0) {
-            
+
             if (strlen(config->Mode) > 0) {
                 printf("You cannot provide more than one type of default forwarding type");
                 Vector_Free(&values);
@@ -325,15 +325,15 @@ parseUser(ClientConfig *config, const char *user)
     if (strlen(token) > 1) {
         // Remove leading '+' and set token
         pinggy_config_set_token(config->SdkConfig, token + 1);
-        printf("token: %s\n", token + 1); 
+        printf("token: %s\n", token + 1);
     }
-    
+
     Vector_Free(&values);
     return true;
 }
 
 // parseUserServer: token@server
-bool 
+bool
 parseUserServer(ClientConfig *config, const char *value, const char *port)
 {
     StringVector values = SplitString(value, "@");
@@ -352,13 +352,13 @@ parseUserServer(ClientConfig *config, const char *value, const char *port)
     if (values.size > 1) {
         success = parseUser(config, values.items[values.size - 2]);
     }
-    
+
     Vector_Free(&values);
     return success;
 }
 
-void 
-printHelpOptions(const char *prog) 
+void
+printHelpOptions(const char *prog)
 {
     printf("%s [-h|--help] [-v|-version] [--port|-p PORT] [-R ADDR:PORT] [-L ADDR:PORT] token@server\n", prog);
     printf("        -h\n");
@@ -383,25 +383,25 @@ printHelpOptions(const char *prog)
     printf("\n");
 }
 
-bool 
+bool
 parseSdkArguments(ClientConfig *config, int argc, char *argv[])
 {
     size_t len = 0;
     for(int i=0; i<argc; i++) len += strlen(argv[i]) + 1;
-    
+
     char *args = (char*)malloc(len + 1);
     args[0] = '\0';
     for(int i=0; i<argc; i++) {
         strcat(args, argv[i]);
         if(i < argc-1) strcat(args, " ");
     }
-    
+
     pinggy_config_set_argument(config->SdkConfig, args);
     free(args);
     return true;
 }
 
-ClientConfig* 
+ClientConfig*
 parseArguments(int argc, char* argv[])
 {
     ClientConfig *config = NewClientConfigPtr();
@@ -422,7 +422,7 @@ parseArguments(int argc, char* argv[])
         {NULL, cli_required_argument, 0, 'n'},
         {0, 0, 0, 0}
     };
-    
+
     bool exitNow = false;
     char *serverPort = "443";
     const char *prog = argv[0];
@@ -457,7 +457,7 @@ parseArguments(int argc, char* argv[])
             break;
         case 'n':
             pinggy_config_set_ssl(config->SdkConfig, false);
-            pinggy_config_set_insecure(config->SdkConfig, true); 
+            pinggy_config_set_insecure(config->SdkConfig, true);
             break;
         case 's':
             pinggy_config_set_sni_server_name(config->SdkConfig, cli_optarg);
@@ -501,7 +501,7 @@ parseArguments(int argc, char* argv[])
 
 // --- Callbacks ---
 
-static void 
+static void
 OnTunnelEstablished(pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_len_t num_urls, pinggy_char_p_p_t urls)
 {
     ClientConfig *config = (ClientConfig*)user_data;
@@ -509,7 +509,7 @@ OnTunnelEstablished(pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_l
     for (int i = 0; i < (int)num_urls; i++) {
         printf("   %s\n", urls[i]);
     }
-    
+
     pinggy_capa_t capa = 0;
     pinggy_tunnel_get_greeting_msgs_len(tunnel_ref, 0, NULL, &capa);
     if (capa > 0) {
@@ -526,14 +526,14 @@ OnTunnelEstablished(pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_l
     }
 }
 
-static void 
+static void
 OnTunnelFailed(pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_const_char_p_t msg)
 {
     ClientConfig *config = (ClientConfig*)user_data;
     if(msg) config->error = strdup(msg);
 }
 
-static void 
+static void
 OnDisconnected(pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_const_char_p_t error, pinggy_len_t msg_size, pinggy_char_p_p_t msgs)
 {
     ClientConfig *config = (ClientConfig*)user_data;
@@ -541,19 +541,22 @@ OnDisconnected(pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_const_
     if(msgs && msg_size > 0) printf("Disconnected msg: %s\n", msgs[0]);
 }
 
-static void 
+static void
 OnWillReconnect(pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_const_char_p_t error, pinggy_len_t num_msgs, pinggy_char_p_p_t messages)
 {
-    printf("Reconnecting\n");
+    printf("Will Reconnect\n");
+    for (int i = 0; i < num_msgs; i ++){
+        printf("    %s\n", messages[i]);
+    }
 }
 
-static void 
+static void
 OnReconnecting(pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_uint16_t count)
 {
     printf("Trying.. %u\n", count);
 }
 
-static void 
+static void
 OnReconnectionCompleted(pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_len_t num_urls, pinggy_char_p_p_t urls)
 {
     printf("Reconnected\n");
@@ -562,40 +565,40 @@ OnReconnectionCompleted(pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, ping
     }
 }
 
-static void 
+static void
 OnReconnectionFailed(pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_uint16_t tries)
 {
     printf("Reconnection failed after %u tries\n", tries);
 }
 
-static void 
+static void
 OnUsageUpdate(pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_const_char_p_t msg)
 {
     printf("Update msg: %s\n", msg);
 }
 
 // **THIS IS THE FUNCTION YOU WERE MISSING**
-static void 
+static void
 OnForwardingsChanged(pinggy_void_p_t user_data, pinggy_ref_t tunnel_ref, pinggy_const_char_p_t url_map)
 {
     printf("%s\n", url_map);
 }
 
-static pinggy_void_t 
+static pinggy_void_t
 pinggy_on_raise_exception_cb(pinggy_const_char_p_t where, pinggy_const_char_p_t what)
 {
     printf("Exception: %s ==> %s\n", where, what);
 }
 
 // --- Main ---
-int 
+int
 main(int argc, char* argv[])
 {
 #ifdef __WINDOWS_OS__
     WindowsSocketInitialize();
 #endif
     // Enable logs to see the debug info like token and "Initiated"
-    pinggy_set_log_enable(true); 
+    pinggy_set_log_enable(true);
 
 #if defined(__LINUX_OS__) || defined(__MAC_OS__)
     ignore_sigpipe();
@@ -623,7 +626,7 @@ main(int argc, char* argv[])
     pinggy_tunnel_set_on_reconnection_completed_callback(config->tunnel_ref, OnReconnectionCompleted, config);
     pinggy_tunnel_set_on_reconnection_failed_callback(config->tunnel_ref, OnReconnectionFailed, config);
     pinggy_tunnel_set_on_usage_update_callback(config->tunnel_ref, OnUsageUpdate, config);
-    
+
     // Register the forwardings changed callback
     pinggy_tunnel_set_on_forwardings_changed_callback(config->tunnel_ref, OnForwardingsChanged, config);
 
