@@ -594,7 +594,7 @@ int
 main(int argc, char* argv[])
 {
 #ifdef __WINDOWS_OS__
-    windows_socket_initialize();
+    WindowsSocketInitialize();
 #endif
     // Enable logs to see the debug info like token and "Initiated"
     pinggy_set_log_enable(true);
