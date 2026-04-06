@@ -90,11 +90,11 @@ split_string(const char *str, const char *delim)
 // --- Structure for client configuration ---
 typedef struct
 {
-    string_vector        forwardings; // for storing the list of reverse tunnels
+    string_vector       forwardings; // for storing the list of reverse tunnels
     pinggy_ref_t        sdk_config;
     char               *web_debugger_addr;
     bool                enable_web_debugger;
-    char                *mode;
+    char               *mode;
 
     // Added for C context
     pinggy_ref_t        tunnel_ref;
@@ -594,7 +594,7 @@ int
 main(int argc, char* argv[])
 {
 #ifdef __WINDOWS_OS__
-    windows_socket_initialize();
+    WindowsSocketInitialize();
 #endif
     // Enable logs to see the debug info like token and "Initiated"
     pinggy_set_log_enable(true);
