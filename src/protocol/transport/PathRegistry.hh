@@ -27,7 +27,8 @@
 
 
 
-struct PathDefinition {
+struct PathDefinition : public pinggy::SharedObject
+{
     tPathId                     PathId;
     tString                     Basename;
     std::vector<tString>        Path;
@@ -36,6 +37,8 @@ struct PathDefinition {
     tValueType                  ValType;
     PathDefinition(): PathId(ROOT_PATH_ID), Parent(0), ValType(ValueType_Invalid)
                                 { }
+
+    DefineMandatoryClassFunctionsWOSuper(PathDefinition);
 };
 DefineMakeSharedPtr(PathDefinition);
 
@@ -56,14 +59,12 @@ operator==(const std::pair<tString, tPathId>& lhs, const std::pair<tString, tPat
     return lhs.second == rhs.second && lhs.first == rhs.first;
 }
 
-// typedef std::shared_ptr<std::map<std::pair<tString, tPathId>, PathDefinitionPtr>> tPathToPathDefinitionPtr;
-// typedef std::shared_ptr<std::unordered_map<tPathId, PathDefinitionPtr>> tIdToPathDefinitionPtr;
-
 
 typedef std::map<std::tuple<tString, tPathId, tValueType>, PathDefinitionPtr>
                                 tPathToPathDefinition;
 typedef std::unordered_map<tPathId, PathDefinitionPtr>
                                 tIdToPathDefinition;
+
 
 class PathRegistry: virtual public pinggy::SharedObject
 {
@@ -103,6 +104,8 @@ public:
 
     tString
     DumpPaths();
+
+    DefineMandatoryClassFunctionsWOSuper(PathRegistry);
 };
 
 DefineMakePrivateSharedPtr(PathRegistry);

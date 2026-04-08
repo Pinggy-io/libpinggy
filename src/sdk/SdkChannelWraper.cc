@@ -16,6 +16,7 @@
 
 #include "SdkChannelWraper.hh"
 #include "Sdk.hh"
+#include <utils/TemplateStreaming.hh> //this needs to be the last include
 
 namespace sdk
 {
@@ -109,3 +110,5 @@ void SdkChannelWraper::ChannelCleanup(protocol::ChannelPtr)
 }
 
 } // namespace sdk
+
+INCLUDE_MEMORY_DUMP_DEFINITION

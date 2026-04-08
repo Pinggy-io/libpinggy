@@ -1,4 +1,3 @@
-#include "AddressCache.hh"
 /*
  * Copyright (C) 2025 PINGGY TECHNOLOGY PRIVATE LIMITED
  *
@@ -14,6 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+#include "AddressCache.hh"
+#include <utils/TemplateStreaming.hh> //this needs to be the last include
 
 namespace net
 {
@@ -37,5 +39,8 @@ AddressCache::SetAddrInfo(tString host, tString port, bool tcp, sock_addrinfo ad
     addrInfoMap[key] = addr;
 }
 
+std::shared_ptr<AddressCache> AddressCache::instance = nullptr;
 
 } // namespace net
+
+INCLUDE_MEMORY_DUMP_DEFINITION

@@ -123,9 +123,11 @@ extern "C" {
 #define APP_MACRO_FOR_EACH_(_fn1, _fnl1, _fn2, _fnl2, N, ...) APP_MACRO_FOR_EACH_##N(_fn1, _fnl1, _fn2, _fnl2, __VA_ARGS__)
 #define APP_MACRO_FOR_EACH_N(...) APP_MACRO_FOR_EACH_(__VA_ARGS__)
 #define APP_MACRO_FOR_EACH(_fn1, _fn2, ...) APP_MACRO_FOR_EACH_N(_fn1, _fn1, _fn2, _fn2, PP_NARG(__VA_ARGS__), __VA_ARGS__)
-#define APP_MACRO_FOR_EACH_FORNT(_fn, ...) APP_MACRO_FOR_EACH(_fn, APP_MACRO_DUMMY, __VA_ARGS__)
-#define APP_MACRO_FOR_EACH_BACK(_fn, ...)  APP_MACRO_FOR_EACH(APP_MACRO_DUMMY, _fn1, __VA_ARGS__)
 #define APP_MACRO_FOR_EACH_LASTFUNC(_fn1, _fnl1, _fn2, _fnl2, ...) APP_MACRO_FOR_EACH_N(_fn1, _fnl1, _fn2, _fnl2, PP_NARG(__VA_ARGS__), __VA_ARGS__)
+#define APP_MACRO_FOR_EACH_FORNT(_fn, ...) APP_MACRO_FOR_EACH(_fn, APP_MACRO_DUMMY, __VA_ARGS__)
+#define APP_MACRO_FOR_EACH_FORNT_END(_fn, _fnl, ...) APP_MACRO_FOR_EACH_LASTFUNC(_fn, _fnl, APP_MACRO_DUMMY, APP_MACRO_DUMMY, __VA_ARGS__)
+#define APP_MACRO_FOR_EACH_BACK(_fn, ...)  APP_MACRO_FOR_EACH(APP_MACRO_DUMMY, _fn1, __VA_ARGS__)
+#define APP_MACRO_FOR_EACH_BACK_END(_fn, _fnl, ...)  APP_MACRO_FOR_EACH_LASTFUNC(APP_MACRO_DUMMY, APP_MACRO_DUMMY, _fn1, _fnl, __VA_ARGS__)
 
 //============================================
 
@@ -196,9 +198,11 @@ extern "C" {
 #define APP_MACRO_FOR_EACH_WITH_ARG_(_fn1, _fnl1, _fn2, _fnl2, _a1, _a2, N, ...) APP_MACRO_FOR_EACH_WITH_ARG_##N(_fn1, _fnl1, _fn2, _fnl2, _a1, _a2, __VA_ARGS__)
 #define APP_MACRO_FOR_EACH_WITH_ARG_N(...) APP_MACRO_FOR_EACH_WITH_ARG_(__VA_ARGS__)
 #define APP_MACRO_FOR_EACH_WITH_ARG(_fn1, _fn2, _a1, _a2, ...) APP_MACRO_FOR_EACH_WITH_ARG_N(_fn1, _fn1, _fn2, _fn2, _a1, _a2, PP_NARG(__VA_ARGS__), __VA_ARGS__)
-#define APP_MACRO_FOR_EACH_WITH_ARG_FORNT(_fn, _a, ...) APP_MACRO_FOR_EACH_WITH_ARG(_fn, APP_MACRO_WITH_ARG_DUMMY, _a, _a, __VA_ARGS__)
-#define APP_MACRO_FOR_EACH_WITH_ARG_BACK(_fn, _a, ...)  APP_MACRO_FOR_EACH_WITH_ARG(APP_MACRO_WITH_ARG_DUMMY, _fn1, _a, _a, __VA_ARGS__)
 #define APP_MACRO_FOR_EACH_WITH_ARG_LASTFUNC(_fn1, _fnl1, _fn2, _fnl2, _a1, _a2, ...) APP_MACRO_FOR_EACH_WITH_ARG_N(_fn1, _fnl1, _fn2, _fnl2, _a1, _a2, PP_NARG(__VA_ARGS__), __VA_ARGS__)
+#define APP_MACRO_FOR_EACH_WITH_ARG_FORNT(_fn, _a, ...) APP_MACRO_FOR_EACH_WITH_ARG(_fn, APP_MACRO_WITH_ARG_DUMMY, _a, _a, __VA_ARGS__)
+#define APP_MACRO_FOR_EACH_WITH_ARG_BACK(_fn, _a, ...)  APP_MACRO_FOR_EACH_WITH_ARG(APP_MACRO_WITH_ARG_DUMMY, _fn, _a, _a, __VA_ARGS__)
+#define APP_MACRO_FOR_EACH_WITH_ARG_FORNT_END(_fn, _fnl, _a, ...) APP_MACRO_FOR_EACH_WITH_ARG_LASTFUNC(_fn, _fnl, APP_MACRO_WITH_ARG_DUMMY, APP_MACRO_WITH_ARG_DUMMY, _a, _a, __VA_ARGS__)
+#define APP_MACRO_FOR_EACH_WITH_ARG_BACK_END(_fn, _fnl, _a, ...)  APP_MACRO_FOR_EACH_WITH_ARG_LASTFUNC(APP_MACRO_WITH_ARG_DUMMY, APP_MACRO_WITH_ARG_DUMMY, _fn, _fnl, _a, _a, __VA_ARGS__)
 
 
 #else
@@ -233,7 +237,9 @@ extern "C" {
 #define APP_MACRO_DUMMY(_x)
 #define APP_MACRO_FOR_EACH(_fn1, _fn2, ...) APP_MACRO_FOR_EACH_LASTFUNC(_fn1, _fn1, _fn2, _fn2, __VA_ARGS__)
 #define APP_MACRO_FOR_EACH_FORNT(_fn, ...) APP_MACRO_FOR_EACH(_fn, APP_MACRO_DUMMY, __VA_ARGS__)
-#define APP_MACRO_FOR_EACH_BACK(_fn, ...)  APP_MACRO_FOR_EACH(APP_MACRO_DUMMY, _fn1, __VA_ARGS__)
+#define APP_MACRO_FOR_EACH_FORNT_END(_fn, _fnl, ...) APP_MACRO_FOR_EACH_LASTFUNC(_fn, _fnl, APP_MACRO_DUMMY, APP_MACRO_DUMMY, __VA_ARGS__)
+#define APP_MACRO_FOR_EACH_BACK(_fn, ...)  APP_MACRO_FOR_EACH(APP_MACRO_DUMMY, _fn, __VA_ARGS__)
+#define APP_MACRO_FOR_EACH_BACK_END(_fn, _fnl, ...)  APP_MACRO_FOR_EACH(APP_MACRO_DUMMY, APP_MACRO_DUMMY, _fn, _fnl, __VA_ARGS__)
 
 
 //===================
@@ -268,7 +274,10 @@ extern "C" {
 #define APP_MACRO_DUMMY_WITH_ARG(_a, _x)
 #define APP_MACRO_FOR_EACH_WITH_ARG(_fn1, _fn2, _a1, _a2, ...) APP_MACRO_FOR_EACH_WITH_ARG_LASTFUNC(_fn1, _fn1, _fn2, _fn2, _a1, _a2, __VA_ARGS__)
 #define APP_MACRO_FOR_EACH_WITH_ARG_FORNT(_fn, _a, ...) APP_MACRO_FOR_EACH_WITH_ARG(_fn, APP_MACRO_DUMMY_WITH_ARG, _a, _a, __VA_ARGS__)
-#define APP_MACRO_FOR_EACH_WITH_ARG_BACK(_fn, _a, ...)  APP_MACRO_FOR_EACH_WITH_ARG(APP_MACRO_DUMMY_WITH_ARG, _fn1, _a, _a, __VA_ARGS__)
+#define APP_MACRO_FOR_EACH_WITH_ARG_BACK(_fn, _a, ...)  APP_MACRO_FOR_EACH_WITH_ARG(APP_MACRO_DUMMY_WITH_ARG, _fn, _a, _a, __VA_ARGS__)
+
+#define APP_MACRO_FOR_EACH_WITH_ARG_FORNT_END(_fn, _fnl, _a, ...) APP_MACRO_FOR_EACH_WITH_ARG_LASTFUNC(_fn, _fnl, APP_MACRO_DUMMY_WITH_ARG, APP_MACRO_DUMMY_WITH_ARG, _a, _a, __VA_ARGS__)
+#define APP_MACRO_FOR_EACH_WITH_ARG_BACK_END(_fn, _fnl, _a, ...)  APP_MACRO_FOR_EACH_WITH_ARG_LASTFUNC(APP_MACRO_DUMMY_WITH_ARG, APP_MACRO_DUMMY_WITH_ARG, _fn, _fnl, _a, _a, __VA_ARGS__)
 
 #endif //__WINDOWS_OS__
 

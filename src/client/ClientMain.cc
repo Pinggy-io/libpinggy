@@ -17,8 +17,9 @@
 #include <Sdk.hh>
 #include <platform/Log.hh>
 #include <utils/Utils.hh>
-
 #include "cli_getopt.h"
+
+#include <utils/TemplateStreaming.hh> //this needs to be the last include
 
 #ifndef PLATFORM_CONFIG_INCLUDED
 
@@ -56,6 +57,8 @@ struct ClientConfig : virtual public pinggy::SharedObject
     tString                     WebDebuggerAddr = "localhost:4300";
     bool                        EnableWebDebugger;
     tString                     Mode;
+
+    DefineMandatoryFileLocalClassFunctionsWOSuper(ClientConfig);
 };
 
 DefineMakeSharedPtr(ClientConfig);  // macro for the clientconfig
@@ -271,6 +274,7 @@ printHelpOptions(const char* prog)
     printf("            Enable autoreconnect\n");
     printf("\n");
 }
+
 // Stores all command line arguments in the SDK config for internal tracking
 bool
 parseSdkArguments(ClientConfigPtr config, int argc, char *argv[])
@@ -384,13 +388,13 @@ parseArguments(int argc, char* argv[])
 
     return config;
 }
+
 // the event handler part
 // this is where the real events are handled like the connection succeds, fails or etc
 struct ClientSdkEventHandler : virtual public sdk::SdkEventHandler
 {
-    ClientSdkEventHandler(ClientConfigPtr config) :
-        config(config)
-    {}
+    ClientSdkEventHandler(ClientConfigPtr config):
+        config(config)          { }
 
     virtual
     ~ClientSdkEventHandler()    { }
@@ -414,7 +418,10 @@ struct ClientSdkEventHandler : virtual public sdk::SdkEventHandler
     virtual void
     OnWillReconnect(tString error, std::vector<tString> messages) override
     {
-        std::cout << "Reconnecting" << std::endl;
+        std::cout << "Will Reconnect: error: " << error << std::endl;
+        for (auto s : messages) {
+            std::cout << "    " << s << std::endl;
+        }
     }
 
     virtual void
@@ -454,6 +461,8 @@ struct ClientSdkEventHandler : virtual public sdk::SdkEventHandler
     {
         std::cout << "Update msg: " << msg << std::endl;
     }
+
+    DefineMandatoryFileLocalClassFunctionsWOSuper(ClientSdkEventHandler);
 
     tString                     error;
     ClientConfigPtr             config;
@@ -526,3 +535,5 @@ CLI arguments → parseArguments()
 
 
 */
+
+INCLUDE_MEMORY_DUMP_DEFINITION

@@ -647,7 +647,7 @@ sock_t app_udp_client_connect_host(const char *host, const char *port, sockaddr_
             name.sin6_port = 0;
             name.sin6_addr = ip;
 
-            int off = 0;
+            int off = 0; //turning off IPV
             if (!issockoptsuccess(setsockopt(sock, IPPROTO_IPV6, IPV6_V6ONLY, (char *) & off, sizeof(off)))) {
                 LOGD("Could not unset IPV6_V6ONLY: %s", app_get_strerror(app_get_errno()));
             }
@@ -658,6 +658,54 @@ sock_t app_udp_client_connect_host(const char *host, const char *port, sockaddr_
                 LOGD("Cannot bind %d %s", sock, app_get_strerror(app_get_errno()));
             }
         } else if (peer_family == AF_INET) {
+            in_addr_t ip = 0;
+            struct sockaddr_in name;
+            name.sin_family = AF_INET;
+            name.sin_port = htons(0);
+            name.sin_addr.s_addr = ip;
+            if(issockoptsuccess(bind(sock, (struct sockaddr *)&name, sizeof(name)))) {
+                break;
+            } else {
+                LOGD("Cannot bind %d %s", sock, app_get_strerror(app_get_errno()));
+            }
+        }
+
+        int err = app_get_errno();
+        SysSocketClose(sock);
+        sock = InValidSocket;
+        app_set_errno(err);
+    }
+    return sock;
+}
+
+sock_t app_udp_client_connect_addr(sockaddr_ip sockAddr)
+{
+    sock_t sock = InValidSocket;
+    for (int i = 0; i < 1; i ++) {
+        sock = socket(sockAddr.addr.sa_family, SOCK_DGRAM, 0);
+        if(!IsValidSocket(sock)) {
+            LOGD("Cannot get addr info");
+            continue;
+        }
+
+        if (sockAddr.addr.sa_family == AF_INET6) {
+            struct in6_addr ip = IN6ADDR_ANY_INIT;
+            struct sockaddr_in6 name;
+            name.sin6_family = AF_INET6;
+            name.sin6_port = 0;
+            name.sin6_addr = ip;
+
+            int off = 0; //turning off IPV
+            if (!issockoptsuccess(setsockopt(sock, IPPROTO_IPV6, IPV6_V6ONLY, (char *) & off, sizeof(off)))) {
+                LOGD("Could not unset IPV6_V6ONLY: %s", app_get_strerror(app_get_errno()));
+            }
+
+            if (issockoptsuccess(bind(sock, (struct sockaddr *)&name, sizeof(name)))) {
+                break;
+            } else {
+                LOGD("Cannot bind %d %s", sock, app_get_strerror(app_get_errno()));
+            }
+        } else if (sockAddr.addr.sa_family == AF_INET) {
             in_addr_t ip = 0;
             struct sockaddr_in name;
             name.sin_family = AF_INET;
@@ -718,6 +766,39 @@ void app_freeaddrinfo(struct sock_addrinfo *res)
     if (res) {
         free(res);
     }
+}
+
+int app_get_addr_for_host_port(const char *host, const char *port, sockaddr_ip *sockAddr)
+{
+    struct addrinfo hints;
+    struct addrinfo *res, *rp;
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family = AF_UNSPEC;    /* Allow IPv4 or IPv6 */
+    hints.ai_socktype = SOCK_DGRAM; /* Datagram socket */
+    hints.ai_flags = 0;
+    hints.ai_protocol = 0;          /* Any protocol */
+
+    int s = getaddrinfo(host, port, &hints, &res);
+    if(s != 0) {
+        LOGE("Cannot get addr info");
+        return 0;
+    }
+
+    int found = 0;
+    for(rp = res; rp != NULL; rp=rp->ai_next) {
+        if (rp->ai_family == AF_INET6) {
+            // sockAddr->addr = *(rp->ai_addr);
+            memcpy(&sockAddr->addr, rp->ai_addr, rp->ai_addrlen);
+            found = 1;
+        } else if (rp->ai_family == AF_INET) {
+            // sockAddr->addr = *(rp->ai_addr);
+            memcpy(&sockAddr->addr, rp->ai_addr, rp->ai_addrlen);
+            found = 1;
+            break; //we want ipv4 here because almost all ipv4 can connect to ipv6
+        }
+    }
+    freeaddrinfo(res);
+    return found;
 }
 
 sock_t app_connect_nonblocking_socket(struct sock_addrinfo *rp, int *connected)

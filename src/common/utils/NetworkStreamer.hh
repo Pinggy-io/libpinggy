@@ -14,35 +14,20 @@
  * limitations under the License.
  */
 
-#ifndef __SRC_CPP_COMMON_POLL_POLLABLETASK_HH__
-#define __SRC_CPP_COMMON_POLL_POLLABLETASK_HH__
+#ifndef __SRC_CPP_PRIVATE_COMMON_UTILS_NETWORKSTREAMER_HH__
+#define __SRC_CPP_PRIVATE_COMMON_UTILS_NETWORKSTREAMER_HH__
 
-#include <platform/platform.h>
-#include <platform/SharedPtr.hh>
+#include <net/NetworkConnection.hh>
+#include <ostream>
 
+DeclareClassWithSharedPtr(NetStreamBuf);
 
+class NetOStream : public std::ostream {
+    NetStreamBufPtr             buf;
 
-
-namespace common
-{
-
-abstract class Task : public pinggy::SharedObject
-{
 public:
-    virtual
-    ~Task()               {}
-
-    virtual void
-    DisArm() = 0;
-
-    virtual void
-    Fire() = 0;
-
-private:
+    explicit NetOStream(net::NetworkConnectionPtr);
 };
-DeclareSharedPtr(Task);
-
-} // namespace common
 
 
-#endif // __SRC_CPP_COMMON_POLL_POLLABLETASK_HH__
+#endif // __SRC_CPP_PRIVATE_COMMON_UTILS_NETWORKSTREAMER_HH__

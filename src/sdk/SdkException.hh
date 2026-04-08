@@ -23,7 +23,7 @@
 namespace sdk
 {
 
-class WebDebuggerException: public std::exception, public virtual pinggy::SharedObject
+class WebDebuggerException: public std::exception
 {
 public:
     WebDebuggerException(tString message) : message(message){}
@@ -36,7 +36,7 @@ private:
     tString                     message;
 };
 
-class RemoteForwardingException: public std::exception, public virtual pinggy::SharedObject
+class RemoteForwardingException: public std::exception
 {
 public:
     RemoteForwardingException(tString message) : message(message){}
@@ -49,7 +49,7 @@ private:
     tString                     message;
 };
 
-class SdkException: public std::exception, public virtual pinggy::SharedObject
+class SdkException: public std::exception
 {
 public:
     SdkException(tString message) : message(message){}
@@ -62,7 +62,7 @@ private:
     tString                     message;
 };
 
-class SdkNestCallException: public std::exception, public virtual pinggy::SharedObject
+class SdkNestCallException: public std::exception
 {
 public:
     SdkNestCallException(tString message) : message(message){}
@@ -75,7 +75,7 @@ private:
     tString                     message;
 };
 
-class SdkConfigException: public std::exception, public virtual pinggy::SharedObject
+class SdkConfigException: public std::exception
 {
 public:
     SdkConfigException(tString message) : message(message){}

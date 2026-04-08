@@ -64,26 +64,48 @@ struct RawData : virtual pinggy::SharedObject{
     bool
     AddData(RawDataPtr other);
 
+    bool
+    AddData(char c);
+
+    template<typename T>
+    bool
+    AddData(T m);
+
     RawDataPtr
     Concat(RawDataPtr other);
 
     char *
     Consume(RawData::tLen len = -1);
 
-    char *
-    GetData() { return Data+Offset; }
+    RawData::tLen
+    Consume(char *buf, RawData::tLen capa);
+
+    template<typename T>
+    T
+    Read();
 
     char *
-    GetWritableData() { return Data+Offset+Len; }
+    GetData()                   { return Data+Offset; }
+
+    RawData::tLen
+    GetData(char *buf, RawData::tLen capa);
+
+    char *
+    GetWritableData()           { return Data+Offset+Len; }
 
     tString
-    ToString() { return tString(GetData(), Len);}
+    ToString()                  { return tString(GetData(), Len);}
 
     void
     ReAlign();
 
     RawData::tLen
-    WritableCapa() { return Capa - Offset - Len; }
+    WritableCapa()              { return Capa - Offset - Len; }
+
+#define RAW_DATA_EXTRA_SIZE (Capa > 0 ? sizeof(*Data)*Capa : 0)
+
+    DefineMandatoryClassFunctionsWOSuperWithExcessSize(RawData, RAW_DATA_EXTRA_SIZE);
+        //we are using macro because we cannot find any other mechanism parse these functions yet.
 
     char *                      Data;
     RawData::tLen               Len;
@@ -141,5 +163,22 @@ inline RawDataPtr operator+(RawDataPtr rdp, const RawDataPtr &rdp1) {
 typedef RawData **RawDataPtrPtr;
 #endif
 
+template <typename T>
+inline bool
+RawData::AddData(T m)
+{
+    return AddData((const void *)&m, sizeof(m));
+}
+
+template <typename T>
+inline T
+RawData::Read()
+{
+    auto data = GetData();
+    T ele = *((T *)data);
+    Consume(sizeof(T));
+    return ele;
+}
 
 #endif /* COMMON_RAWDATA_HH_ */
+

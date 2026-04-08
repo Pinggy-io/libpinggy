@@ -106,6 +106,7 @@ public:
     tPort                       GreetingMsgTCP          = SpecialPort_GreetingMsgTCP;
     tPort                       ForwardingMapTcp        = SpecialPort_ForwardingMapTcp;
 
+    DefineMandatoryClassFunctionsWOSuper(SpecialPortConfig);
 };
 DefineMakeSharedPtr(SpecialPortConfig);
 
@@ -157,6 +158,8 @@ struct ClientSpecificUsages: virtual public pinggy::SharedObject
     int64_t                     NumTotalResBytes;
     int64_t                     NumTotalReqBytes;
     int64_t                     NumTotalTxBytes;
+
+    DefineMandatoryClassFunctionsWOSuper(ClientSpecificUsages);
 };
 DefineMakeSharedPtr(ClientSpecificUsages);
 
@@ -172,6 +175,8 @@ struct TunnelInfo: virtual public pinggy::SharedObject
     SpecialPortConfigPtr        PortConfig;
     std::vector<tString>        GreetingMsg;
 
+    DefineMandatoryClassFunctionsWOSuper(TunnelInfo);
+
 };
 DefineMakeSharedPtr(TunnelInfo);
 
@@ -181,6 +186,8 @@ struct RemoteForwarding: virtual public pinggy::SharedObject
     TunnelMode                  Mode;       //"mode": "tcp",
     tString                     ForwardTo;  //"forwardTo": "localhost:8000", // Empty string means not known
     std::vector<tString>        RemoteBindings; //"remoteBindings"
+
+    DefineMandatoryClassFunctionsWOSuper(RemoteForwarding);
 };
 DefineMakeSharedPtr(RemoteForwarding);
 

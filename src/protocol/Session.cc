@@ -16,6 +16,7 @@
 
 #include "Session.hh"
 #include "Channel.hh"
+#include <utils/TemplateStreaming.hh> //this needs to be the last include
 
 
 namespace protocol
@@ -351,8 +352,15 @@ Session::validRemoteChannel(tChannelId channelId)
 bool
 Session::sendMsg(ProtoMsgPtr msg, bool queue)
 {
-    if (endSent)
+    if (endSent) {
+        LOGE("Cannot send msg, end is already sent.");
         return false; //Assert might be appropriate
+    }
+
+    if (!transportManager) {
+        LOGE("Cannot send msg, TransportManager is not available.");
+        return false;
+    }
 
     if (msg->msgType == MsgType_Disconnect) {
         endSent = true;
@@ -677,3 +685,5 @@ Session::handleDeserializedMsg(ProtoMsgPtr protoMsg)
 }
 
 } // namespace protocol
+
+INCLUDE_MEMORY_DUMP_DEFINITION

@@ -17,6 +17,7 @@
 #include "Schema.hh"
 #include "transport/SchemaHeaderGenerator.hh"
 #include "transport/SchemaBodyGenerator.hh"
+#include <utils/TemplateStreaming.hh> //this needs to be the last include
 
 
 DEFINE_TRANSPORT_SERIALIZER_DESERIALIZER_PTR_V2(ClientSpecificUsages,
@@ -46,3 +47,5 @@ namespace protocol
 SCHEMA_BODY__DEFINE_BODIES(Proto, Msg, msg, Schema_SchemaDefinition)
 
 } // namespace protocol
+
+INCLUDE_MEMORY_DUMP_DEFINITION

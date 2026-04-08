@@ -19,14 +19,18 @@
 #include <utils/Utils.hh>
 #include <queue>
 #include <openssl/ssl.h>
-//#include
+#include <utils/TemplateStreaming.hh> //this needs to be the last include
 
 namespace net {
 struct DummyMetaData : public virtual pinggy::SharedObject {
     DummyMetaData(): closed(false) {}
-    virtual ~DummyMetaData(){}
-    std::queue<RawDataPtr> queue;
-    bool closed;
+    virtual
+    ~DummyMetaData(){}
+
+    std::queue<RawDataPtr>      queue;
+    bool                        closed;
+
+    DefineMandatoryFileLocalClassFunctionsWOSuper(DummyMetaData);
 };
 DefineMakeSharedPtr(DummyMetaData);
 
@@ -35,8 +39,8 @@ DefineMakeSharedPtr(DummyMetaData);
 bool
 DummyConnection::CreateDummyConnection(DummyConnectionPtr conns[2], int bufferLen)
 {
-    DummyConnectionPtr dc1(new DummyConnection());
-    DummyConnectionPtr dc2(new DummyConnection());
+    DummyConnectionPtr dc1 = NewDummyConnectionPtr(new DummyConnection());
+    DummyConnectionPtr dc2 = NewDummyConnectionPtr(new DummyConnection());
 
     dc1->writer = NewDummyMetaDataPtr();
     dc2->writer = NewDummyMetaDataPtr();
@@ -109,6 +113,12 @@ DummyConnection::~DummyConnection()
     writer->closed = true;
     reader->closed = true;
     LOGT("Ending DummyConnection:", this);
+}
+
+void
+DummyConnection::__Init()
+{
+    pollEventObject = NewEventHandlerForPollableFdPtr(thisPtr, false);
 }
 
 int
@@ -274,10 +284,10 @@ DummyConnection::ShutDown(int how)
 }
 
 void
-DummyConnection::WritePollEnabled()
+DummyConnection::EnableWritePoll()
 {
     if (!isWritePolling) {
-        NetworkConnection::WritePollEnabled();
+        NetworkConnection::EnableWritePoll();
         isWritePolling = true;
     }
 
@@ -286,10 +296,10 @@ DummyConnection::WritePollEnabled()
 }
 
 void
-DummyConnection::ReadPollEnabled()
+DummyConnection::EnableReadPoll()
 {
     if (!isReadPolling) {
-        NetworkConnection::ReadPollEnabled();
+        NetworkConnection::EnableReadPoll();
         isReadPolling = true;
     }
     if (IsRecvReady())
@@ -297,19 +307,19 @@ DummyConnection::ReadPollEnabled()
 }
 
 void
-DummyConnection::ReadPollDisabled()
+DummyConnection::DisableReadPoll()
 {
     if (isReadPolling) {
-        NetworkConnection::ReadPollDisabled();
+        NetworkConnection::DisableReadPoll();
         isReadPolling = false;
     }
 }
 
 void
-DummyConnection::WritePollDisabled()
+DummyConnection::DisableWritePoll()
 {
     if (isWritePolling) {
-        NetworkConnection::WritePollDisabled();
+        NetworkConnection::DisableWritePoll();
         isWritePolling = false;
     }
 }
@@ -338,3 +348,5 @@ DummyConnection::EventHandlerRegistered()
 }
 
 } /* namespace net */
+
+INCLUDE_MEMORY_DUMP_DEFINITION

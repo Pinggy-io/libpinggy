@@ -17,6 +17,9 @@
 #include "RawData.hh"
 #include <cstring>
 
+#include <platform/Log.hh>
+#include "TemplateStreaming.hh"
+
 /*
  * Raw data
  */
@@ -124,6 +127,11 @@ bool RawData::AddData(RawDataPtr other)
     return AddData(other->Data, other->Len);
 }
 
+bool RawData::AddData(char c)
+{
+    return AddData((const void *)&c, 1);
+}
+
 RawDataPtr RawData::Concat(RawDataPtr other)
 {
     if (AddData(other))
@@ -151,6 +159,24 @@ char *RawData::Consume(RawData::tLen len)
     return ptr;
 }
 
+RawData::tLen
+RawData::Consume(char *buf, RawData::tLen capa)
+{
+    auto ln = GetData(buf, capa);
+    Consume(ln);
+    return ln;
+}
+
+RawData::tLen
+RawData::GetData(char *buf, RawData::tLen capa)
+{
+    if (!buf || capa <= 0) return 0;
+
+    auto toBeConsumed = MIN(capa, Len);
+    std::memcpy(buf, Data+Offset, toBeConsumed);
+    return toBeConsumed;
+}
+
 void RawData::ReAlign()
 {
     if (!movedata) return;
@@ -159,3 +185,6 @@ void RawData::ReAlign()
         memmove(Data, Data + Offset, Len);
     Offset = 0;
 }
+
+INCLUDE_MEMORY_DUMP_DEFINITION
+

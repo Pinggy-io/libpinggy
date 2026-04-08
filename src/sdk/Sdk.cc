@@ -28,6 +28,7 @@
 #include <utils/Semaphore.hh>
 #include <platform/Defer.hh>
 #include "SdkException.hh"
+#include <utils/TemplateStreaming.hh> //this needs to be the last include
 
 const char BASE_CERTIFICATE[] = \
 "-----BEGIN CERTIFICATE-----\n"                                      \
@@ -93,6 +94,8 @@ public:
         sdk->releaseAccessLock();
     }
 
+    DefineMandatoryFileLocalClassFunctionsWOSuper(ThreadLock);
+
 private:
     SdkPtr                  sdk;
 };
@@ -133,6 +136,9 @@ Sdk::Start(bool block)
 
         sdkConfig = sdkConfig->clone();
         sdkConfig->validate();
+
+        reconnectMode = sdkConfig->autoReconnect;
+        reconnectCounter = 0;
 
         initPollController();
         internalConnect();
@@ -408,7 +414,7 @@ void
 Sdk::HandleSessionAuthenticationFailed(tString error, std::vector<tString> authenticationFailed)
 {
     authenticationMsg = authenticationFailed;
-    lastError = JoinString(authenticationFailed, "\r\n");
+    lastError = JoinString(authenticationFailed, "\n");
     LOGE("Authentication Failed");
 
     releaseBaseConnection();
@@ -416,7 +422,7 @@ Sdk::HandleSessionAuthenticationFailed(tString error, std::vector<tString> authe
     reconnectOrStopLoop(lastError);
 
     if (eventHandler && !reconnectMode) {
-            eventHandler->OnTunnelFailed(JoinString(authenticationMsg, "\n"));
+            eventHandler->OnTunnelFailed(lastError);
     }
 }
 
@@ -462,9 +468,6 @@ Sdk::HandleSessionRemoteForwardingSucceeded(protocol::tReqId reqId, tForwardingI
                 eventHandler->OnTunnelEstablished(urls);
             }
         }
-
-        reconnectMode = sdkConfig->autoReconnect;
-        reconnectCounter = 0;
 
         LOGD("Primary forwarding done");
 
@@ -637,8 +640,6 @@ void
 Sdk::HandleSessionConnectionReset()
 {
     LOGD("Connection Reset");
-    //Nothing much to do. just stop the poll controller if possible.
-    baseConnection = nullptr; //it would be closed by sessios once this function returns.
 
     releaseBaseConnection();
 
@@ -945,10 +946,6 @@ Sdk::keepAliveTimeout(tUint64 tick)
 {
     if (tick > (lastKeepAliveTickReceived+2) && !session->IsThereIncomingActivities()) {
         LOGI("Connection probably gone");
-        if (keepAliveTask) {
-            keepAliveTask->DisArm();
-            keepAliveTask = nullptr;
-        }
         releaseBaseConnection();
         lastError = "Tunnel seems unresponsive.";
 
@@ -1100,7 +1097,7 @@ Sdk::reconnectOrStopLoop(tString reason)
 
         if (reconnectCounter == 0 && eventHandler) {
             LOGD("Reconnecting");
-            eventHandler->OnWillReconnect("Connection Reset", {"Reconnecting"});
+            eventHandler->OnWillReconnect(reason, {"Reconnecting"});
         }
     } else {
         disconnectionReason = reason;
@@ -1120,7 +1117,12 @@ Sdk::initiateReconnection()
 void
 Sdk::releaseBaseConnection()
 {
-    if (pollController && baseConnection) {
+    if (keepAliveTask) {
+        keepAliveTask->DisArm();
+        keepAliveTask = nullptr;
+    }
+
+    if (pollController && baseConnection) { //TODO I don't like this. However this best for the time being
         baseConnection->DeregisterFDEvenHandler();
         baseConnection->CloseConn();
         baseConnection = nullptr;
@@ -1130,3 +1132,4 @@ Sdk::releaseBaseConnection()
 
 } // namespace sdk
 
+INCLUDE_MEMORY_DUMP_DEFINITION

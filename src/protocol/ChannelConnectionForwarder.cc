@@ -15,6 +15,7 @@
  */
 
 #include "ChannelConnectionForwarder.hh"
+#include <utils/TemplateStreaming.hh> //this needs to be the last include
 
 namespace protocol
 {
@@ -317,3 +318,5 @@ void ChannelConnectionForwarder::closeByNetConn()
 }
 
 } // namespace protocol
+
+INCLUDE_MEMORY_DUMP_DEFINITION

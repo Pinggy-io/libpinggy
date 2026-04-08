@@ -18,11 +18,19 @@
 #include <stdlib.h>
 #include <platform/Log.hh>
 #include "ThreadPool.hh"
+#include <utils/TemplateStreaming.hh> //this needs to be the last include
 
 namespace common {
 
-ThreadPool::ThreadPool():started(false), stopped(false),
-            should_terminate(false), pollFd(InValidSocket), notificationFd(InValidSocket) {}
+ThreadPool::ThreadPool():
+        started(false),
+        stopped(false),
+        should_terminate(false),
+        pollFd(InValidSocket),
+        notificationFd(InValidSocket)
+{
+
+}
 
 ThreadPool::~ThreadPool()
 {
@@ -31,7 +39,8 @@ ThreadPool::~ThreadPool()
     CloseNCleanSocket(notificationFd);
 }
 
-void ThreadPool::Start(uint32_t numThreads)
+void
+ThreadPool::Start(uint32_t numThreads)
 {
     if(started)
         abort();
@@ -52,7 +61,8 @@ void ThreadPool::Start(uint32_t numThreads)
     }
 }
 
-void ThreadPool::QueueJob(const std::function<void()> &job)
+void
+ThreadPool::QueueJob(const std::function<void()> &job)
 {
     {
         std::unique_lock<std::mutex> lock(queue_mutex);
@@ -61,7 +71,8 @@ void ThreadPool::QueueJob(const std::function<void()> &job)
     mutex_condition.notify_one();
 }
 
-void ThreadPool::Stop()
+void
+ThreadPool::Stop()
 {
     if(stopped)
         return;
@@ -79,7 +90,8 @@ void ThreadPool::Stop()
 }
 
 
-void ThreadPool::StopAfterFork()
+void
+ThreadPool::StopAfterFork()
 {
     should_terminate = true;
 //    threads.clear();
@@ -87,7 +99,8 @@ void ThreadPool::StopAfterFork()
     CloseNCleanSocket(notificationFd);
 }
 
-bool ThreadPool::Busy()
+bool
+ThreadPool::Busy()
 {
     bool poolbusy;
     {
@@ -97,14 +110,32 @@ bool ThreadPool::Busy()
     return poolbusy;
 }
 
-void ThreadPool::RegisterEventHandler(ThreadPoolEventHandlerPtr hndlr)
+void
+ThreadPool::SetPollController(common::PollControllerPtr pcp)
 {
+    pollController = pcp;
+}
+
+void
+ThreadPool::RegisterEventHandler(ThreadPoolEventHandlerPtr hndlr)
+{
+    Assert(pollController);
     if (handler != nullptr)
         abort();
     handler = hndlr;
+    pollController->RegisterHandler(thisPtr);
 }
 
-void ThreadPool::threadLoop()
+void
+ThreadPool::DeregisterEventHandler()
+{
+    Assert(pollController);
+    pollController->DeregisterHandler(thisPtr);
+    handler = nullptr;
+}
+
+void
+ThreadPool::threadLoop()
 {
     while (true) {
         std::function<void()> job;
@@ -131,12 +162,14 @@ void ThreadPool::threadLoop()
     }
 }
 
-len_t ThreadPool::HandlePollError(int16_t shortInt)
+len_t
+ThreadPool::HandlePollError(int16_t shortInt)
 {
     return 0;
 }
 
-len_t ThreadPool::HandlePollRecv()
+len_t
+ThreadPool::HandlePollRecv()
 {
     char buf[100];
     auto len = read(pollFd, buf, 100);
@@ -151,3 +184,5 @@ len_t ThreadPool::HandlePollRecv()
 
 
 } /* namespace common */
+
+INCLUDE_MEMORY_DUMP_DEFINITION

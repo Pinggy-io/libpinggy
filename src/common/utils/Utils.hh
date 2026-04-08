@@ -24,9 +24,11 @@
 #include <vector>
 #include <map>
 #include <set>
+#include <queue>
 #include "RawData.hh"
 #include "StringUtils.hh"
 #include "CertificateFileDetail.hh"
+#include <type_traits>
 
 enum ENDIAN_NESS {
     ENDIAN_UNKNOWN = 0,
@@ -113,6 +115,7 @@ public:
     UrlPtr
     Clone();
 
+    DefineMandatoryClassFunctionsWOSuper(Url);
 
 private:
     Url();
@@ -143,53 +146,75 @@ CreateTemporaryDirectory(tString templat="util-temp-XXXXX");
 bool
 DeleteDirTree(FsPath dirPath);
 
+
+template< typename T, typename U, typename V >
+std::basic_ostream<U, V>&
+operator<<(std::basic_ostream<U, V>& os, const std::vector<T>& vect);
+
+template<typename K, typename V, typename T, typename U >
+std::basic_ostream<T, U>&
+operator<<(std::basic_ostream<T, U>& os, const std::map<K, V>& map);
+
+template< typename T, typename U, typename V >
+std::basic_ostream<U, V>&
+operator<<(std::basic_ostream<U, V>& os, const std::set<T>& vect);
+
+template<typename U, typename V, typename... Args >
+std::basic_ostream<U, V>&
+operator<<(std::basic_ostream<U, V>& os, const std::tuple<Args...>& t);
+
+template<typename K, typename V, typename T, typename U >
+std::basic_ostream<T, U>&
+operator<<(std::basic_ostream<T, U>& os, const std::pair<K, V>& pair);
+
+
+
+//==============
 template<typename T>
-std::ostream&
-operator<<(std::ostream& os, const std::vector<T>& vect)
-{
-    os << "[";
-    bool comma = false;
-    for (auto ele : vect) {
-        if (comma)
-            os << ", ";
-        comma = true;
-        os << ele;
-    }
-    os << "]";
-    return os;
-}
+size_t
+DumpMemoryUsages(std::ostream& os, tString varName, const std::vector<T>& vect);
+
+template<typename T>
+size_t
+DumpMemoryUsages(std::ostream& os, tString varName, const std::queue<T>& queue);
 
 template<typename K, typename V>
-std::ostream&
-operator<<(std::ostream& os, const std::map<K, V>& map)
-{
-    os << "{";
-    bool comma = false;
-    for (auto ele : map) {
-        if (comma)
-            os << ", ";
-        comma = true;
-        os << ele.first << ": " << ele.second;
-    }
-    os << "}";
-    return os;
-
-}
+size_t
+DumpMemoryUsages(std::ostream& os, tString varName, const std::map<K, V>& map);
 
 template<typename T>
-std::ostream&
-operator<<(std::ostream& os, const std::set<T>& vect)
-{
-    os << "{";
-    bool comma = false;
-    for (auto ele : vect) {
-        if (comma)
-            os << ", ";
-        comma = true;
-        os << ele;
-    }
-    os << "}";
-    return os;
-}
+size_t
+DumpMemoryUsages(std::ostream& os, tString varName, const std::set<T>& vect);
+
+template<typename... Args >
+size_t
+DumpMemoryUsages(std::ostream& os, tString varName, const std::tuple<Args...>& t);
+
+template<typename K, typename V>
+size_t
+DumpMemoryUsages(std::ostream& os, tString varName, const std::pair<K, V>& pair);
+
+//=
+size_t
+DumpMemoryUsages(std::ostream& os, tString varName, const tString& val);
+
+template<typename T> //literals
+size_t
+DumpMemoryUsages(std::ostream& os, tString varName, const T& val);
+
+template<typename T>
+size_t
+DumpMemoryUsages(std::ostream& os, tString varName, const std::shared_ptr<T>& ptr);
+
+template<typename T>
+size_t
+DumpMemoryUsages(std::ostream& os, tString varName, const std::weak_ptr<T>& ptr);
+
+template<typename T>
+size_t
+DumpMemoryUsages(std::ostream& os, tString varName, const T *t);
+
+// #define DUMP_MEM_USAGE(os, var, ci, ib)
+
 
 #endif /* SERVER_UTILS_HH_ */

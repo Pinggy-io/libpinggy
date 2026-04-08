@@ -1,6 +1,8 @@
 
 set(SOURCES
         Log.cc
+        SharedPtr.cc
+
         network.c
         networkaddresses.c
 )

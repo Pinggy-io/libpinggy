@@ -24,6 +24,7 @@
 #include <utils/Json.hh>
 #include <platform/platform.h>
 #include "AddressCache.hh"
+#include <utils/TemplateStreaming.hh> //this needs to be the last include
 
 
 namespace net {
@@ -69,9 +70,16 @@ NetworkSocket::ReassigntoLowerFdPtr(sock_t *fd)
 }
 
 NetworkConnectionImpl::NetworkConnectionImpl(tString host, tString port, bool blockingConnect) :
-            fd(INVALID_SOCKET), flags(0), lastReturn(0), blocking(false), tryAgain(false),
-            connecting(false), cachedAddressTried(false), fetchAddressFromSystem(false),
-            hostToConnect(host), portToConnect(port)
+        fd(INVALID_SOCKET),
+        flags(0),
+        lastReturn(0),
+        blocking(false),
+        tryAgain(false),
+        connecting(false),
+        cachedAddressTried(false),
+        fetchAddressFromSystem(false),
+        hostToConnect(host),
+        portToConnect(port)
 {
     bzero(&currentAddress, sizeof(currentAddress));
     netState.Connected = false;
@@ -92,8 +100,14 @@ NetworkConnectionImpl::NetworkConnectionImpl(tString host, tString port, bool bl
 
 #ifndef __WINDOWS_OS__
 NetworkConnectionImpl::NetworkConnectionImpl(tString path) :
-            fd(INVALID_SOCKET), flags(0), lastReturn(0), blocking(false), tryAgain(false),
-            connecting(false), cachedAddressTried(false), fetchAddressFromSystem(false)
+        fd(INVALID_SOCKET),
+        flags(0),
+        lastReturn(0),
+        blocking(false),
+        tryAgain(false),
+        connecting(false),
+        cachedAddressTried(false),
+        fetchAddressFromSystem(false)
 {
     bzero(&currentAddress, sizeof(currentAddress));
     auto sock = app_uds_client_connect(path.c_str());
@@ -113,8 +127,14 @@ NetworkConnectionImpl::NetworkConnectionImpl(tString path) :
 #endif //__WINDOWS_OS__
 
 NetworkConnectionImpl::NetworkConnectionImpl(sock_t fd) :
-            fd(fd), flags(0), lastReturn(0), blocking(false), tryAgain(false),
-            connecting(false), cachedAddressTried(false), fetchAddressFromSystem(false)
+        fd(fd),
+        flags(0),
+        lastReturn(0),
+        blocking(false),
+        tryAgain(false),
+        connecting(false),
+        cachedAddressTried(false),
+        fetchAddressFromSystem(false)
 {
     bzero(&currentAddress, sizeof(currentAddress));
     soType = get_socket_type(fd);
@@ -134,6 +154,12 @@ NetworkConnectionImpl::~NetworkConnectionImpl()
         LOGD(this, "Closing fd:", fd);
     CloseNCleanSocket(fd);
     netState.Valid = false;
+}
+
+void
+NetworkConnectionImpl::__Init()
+{
+    pollEventObject = NewEventHandlerForPollableFdPtr(thisPtr);
 }
 
 ssize_t
@@ -225,6 +251,13 @@ NetworkConnectionImpl::HandleConnect()
         netState.Valid = false;
         tryNonBlockingConnect();
     }
+    return 0;
+}
+
+len_t
+NetworkConnectionImpl::HandleConnectError(tInt16 err)
+{
+    LOGD("Connect error occurred");
     return 0;
 }
 
@@ -662,3 +695,5 @@ operator<<(std::ostream &os, net::tConnType &connType)
     os << "}";
     return os;
 }
+
+INCLUDE_MEMORY_DUMP_DEFINITION
