@@ -190,6 +190,10 @@ Sdk::ResumeTunnel(tInt32 timeout)
         return true;
     }
 
+    // if (state == SdkState::ReconnectInitiated) {
+
+    // }
+
     if (state == SdkState::ReconnectInitiated) {
         if (    reconnectCounter >= sdkConfig->maxReconnectAttempts
              && sdkConfig->maxReconnectAttempts != 0) {
@@ -1092,12 +1096,12 @@ Sdk::updateForwardMap(std::vector<RemoteForwardingPtr> remoteForwardings)
 void
 Sdk::reconnectOrStopLoop(tString reason)
 {
-    if (reconnectMode) {
+    if (reconnectMode || sdkConfig->autoReconnect) {
         state = SdkState::ReconnectInitiated;
 
         if (reconnectCounter == 0 && eventHandler) {
             LOGD("Reconnecting");
-            eventHandler->OnWillReconnect("Connection Reset", {"Reconnecting"});
+            eventHandler->OnWillReconnect(reason, {"Reconnecting"});
         }
     } else {
         disconnectionReason = reason;

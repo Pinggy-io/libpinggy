@@ -62,7 +62,20 @@
                 "LIBPINGGY_LIBPATH": "${workspaceFolder}/releases/macos/universal/libpinggy.dylib"
             }
         },
-         {
+        {
+            "name": "pdb-pythonsdk",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "pinggy",
+            "cwd": "${workspaceFolder}",
+            "args": [ "-p443", "-R0:l:4000", "-L4300:l:4300", "a.pinggy.io"],
+            "stopOnEntry": false,
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/bindings/python",
+                "LIBPINGGY_LIBPATH": "${workspaceFolder}/releases/macos/universal/libpinggy.dylib"
+            }
+        },
+        {
             "name": "Debug test-pinggyclientc",
             "type": "lldb-dap",
             "request": "launch",
