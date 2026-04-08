@@ -137,6 +137,9 @@ Sdk::Start(bool block)
         sdkConfig = sdkConfig->clone();
         sdkConfig->validate();
 
+        reconnectMode = sdkConfig->autoReconnect;
+        reconnectCounter = 0;
+
         initPollController();
         internalConnect();
 
@@ -189,10 +192,6 @@ Sdk::ResumeTunnel(tInt32 timeout)
         cleanup();
         return true;
     }
-
-    // if (state == SdkState::ReconnectInitiated) {
-
-    // }
 
     if (state == SdkState::ReconnectInitiated) {
         if (    reconnectCounter >= sdkConfig->maxReconnectAttempts
@@ -415,7 +414,7 @@ void
 Sdk::HandleSessionAuthenticationFailed(tString error, std::vector<tString> authenticationFailed)
 {
     authenticationMsg = authenticationFailed;
-    lastError = JoinString(authenticationFailed, "\r\n");
+    lastError = JoinString(authenticationFailed, "\n");
     LOGE("Authentication Failed");
 
     releaseBaseConnection();
@@ -423,7 +422,7 @@ Sdk::HandleSessionAuthenticationFailed(tString error, std::vector<tString> authe
     reconnectOrStopLoop(lastError);
 
     if (eventHandler && !reconnectMode) {
-            eventHandler->OnTunnelFailed(JoinString(authenticationMsg, "\n"));
+            eventHandler->OnTunnelFailed(lastError);
     }
 }
 
@@ -469,9 +468,6 @@ Sdk::HandleSessionRemoteForwardingSucceeded(protocol::tReqId reqId, tForwardingI
                 eventHandler->OnTunnelEstablished(urls);
             }
         }
-
-        reconnectMode = sdkConfig->autoReconnect;
-        reconnectCounter = 0;
 
         LOGD("Primary forwarding done");
 
@@ -1096,7 +1092,7 @@ Sdk::updateForwardMap(std::vector<RemoteForwardingPtr> remoteForwardings)
 void
 Sdk::reconnectOrStopLoop(tString reason)
 {
-    if (reconnectMode || sdkConfig->autoReconnect) {
+    if (reconnectMode) {
         state = SdkState::ReconnectInitiated;
 
         if (reconnectCounter == 0 && eventHandler) {
