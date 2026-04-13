@@ -447,8 +447,13 @@ sock_t app_tcp_listener_host(const char* host, const char *port)
         }
 
         int optval = 1;
+#ifndef __WINDOWS_OS__
         setsockopt(sock, SOL_SOCKET, SO_REUSEADDR,
                     (const void *)&optval , sizeof(int));
+#else
+        setsockopt(sock, SOL_SOCKET, SO_EXCLUSIVEADDRUSE,
+                    (const void *)&optval , sizeof(int));
+#endif // WINDOWS_OS__
 
         int c = bind(sock, rp->ai_addr, rp->ai_addrlen);
         if(!issockoptsuccess(c)) {
