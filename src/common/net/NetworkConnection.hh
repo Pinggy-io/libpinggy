@@ -24,9 +24,11 @@
 #define ThisIsNetworkConnectionRoot
 
 #include <platform/network.h>
-#include <utils/Utils.hh>
+// #include <utils/Utils.hh>
 #include <iostream>
 #include <poll/PollableFD.hh>
+#include <platform/PinggyWriter.hh>
+#include <utils/RawData.hh>
 #include <utils/JsonH.hh>
 #include <tuple>
 
@@ -232,7 +234,8 @@ DefineMakeSharedPtr(SocketStat);
 
 NLOHMANN_DECLARE_TYPE_NON_INTRUSIVE_CUSTOME_PTR(SocketStat);
 
-abstract class NetworkSocket : public virtual PollableFD {
+abstract class NetworkSocket : public virtual PollableFD
+{
 public:
     virtual
     ~NetworkSocket()            { }
@@ -322,7 +325,8 @@ private:
 };
 DefineMakeSharedPtr(SocketAddress);
 
-abstract class NetworkConnection : public virtual NetworkSocket {
+abstract class NetworkConnection : public virtual NetworkSocket, public virtual common::PingyWriter
+{
 public:
     NetworkConnection()         { connType.Raw = 0; }
 

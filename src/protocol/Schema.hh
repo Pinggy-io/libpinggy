@@ -50,9 +50,9 @@ enum tChannelType {
 // it is a saving.
 
 //      dataType                    Name             default value           present_in_constructor]
-#define Schema_SchemaDefinition(f, arg)                                             \
-    f(ClientHello,                                                                  \
-        arg,                                                                        \
+#define Schema_SchemaDefinition(f, arg)                                                 \
+    f(ClientHello,                                                                      \
+        arg,                                                                            \
         (tUint32,                   Version,            0),                             \
         (tUint32,                   Version2,           0),                             \
         (tString,                   Message,            "")                             \
