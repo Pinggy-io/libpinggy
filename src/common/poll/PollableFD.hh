@@ -18,6 +18,7 @@
 #define CPP_COMMON_POLLABLE_FD_HH_
 
 #include "PinggyPoll.hh"
+#include <functional>
 #include <platform/assert_pinggy.h>
 
 DeclareClassWithSharedPtr(PollableFD);
@@ -184,6 +185,8 @@ DefineMakeSharedPtr(EventHandlerForPollableFd);
 
 abstract class PollableFD : public virtual pinggy::SharedObject {
 public:
+    typedef std::function<len_t(PollableFDPtr)> ReadCallback;
+
     PollableFD()                { }
 
     virtual
@@ -218,6 +221,10 @@ public:
 
     virtual PollableFDPtr
     RegisterFDEvenHandler(FDEventHandlerPtr fdEventHandler, tString tag, bool edgeTrigger = false) final;
+
+    virtual PollableFDPtr
+    RegisterFDEvenHandler(ReadCallback readCallback,
+                          bool edgeTrigger = false) final;
 
     virtual PollableFDPtr
     DeregisterFDEvenHandler() final;

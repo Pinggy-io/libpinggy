@@ -19,7 +19,7 @@
 
 #include "SchemaHeaderGenerator.hh"
 #include <algorithm>
-#include <utils/TemplateStreaming.hh>
+#include <utils/TemplateStreaming.hh> //remove
 
 //==============================================================================
 //    Define exception
@@ -127,6 +127,45 @@ ClassName##ClassSuffix::ClassName##ClassSuffix(                                 
 #define _SCHEMA_BODY_DefineDumpMemoryFunction(x, vars, ...)                     \
     _SCHEMA_HEADER_StripParenAndExpand(_SCHEMA_BODY_DefineDumpMemoryFunction_,  \
         x, _SCHEMA_HEADER_StripParen vars, __VA_ARGS__)
+
+
+
+#define _SCHEMA_BODY_DefineGetDebugStringFunction_LAST(x) \
+        { rawData->AddData(" (" APP_CONVERT_TO_STRING(x) ":",           \
+                sizeof(" (" APP_CONVERT_TO_STRING(x) ":") - 1);             \
+            DumpValue(rawData, x);                                          \
+            rawData->AddData(")", 1); }
+#define _SCHEMA_BODY_DefineGetDebugStringFunction_REST(x) _SCHEMA_BODY_DefineGetDebugStringFunction_LAST(x)
+
+#define _SCHEMA_BODY_DefineGetDebugStringFunction_REST_F(f, var) \
+        _SCHEMA_BODY_DefineGetDebugStringFunction_REST(f(var))
+
+#define _SCHEMA_BODY_DefineGetDebugStringFunction_LAST_F(f, var) \
+        _SCHEMA_BODY_DefineGetDebugStringFunction_LAST(f(var))
+
+
+#define _SCHEMA_BODY_DefineGetDebugStringFunction_VarStriper2_(x, y, ...) y
+
+#define _SCHEMA_BODY_DefineGetDebugStringFunction_VarStriper_(x) _SCHEMA_BODY_DefineGetDebugStringFunction_VarStriper2_ x
+
+#define _SCHEMA_BODY_DefineGetDebugStringFunction_(ClassName, RootClass,        \
+    ClassSuffix, ClassSmallSuffix, ...)                                         \
+    void ClassName##ClassSuffix::AddDebugStringToRawData(RawDataPtr rawData)    \
+    {                                                                           \
+        rawData->AddData(APP_CONVERT_TO_STRING(ClassSuffix##Type) " (",         \
+            sizeof(APP_CONVERT_TO_STRING(ClassSuffix##Type) " (") - 1);         \
+        APP_MACRO_FOR_EACH_WITH_ARG_FORNT_END(                                  \
+            _SCHEMA_BODY_DefineGetDebugStringFunction_REST_F,                   \
+            _SCHEMA_BODY_DefineGetDebugStringFunction_LAST_F,                   \
+            _SCHEMA_BODY_DefineGetDebugStringFunction_VarStriper_,              \
+            __VA_ARGS__                                                         \
+        );                                                                      \
+    }
+
+#define _SCHEMA_BODY_DefineGetDebugStringFunction(x, vars, ...)                     \
+    _SCHEMA_HEADER_StripParenAndExpand(_SCHEMA_BODY_DefineGetDebugStringFunction_,  \
+        x, _SCHEMA_HEADER_StripParen vars, __VA_ARGS__)
+
 
 
 //==============================================================================
@@ -458,6 +497,13 @@ Definition(_SCHEMA_BODY_DefineToPinggyValue, (RootClass,                        
     {                                                                           \
         DEFINE_DUMP_MEMORY_BODY(RootClass##ClassSuffix,                         \
             ClassSmallSuffix##Type);                                            \
+    }                                                                           \
+    void RootClass##ClassSuffix::AddDebugString(common::PingyWriterPtr writer)  \
+    {                                                                           \
+        if (!writer) return;                                                    \
+        auto rawData = NewRawDataPtr();                                         \
+        AddDebugStringToRawData(rawData);                                       \
+        writer->Write(rawData);                                                 \
     }
 
 //==============================================================================
@@ -469,6 +515,8 @@ Definition(_SCHEMA_BODY_DefineToPinggyValue, (RootClass,                        
         Definition(_SCHEMA_BODY_DefineProtocolFunctions, (RootClass,            \
             ClassSuffix, ClassSmallSuffix))                                     \
         Definition(_SCHEMA_BODY_DefineDumpMemoryFunction, (RootClass,           \
+            ClassSuffix, ClassSmallSuffix))                                     \
+        Definition(_SCHEMA_BODY_DefineGetDebugStringFunction, (RootClass,       \
             ClassSuffix, ClassSmallSuffix))                                     \
         _SCHEMA_BODY_DefineStaticMap(RootClass, ClassSuffix,                    \
             ClassSmallSuffix, Definition)                                       \

@@ -25,6 +25,56 @@
 
 namespace net {
 
+
+class FunctionCallbackListenerHandler: public virtual ConnectionListenerHandler
+{
+public:
+    FunctionCallbackListenerHandler(ConnectionListener::NewVisitorCallback callback)
+            : callback(callback) { }
+
+    virtual ~FunctionCallbackListenerHandler()
+    {
+        if (listener) {
+            listener->DeregisterFDEvenHandler();
+            listener->CloseConn();
+            listener = nullptr;
+        }
+    }
+
+    virtual void
+    NewVisitor(NetworkConnectionPtr netConn) override
+    {
+        if (callback) {
+            callback(netConn);
+        } else {
+            netConn->CloseConn();
+        }
+    }
+
+    virtual void
+    ConnectionListenerClosed(ConnectionListenerPtr listener) override
+    {
+        if (this->listener == listener) {
+            this->listener = nullptr;
+        }
+    }
+
+    void
+    SetListener(ConnectionListenerPtr listener)
+    {
+        this->listener = listener;
+    }
+
+    DefineMandatoryClassFunctionsNoDump(FunctionCallbackListenerHandler);
+
+private:
+    ConnectionListener::NewVisitorCallback
+                                callback;
+    ConnectionListenerPtr       listener;
+};
+DefineMakeSharedPtr(FunctionCallbackListenerHandler);
+
+
 ConnectionListenerImpl::ConnectionListenerImpl(sock_t fd):
         fd(fd),
         port(0),
@@ -261,6 +311,24 @@ ConnectionListener::AcceptSocket()
 {
     throw ConnectionListenerException("Not implemented", thisPtr);
     return INVALID_SOCKET;
+}
+
+//=== ConnectionListener overloads for callbacks ===
+
+void
+ConnectionListener::RegisterListenerHandler(NewVisitorCallback callback, len_t acceptConn)
+{
+    auto handler = NewFunctionCallbackListenerHandlerPtr(callback);
+    RegisterListenerHandler(handler, acceptConn);
+}
+
+void
+ConnectionListener::RegisterListenerHandler(common::PollControllerPtr pollController,
+        NewVisitorCallback callback, len_t acceptConn)
+{
+    auto handler = NewFunctionCallbackListenerHandlerPtr(callback);
+    handler->SetListener(thisPtr);
+    RegisterListenerHandler(pollController, handler, acceptConn);
 }
 
 } /* namespace net */

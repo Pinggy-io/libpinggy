@@ -231,8 +231,8 @@ typedef pinggy::VoidWPtr tVoidWPtr;
 #endif
 
 #define DeclareSharedPtr(x, ...) _EXP_EXP_(DeclareSharedPtr2(x, x##Ptr, x##WPtr, ## __VA_ARGS__))
-#define DefineMakeCustomSharedPtr(x, name) \
-    DeclareSharedPtr(x, name) \
+
+#define DefineMakeCustomSharedPtr_MakeShared(x, name) \
     template <typename ... Arguments> \
     inline name New##x##Ptr(Arguments ... args) \
     { \
@@ -241,6 +241,8 @@ typedef pinggy::VoidWPtr tVoidWPtr;
         _v->__Init(); \
         return _v; \
     } \
+
+#define DefineMakeCustomSharedPtr_New(x, name) \
     inline name New##x##Ptr(x *y) \
     { \
         auto _v = std::shared_ptr<x>(y); \
@@ -249,7 +251,20 @@ typedef pinggy::VoidWPtr tVoidWPtr;
         return _v; \
     }
 
+#define DefineMakeCustomSharedPtr(x, name) \
+    DeclareSharedPtr(x, name) \
+    DefineMakeCustomSharedPtr_MakeShared(x, name) \
+    DefineMakeCustomSharedPtr_New(x, name)
+
 #define DefineMakeSharedPtr(x) DefineMakeCustomSharedPtr(x, x##Ptr)
+
+#define DefineMakeSharedPtr_MakeShared(x) \
+    _EXP_EXP_(DeclareSharedPtr(x, x##Ptr)) \
+    _EXP_EXP_(DefineMakeCustomSharedPtr_MakeShared(x, x##Ptr))
+
+#define DefineMakeSharedPtr_New(x) \
+    _EXP_EXP_(DeclareSharedPtr(x, x##Ptr)) \
+    _EXP_EXP_(DefineMakeCustomSharedPtr_New(x, x##Ptr))
 
 #define DefineMakePrivateCustomSharedPtr(x, name) \
     DeclareSharedPtr(x, name) \
@@ -512,8 +527,14 @@ DumpPtr(std::basic_ostream<U, V>& os, const std::shared_ptr<T>& ptr)
 #define _DefineMandatoryAbsClassFunctionsImpl(x) \
     DefineMandatoryDumpFunction(x)
 
+#define _DefineMandatoryAbsClassFunctionsImplNoDump(x)
+
 #define DefineMandatoryAbsClassFunctionsWOSuper(x) _DefineMandatoryAbsClassFunctionsImpl(x)
 #define DefineMandatoryAbsClassFunctionsWithSuper(x, y) _DefineMandatoryAbsClassFunctionsImpl(x)
+
+
+#define DefineMandatoryAbsClassFunctionsWOSuperNoDump(x) _DefineMandatoryAbsClassFunctionsImplNoDump(x)
+#define DefineMandatoryAbsClassFunctionsWithSuperNoDump(x, y) _DefineMandatoryAbsClassFunctionsImplNoDump(x)
 
 
 #endif /* CPP_COMMON_SHAREDPTR_H_ */

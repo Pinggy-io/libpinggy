@@ -18,6 +18,42 @@
 #include "PollableFD.hh"
 #include <utils/TemplateStreaming.hh> //this needs to be the last include
 
+class FunctionCallbackFDEventHandler: public virtual FDEventHandler
+{
+public:
+    FunctionCallbackFDEventHandler(PollableFD::ReadCallback readCallback)
+            : readCallback(readCallback) { }
+
+    virtual ~FunctionCallbackFDEventHandler() { }
+
+    virtual len_t
+    HandleFDRead(PollableFDPtr fd) override
+    {
+        return readCallback ? readCallback(fd) : 0;
+    }
+
+    virtual len_t
+    HandleFDWrite(PollableFDPtr fd) override
+    {
+        (void)fd;
+        return 0;
+    }
+
+    virtual len_t
+    HandleFDError(PollableFDPtr fd, int16_t err) override
+    {
+        (void)fd;
+        (void)err;
+        return 0;
+    }
+
+    DefineMandatoryClassFunctionsNoDump(FunctionCallbackFDEventHandler);
+
+private:
+    PollableFD::ReadCallback    readCallback;
+};
+DefineMakeSharedPtr_MakeShared(FunctionCallbackFDEventHandler)
+
 //==============================
 
 len_t
@@ -62,6 +98,14 @@ PollableFDPtr PollableFD::RegisterFDEvenHandler(FDEventHandlerPtr fdEventHandler
     auto pollEventHandler = GetPollEventHandler();
     pollEventHandler->RegisterFDEvenHandler(thisPtr, fdEventHandler, tag, edgeTrigger);
     return thisPtr;
+}
+
+PollableFDPtr
+PollableFD::RegisterFDEvenHandler(ReadCallback readCallback,
+    bool edgeTrigger)
+{
+    auto fdEventHandler = NewFunctionCallbackFDEventHandlerPtr(readCallback);
+    return RegisterFDEvenHandler(fdEventHandler, (pinggy::VoidPtr)nullptr, edgeTrigger);
 }
 
 PollableFDPtr

@@ -204,6 +204,9 @@ public:
     void
     SetEnablePinggyValueMode(bool enable = true);
 
+    void
+    SetSdkEventLogger(net::NetworkConnectionPtr writer);
+
 // TransportManagerEventHandler
     virtual void
     HandleConnectionReset(net::NetworkConnectionPtr netConn) override;
@@ -258,6 +261,9 @@ private:
     setupChannelCloseTimeout(ChannelPtr);
 
     void
+    closeWriter();
+
+    void
     handleDeserializedMsg(ProtoMsgPtr tMsg);
 
     friend class                Channel;
@@ -281,6 +287,7 @@ private:
     bool                        enablePinggyValue;
     SessionFeaturesPtr          features;
     common::PollControllerPtr   pollController;
+    net::NetworkConnectionPtr   msgWriter;
 };
 DefineMakeSharedPtr(Session);
 

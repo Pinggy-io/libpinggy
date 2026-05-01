@@ -19,6 +19,7 @@
 #define CPP_SERVER_SSL_CONNECTIONLISTNER_HH_
 
 #include "NetworkConnection.hh"
+#include <functional>
 #include <utils/Utils.hh>
 
 namespace net {
@@ -67,6 +68,8 @@ DeclareClassWithSharedPtr(ConnectionListenerHandler);
 
 class ConnectionListener: public virtual NetworkSocket, public virtual FDEventHandler {
 public:
+    typedef std::function<void(NetworkConnectionPtr)> NewVisitorCallback;
+
     ConnectionListener(): maxSeqAccepts(1), acceptRawSocket(false)
                                 { connTypeForChild.Raw = 0; }
 
@@ -111,6 +114,12 @@ public:
 
     virtual void
     RegisterListenerHandler(common::PollControllerPtr, ConnectionListenerHandlerPtr, len_t acceptConn) final;
+
+    virtual void
+    RegisterListenerHandler(NewVisitorCallback callback, len_t acceptConn) final;
+
+    virtual void
+    RegisterListenerHandler(common::PollControllerPtr, NewVisitorCallback callback, len_t acceptConn) final;
 
     virtual void
     SetMaxSeqAccepts(len_t maxSeqAccepts) final

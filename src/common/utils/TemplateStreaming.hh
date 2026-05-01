@@ -19,7 +19,11 @@
 
 #include "Utils.hh"
 #include <platform/Log.hh>
+#include <platform/PinggyWriter.hh>
+#include <string> // For tString (std::string)
 #include <type_traits>
+#include <cstdio>
+#include <cstring>
 
 template <typename T, typename = void>
 struct pinggy_is_complete : std::false_type {};
@@ -399,6 +403,133 @@ inline size_t DumpMemoryUsages(std::ostream &os, tString varName, const T *t)
 }
 
 //==============
+
+template <typename T>
+inline void
+DumpValue(std::ostream &os, const T &val)
+{
+    if constexpr (std::is_same_v<T, tString>) { // Handle tString (std::string)
+        if (val.length() < 16) {
+            os << val;
+        } else {
+            os << "<string len=" << val.length() << ">"; // Indicate long char*
+        }
+    } else if constexpr (std::is_pointer_v<T> && std::is_same_v<std::remove_cv_t<std::remove_pointer_t<T>>, char>) { // C-style string
+        if (val && std::strlen(val) < 16) {
+            os << val;
+        } else if (val) {
+            os << "<char* len=" << std::strlen(val) << ">"; // Indicate long char*
+        } else {
+            os << "nullptr";
+        }
+    } else if constexpr (std::is_function_v<T>) {
+        os << "<func>";
+    } else if constexpr (std::is_pointer_v<T>) { // Generic pointer
+        if constexpr (std::is_function_v<std::remove_pointer_t<std::decay_t<T>>> || std::is_function_v<std::remove_reference_t<T>>) {
+            os << "<ptr>";
+        } else {
+            os << static_cast<const void*>(val);
+        }
+    } else if constexpr (std::is_same_v<T, tInt8>) { // Specific integer types
+        os << static_cast<int>(val);
+    } else if constexpr (std::is_same_v<T, tUint8>) { // Specific unsigned integer types
+        os << static_cast<tUint>(val);
+    } else if constexpr (pinggy_is_bool<T>::value) {
+        os << (val ? "true" : "false");
+    } else if constexpr (std::is_arithmetic_v<T>) {
+        os << val;
+    } else {
+        os << "unknown";
+    }
+}
+
+template <typename T>
+inline void
+DumpValue(std::ostream &os, const std::shared_ptr<T> &ptr)
+{
+    if (ptr) {
+        // Assuming RawData is a type that has a .size() method for its content
+        // and that RawDataPtr is std::shared_ptr<RawData>.
+        // This requires RawData to be a complete type where this template is instantiated.
+        if constexpr (std::is_same_v<T, RawData>) { // Special handling for RawDataPtr
+            os << "<RawDataPtr at " << static_cast<const void*>(ptr.get()) << ", size=" << ptr->Len << ">";
+        } else {
+            // Generic shared_ptr handling
+            os << "<shared_ptr to " << typeid(T).name() << " at " << static_cast<const void*>(ptr.get()) << ">";
+        }
+    } else {
+        os << "nullptr";
+    }
+}
+
+template <typename T>
+inline void
+DumpValue(const RawDataPtr &rawData, const T &val)
+{
+    if constexpr (std::is_same_v<T, tString>) {
+        if (val.length() < 16) {
+            rawData->AddData(val.c_str(), val.size());
+        } else {
+            auto s = "<string len=" + std::to_string(val.length()) + ">";
+            rawData->AddData(s.c_str(), s.size());
+        }
+    } else if constexpr (std::is_pointer_v<T> && std::is_same_v<std::remove_cv_t<std::remove_pointer_t<T>>, char>) {
+        if (val) {
+            auto len = std::strlen(val);
+            if (len < 16) {
+                rawData->AddData(val, len);
+            } else {
+                auto s = "<char* len=" + std::to_string(len) + ">";
+                rawData->AddData(s.c_str(), s.size());
+            }
+        } else {
+            rawData->AddData("nullptr", 7);
+        }
+    } else if constexpr (std::is_function_v<T>) {
+        rawData->AddData("<func>", 6);
+    } else if constexpr (std::is_pointer_v<T>) {
+        if constexpr (std::is_function_v<std::remove_pointer_t<std::decay_t<T>>>
+                   || std::is_function_v<std::remove_reference_t<T>>) {
+            rawData->AddData("<ptr>", 5);
+        } else {
+            char buf[32];
+            auto n = std::snprintf(buf, sizeof(buf), "%p", static_cast<const void*>(val));
+            rawData->AddData(buf, static_cast<size_t>(n));
+        }
+    } else if constexpr (std::is_same_v<T, tInt8>) {
+        auto s = std::to_string(static_cast<int>(val));
+        rawData->AddData(s.c_str(), s.size());
+    } else if constexpr (std::is_same_v<T, tUint8>) {
+        auto s = std::to_string(static_cast<unsigned int>(val));
+        rawData->AddData(s.c_str(), s.size());
+    } else if constexpr (pinggy_is_bool<T>::value) {
+        if (val) rawData->AddData("true", 4); else rawData->AddData("false", 5);
+    } else if constexpr (std::is_arithmetic_v<T>) {
+        auto s = std::to_string(val);
+        rawData->AddData(s.c_str(), s.size());
+    } else {
+        rawData->AddData("unknown", 7);
+    }
+}
+
+template <typename T>
+inline void
+DumpValue(const RawDataPtr &rawData, const std::shared_ptr<T> &ptr)
+{
+    if (ptr) {
+        char buf[64];
+        int n;
+        if constexpr (std::is_same_v<T, RawData>) {
+            n = std::snprintf(buf, sizeof(buf), "<RawData size=%d>", static_cast<int>(ptr->Len));
+        } else {
+            n = std::snprintf(buf, sizeof(buf), "<shared_ptr at %p>",
+                              static_cast<const void*>(ptr.get()));
+        }
+        rawData->AddData(buf, static_cast<size_t>(n));
+    } else {
+        rawData->AddData("nullptr", 7);
+    }
+}
 
 
 
