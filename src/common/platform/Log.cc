@@ -33,6 +33,11 @@ pid_t                           __PINGGY_LOG_PID__ = 0;
 // int64_t                         __LastChrono = 0;
 bool                            __PINGGY_GLOBAL_ENABLED__ = true;
 
+// Thread-local log callback. Each thread that calls into libpinggy can
+// register its own callback; log lines emitted on that thread route to it.
+thread_local PinggyLogCallbackFn __PINGGY_LOG_CALLBACK__ = nullptr;
+thread_local void               *__PINGGY_LOG_CALLBACK_USER_DATA__ = nullptr;
+
 //Local
 std::string                     __logPath = "";
 
@@ -72,6 +77,22 @@ SetGlobalLogEnable(bool enable)
 }
 
 void
+SetLogCallback(PinggyLogCallbackFn cb, void *user_data)
+{
+    __PINGGY_LOG_CALLBACK__ = cb;
+    __PINGGY_LOG_CALLBACK_USER_DATA__ = user_data;
+}
+
+void
+DispatchLogCallback(int level, const std::string &line)
+{
+    PinggyLogCallbackFn cb = __PINGGY_LOG_CALLBACK__;
+    if (cb) {
+        cb(__PINGGY_LOG_CALLBACK_USER_DATA__, level, line.c_str());
+    }
+}
+
+void
 UpdatePidForLog()
 {
     __PINGGY_LOG_PID__ = app_getpid();
@@ -94,19 +115,19 @@ c_log(char *fl, int type, const char *fmt, ...)
     switch (type)
     {
     case LogLevelTrace:
-        LOG_C(fl, "TRACE:: ", __LOG_BUF_);
+        LOG_C(fl, LogLevelTrace, "TRACE:: ", __LOG_BUF_);
         break;
     case LogLevelDebug:
-        LOG_C(fl, "DEBUG:: ", __LOG_BUF_);
+        LOG_C(fl, LogLevelDebug, "DEBUG:: ", __LOG_BUF_);
         break;
     case LogLevelInfo:
-        LOG_C(fl, " INFO:: ", __LOG_BUF_);
+        LOG_C(fl, LogLevelInfo, " INFO:: ", __LOG_BUF_);
         break;
     case LogLevelError:
-        LOG_C(fl, "ERROR:: ", __LOG_BUF_);
+        LOG_C(fl, LogLevelError, "ERROR:: ", __LOG_BUF_);
         break;
     case LogLevelFatal:
-        LOG_C(fl, "FATAL:: ", __LOG_BUF_);
+        LOG_C(fl, LogLevelFatal, "FATAL:: ", __LOG_BUF_);
         break;
     default:
         break;

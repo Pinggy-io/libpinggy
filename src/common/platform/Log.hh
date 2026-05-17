@@ -60,27 +60,44 @@ extern std::string              __PINGGY_LOG_PREFIX__;
 extern pid_t                    __PINGGY_LOG_PID__;
 extern bool                     __PINGGY_GLOBAL_ENABLED__;
 
+// Signature for per-thread log callback. See SetLogCallback below.
+typedef void (*PinggyLogCallbackFn)(void *user_data, int level, const char *message);
+
+extern thread_local PinggyLogCallbackFn  __PINGGY_LOG_CALLBACK__;
+extern thread_local void                *__PINGGY_LOG_CALLBACK_USER_DATA__;
+
+void
+DispatchLogCallback(int level, const std::string &line);
+
 
 #define __LTIME \
     (std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count())
 
-#define __LOG(x__, __y) do{ \
+#define __LOG(__level, x__, __y) do{ \
     if (__PINGGY_GLOBAL_ENABLED__) { \
         auto ttime = __LTIME; \
-        (x__.is_open()?x__:std::cout) << ttime << ":: " __FILE__ ":" \
-            APP_CONVERT_TO_STRING(__LINE__) << " " << __PINGGY_LOG_PREFIX__ << "(" << __PINGGY_LOG_PID__ << ")::" __y std::endl; \
+        std::ostringstream __pgy_oss__; \
+        __pgy_oss__ << ttime << ":: " __FILE__ ":" \
+            APP_CONVERT_TO_STRING(__LINE__) << " " << __PINGGY_LOG_PREFIX__ << "(" << __PINGGY_LOG_PID__ << ")::" __y ""; \
+        std::string __pgy_line__ = __pgy_oss__.str(); \
+        (x__.is_open()?x__:std::cout) << __pgy_line__ << std::endl; \
+        DispatchLogCallback(__level, __pgy_line__); \
     } \
 }while(0)
 
-#define __LOG_FL(FL__, x__, __y) do{ \
+#define __LOG_FL(__level, FL__, x__, __y) do{ \
     if (__PINGGY_GLOBAL_ENABLED__) { \
         auto ttime = __LTIME; \
-        (x__.is_open()?x__:std::cout) << ttime << ":: " << FL__ << " " << __PINGGY_LOG_PREFIX__ << "(" << __PINGGY_LOG_PID__ << ")::" __y std::endl; \
+        std::ostringstream __pgy_oss__; \
+        __pgy_oss__ << ttime << ":: " << FL__ << " " << __PINGGY_LOG_PREFIX__ << "(" << __PINGGY_LOG_PID__ << ")::" __y ""; \
+        std::string __pgy_line__ = __pgy_oss__.str(); \
+        (x__.is_open()?x__:std::cout) << __pgy_line__ << std::endl; \
+        DispatchLogCallback(__level, __pgy_line__); \
     } \
 } while(0)
 
 
-#define LOG_C(FL, mode, ...) __LOG_FL(FL, __PINGGY_LOGGER_SINK__,  mode __EXPAND_LOGS__(__VA_ARGS__))
+#define LOG_C(FL, __level, mode, ...) __LOG_FL(__level, FL, __PINGGY_LOGGER_SINK__,  mode __EXPAND_LOGS__(__VA_ARGS__))
 
 //#define EXPAND_ARG(x) " " #x ": `" << x << "`"
 #define _EXPAND_LOG(x) " " << x <<
@@ -94,32 +111,32 @@ extern bool                     __PINGGY_GLOBAL_ENABLED__;
 
 
 #if LOG_LEVEL <= LogLevelTrace
-    #define LOGT(...) __LOG(__PINGGY_LOGGER_SINK__,  "TRACE:: " __EXPAND_LOGS__(__VA_ARGS__))
+    #define LOGT(...) __LOG(LogLevelTrace, __PINGGY_LOGGER_SINK__,  "TRACE:: " __EXPAND_LOGS__(__VA_ARGS__))
 #else
     #define LOGT(...)
 #endif
 
 #if LOG_LEVEL <= LogLevelDebug
-    #define LOGD(...) __LOG(__PINGGY_LOGGER_SINK__,  "DEBUG:: " __EXPAND_LOGS__(__VA_ARGS__))
+    #define LOGD(...) __LOG(LogLevelDebug, __PINGGY_LOGGER_SINK__,  "DEBUG:: " __EXPAND_LOGS__(__VA_ARGS__))
 #else
     #define LOGD(...)
 #endif
 
 #if LOG_LEVEL <= LogLevelInfo
-    #define LOGI(...) __LOG(__PINGGY_LOGGER_SINK__,  "INFO:: " __EXPAND_LOGS__(__VA_ARGS__))
+    #define LOGI(...) __LOG(LogLevelInfo, __PINGGY_LOGGER_SINK__,  "INFO:: " __EXPAND_LOGS__(__VA_ARGS__))
 #else
     #define LOGI(...)
 #endif
 
 #if LOG_LEVEL <= LogLevelError
-    #define LOGE(...) __LOG(__PINGGY_LOGGER_SINK__,  "ERROR:: " __EXPAND_LOGS__(__VA_ARGS__))
+    #define LOGE(...) __LOG(LogLevelError, __PINGGY_LOGGER_SINK__,  "ERROR:: " __EXPAND_LOGS__(__VA_ARGS__))
 #else
     #define LOGE(...)
 #endif
 
 #if LOG_LEVEL <= LogLevelFatal
-    #define LOGF(...) __LOG(__PINGGY_LOGGER_SINK__,  "FATAL:: " __EXPAND_LOGS__(__VA_ARGS__))
-    #define LOGFC(FL, ...) __LOG_FL(FL, __PINGGY_LOGGER_SINK__,  "FATAL:: " __EXPAND_LOGS__(__VA_ARGS__))
+    #define LOGF(...) __LOG(LogLevelFatal, __PINGGY_LOGGER_SINK__,  "FATAL:: " __EXPAND_LOGS__(__VA_ARGS__))
+    #define LOGFC(FL, ...) __LOG_FL(LogLevelFatal, FL, __PINGGY_LOGGER_SINK__,  "FATAL:: " __EXPAND_LOGS__(__VA_ARGS__))
 #else
     #define LOGF(...)
     #define LOGFC(...)
@@ -128,7 +145,7 @@ extern bool                     __PINGGY_GLOBAL_ENABLED__;
 //====
 
 #if LOG_LEVEL <= LogLevelTrace
-    #define LOGTV(...) __LOG(__PINGGY_LOGGER_SINK__,  "TRACE:: " __EXPAND_LOG_VARS__(__VA_ARGS__))
+    #define LOGTV(...) __LOG(LogLevelTrace, __PINGGY_LOGGER_SINK__,  "TRACE:: " __EXPAND_LOG_VARS__(__VA_ARGS__))
     #define LOGSSLT(...) __LOGSSL(LogLevelTrace, __VA_ARGS__)
 #else
     #define LOGTV(...)
@@ -136,7 +153,7 @@ extern bool                     __PINGGY_GLOBAL_ENABLED__;
 #endif
 
 #if LOG_LEVEL <= LogLevelDebug
-    #define LOGDV(...) __LOG(__PINGGY_LOGGER_SINK__,  "DEBUG:: " __EXPAND_LOG_VARS__(__VA_ARGS__))
+    #define LOGDV(...) __LOG(LogLevelDebug, __PINGGY_LOGGER_SINK__,  "DEBUG:: " __EXPAND_LOG_VARS__(__VA_ARGS__))
     #define LOGSSLD(...) __LOGSSL(LogLevelDebug, __VA_ARGS__)
 #else
     #define LOGDV(...)
@@ -144,7 +161,7 @@ extern bool                     __PINGGY_GLOBAL_ENABLED__;
 #endif
 
 #if LOG_LEVEL <= LogLevelInfo
-    #define LOGIV(...) __LOG(__PINGGY_LOGGER_SINK__,  "INFO:: " __EXPAND_LOG_VARS__(__VA_ARGS__))
+    #define LOGIV(...) __LOG(LogLevelInfo, __PINGGY_LOGGER_SINK__,  "INFO:: " __EXPAND_LOG_VARS__(__VA_ARGS__))
     #define LOGSSLI(...) __LOGSSL(LogLevelInfo, __VA_ARGS__)
 #else
     #define LOGIV(...)
@@ -152,7 +169,7 @@ extern bool                     __PINGGY_GLOBAL_ENABLED__;
 #endif
 
 #if LOG_LEVEL <= LogLevelError
-    #define LOGEV(...) __LOG(__PINGGY_LOGGER_SINK__,  "ERROR:: " __EXPAND_LOG_VARS__(__VA_ARGS__))
+    #define LOGEV(...) __LOG(LogLevelError, __PINGGY_LOGGER_SINK__,  "ERROR:: " __EXPAND_LOG_VARS__(__VA_ARGS__))
     #define LOGSSLE(...) __LOGSSL(LogLevelError, __VA_ARGS__)
 #else
     #define LOGEV(...)
@@ -160,7 +177,7 @@ extern bool                     __PINGGY_GLOBAL_ENABLED__;
 #endif
 
 #if LOG_LEVEL <= LogLevelFatal
-    #define LOGFV(...) __LOG(__PINGGY_LOGGER_SINK__,  "FATAL:: " __EXPAND_LOG_VARS__(__VA_ARGS__))
+    #define LOGFV(...) __LOG(LogLevelFatal, __PINGGY_LOGGER_SINK__,  "FATAL:: " __EXPAND_LOG_VARS__(__VA_ARGS__))
     #define LOGSSLF(...) __LOGSSL(LogLevelFatal, __VA_ARGS__)
 #else
     #define LOGFV(...)
@@ -233,6 +250,12 @@ UpdatePidForLog();
 
 void
 SetGlobalLogEnable(bool enable = true);
+
+// Register a thread-local log callback. Each thread that calls into libpinggy
+// can register its own callback; log lines emitted on that thread route there.
+// Pass (nullptr, nullptr) to clear.
+void
+SetLogCallback(PinggyLogCallbackFn cb, void *user_data);
 
 #endif //cplusplus
 

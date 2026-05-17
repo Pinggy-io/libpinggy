@@ -56,6 +56,12 @@ pinggy_set_log_enable(pinggy_bool_t val)
     SetGlobalLogEnable(val != 0);
 }
 
+PINGGY_EXPORT pinggy_void_t
+pinggy_set_log_callback(pinggy_on_log_cb_t cb, pinggy_void_p_t user_data)
+{
+    SetLogCallback(cb, user_data);
+}
+
 
 PINGGY_EXPORT pinggy_bool_t
 pinggy_is_interrupted()

@@ -193,6 +193,33 @@ pinggy_set_log_path(pinggy_char_p_t);
 PINGGY_EXPORT pinggy_void_t
 pinggy_set_log_enable(pinggy_bool_t);
 
+/**
+ * @typedef pinggy_on_log_cb_t
+ * @brief Callback invoked for each libpinggy log line.
+ *
+ * The callback runs synchronously on the thread that produced the log line.
+ * Registration is thread-local: in a multi-threaded host (e.g. Node.js
+ * worker_threads), each worker that calls into libpinggy must register its
+ * own callback, and lines emitted on that thread are routed to that
+ * worker's callback only.
+ *
+ * @param user_data User-defined pointer supplied to pinggy_set_log_callback.
+ * @param level     Log level. 1=Trace, 2=Debug, 3=Info, 4=Error, 5=Fatal.
+ * @param message   Log line, null-terminated. Pointer is valid only for the
+ *                  duration of the call; copy if you need to retain it.
+ */
+typedef pinggy_void_t (*pinggy_on_log_cb_t)                                     \
+                            (pinggy_void_p_t user_data, pinggy_int_t level, pinggy_const_char_p_t message);
+
+/**
+ * Register a thread-local log callback. Pass (NULL, NULL) to clear.
+ * Coexists with `pinggy_set_log_path`: every log line is written to the
+ * configured file/stdout AND dispatched to the calling thread's callback
+ * if one is set.
+ */
+PINGGY_EXPORT pinggy_void_t
+pinggy_set_log_callback(pinggy_on_log_cb_t cb, pinggy_void_p_t user_data);
+
 
 /**
  * @brief check if interuption occured while running last command. It is just a wrapper for
