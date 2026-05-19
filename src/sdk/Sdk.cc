@@ -297,7 +297,7 @@ Sdk::StartWebDebugging(tString addr)
     return bindAddr ? bindAddr->ToString() : "";
 }
 
-void PINGGY_ATTRIBUTE_FUNC
+tUint64 PINGGY_ATTRIBUTE_FUNC
 Sdk::RequestAdditionalForwarding(tString forwardingType, tString bindingUrl, tString forwardTo)
 {
     if (state >= SdkState::Stopped) {
@@ -318,9 +318,11 @@ Sdk::RequestAdditionalForwarding(tString forwardingType, tString bindingUrl, tSt
     additionalForwardings.push_back(forwarding);
 
     internalRequestAdditionalRemoteForwarding(forwarding);
+
+    return forwarding->ForwardingId;
 }
 
-void
+tUint64 PINGGY_ATTRIBUTE_FUNC
 Sdk::RequestAdditionalForwarding(tString forwardTo)
 {
     if (state >= SdkState::Stopped) {
@@ -341,6 +343,8 @@ Sdk::RequestAdditionalForwarding(tString forwardTo)
     additionalForwardings.push_back(forwarding);
 
     internalRequestAdditionalRemoteForwarding(forwarding);
+
+    return forwarding->ForwardingId;
 }
 
 SdkState
@@ -446,7 +450,7 @@ Sdk::HandleSessionRemoteForwardingSucceeded(protocol::tReqId reqId, tForwardingI
             this->urls = urls;
 
         if (sdkForwardings.find(forwardingId) != sdkForwardings.end()) {
-            ABORT_WITH_MSG("This not supposed to happen: ", forwardingId); //cannot test it ever
+            ABORT_WITH_MSG("Received same forwardingId twice from server. This is not supposed to happen: ", forwardingId); //cannot test it ever
             return;
         }
 
@@ -474,7 +478,7 @@ Sdk::HandleSessionRemoteForwardingSucceeded(protocol::tReqId reqId, tForwardingI
         keepAliveTask = pollController->SetInterval(5 * SECOND, thisPtr, &Sdk::sendKeepAlive);
 
         for (auto forwarding : additionalForwardings) { // yes we are starting additional forwarding right here.
-            forwarding->newFlag = false;
+            forwarding->NewFlag = false;
             internalRequestAdditionalRemoteForwarding(forwarding);
         }
 
@@ -506,8 +510,8 @@ Sdk::HandleSessionRemoteForwardingSucceeded(protocol::tReqId reqId, tForwardingI
 
     updateForwardMap(remoteForwardings);
 
-    if (eventHandler && forwarding->newFlag) {
-        eventHandler->OnAdditionalForwardingSucceeded(forwarding->origBindingUrl, forwarding->origForwardTo, forwarding->origForwardingType);
+    if (eventHandler && forwarding->NewFlag) {
+        eventHandler->OnAdditionalForwardingSucceeded(forwarding->ForwardingId); //this forwarding id is local.
     }
 }
 
@@ -546,8 +550,8 @@ Sdk::HandleSessionRemoteForwardingFailed(protocol::tReqId reqId, tString error)
     auto forwarding = pendingAdditionalRemoteForwardingMap[reqId];
     pendingAdditionalRemoteForwardingMap.erase(reqId);
 
-    if (eventHandler && forwarding->newFlag) {
-        eventHandler->OnAdditionalForwardingFailed(forwarding->origBindingUrl, forwarding->origForwardTo, forwarding->origForwardingType, error);
+    if (eventHandler && forwarding->NewFlag) {
+        eventHandler->OnAdditionalForwardingFailed(forwarding->ForwardingId, error);
     }
 }
 
@@ -566,8 +570,8 @@ Sdk::HandleSessionNewChannelRequest(protocol::ChannelPtr channel)
     }
 
     auto forwarding = sdkForwardings[forwardingId];
-    auto toHost = forwarding->fwdToHost;
-    auto toPort = forwarding->fwdToPort;
+    auto toHost = forwarding->FwdToHost;
+    auto toPort = forwarding->FwdToPort;
 
     if (chanType == protocol::ChannelType_PTY) {
         channel->Reject("Pty is not acceptable here");
@@ -585,7 +589,7 @@ Sdk::HandleSessionNewChannelRequest(protocol::ChannelPtr channel)
             netConnImpl->Connect(thisPtr, channel);
             return; //we will handle this in different place
         } catch(...) {
-            LOGE("Could not connect to", forwarding->origForwardTo);
+            LOGE("Could not connect to", forwarding->ForwardingUrl);
             channel->Reject("Could not connect to provided address");
             return;
         }
@@ -600,11 +604,11 @@ Sdk::HandleSessionNewChannelRequest(protocol::ChannelPtr channel)
         try {
             netConn = net::NewUdpConnectionImplPtr(toHost, std::to_string(toPort));
         } catch(const std::exception& e) {
-            LOGE("Could not connect to", forwarding->origForwardTo, " due to ", e.what());
+            LOGE("Could not connect to", forwarding->ForwardingUrl, " due to ", e.what());
             channel->Reject("Could not connect to provided address");
             return;
         } catch(...) {
-            LOGE("Could not connect to", forwarding->origForwardTo);
+            LOGE("Could not connect to", forwarding->ForwardingUrl);
             channel->Reject("Could not connect to provided address");
             return;
         }
@@ -1029,8 +1033,8 @@ Sdk::internalRequestForwarding()
     state = SdkState::ForwardingInitiated;
 
     for (auto forwarding : sdkConfig->sdkForwardingList) {
-        auto reqId = session->SendRemoteForwardRequest(forwarding->bindingPort, forwarding->bindingDomain,
-                                                        forwarding->fwdToPort, forwarding->fwdToHost, forwarding->mode);
+        auto reqId = session->SendRemoteForwardRequest(forwarding->BindingPort, forwarding->BindingDomain,
+                                                        forwarding->FwdToPort, forwarding->FwdToHost, forwarding->Mode);
         pendingRemoteForwardingRequestMap[reqId] = forwarding;
     }
 
@@ -1067,8 +1071,8 @@ Sdk::releaseAccessLock()
 void
 Sdk::internalRequestAdditionalRemoteForwarding(SdkForwardingPtr forwarding)
 {
-    auto reqId = session->SendRemoteForwardRequest(forwarding->bindingPort, forwarding->bindingDomain,
-                                                    forwarding->fwdToPort, forwarding->fwdToHost, forwarding->mode);
+    auto reqId = session->SendRemoteForwardRequest(forwarding->BindingPort, forwarding->BindingDomain,
+                                                    forwarding->FwdToPort, forwarding->FwdToHost, forwarding->Mode);
 
     if (reqId > 0) {
         pendingAdditionalRemoteForwardingMap[reqId] = forwarding;

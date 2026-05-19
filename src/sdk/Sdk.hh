@@ -60,14 +60,14 @@ public:
                                 { }
 
     virtual void
-    OnTunnelFailed(tString) { }
+    OnTunnelFailed(tString)     { }
 
     virtual void
-    OnAdditionalForwardingSucceeded(tString bindAddress, tString forwardTo, tString forwardingType)
+    OnAdditionalForwardingSucceeded(tUint64 forwardingId)
                                 { }
 
     virtual void
-    OnAdditionalForwardingFailed(tString bindAddress, tString forwardTo, tString forwardingType, tString error)
+    OnAdditionalForwardingFailed(tUint64 forwardingId, tString error)
                                 { }
 
     virtual void
@@ -132,7 +132,7 @@ public:
     ResumeTunnel(tInt32 timeout = -1);
 
     bool
-    IsAuthenticated()           {return state >= SdkState::Authenticated;}
+    IsAuthenticated()           { return state >= SdkState::Authenticated; }
 
     std::vector<tString>
     GetUrls();
@@ -149,10 +149,10 @@ public:
     tString
     StartWebDebugging(tString addr);
 
-    void
+    tUint64
     RequestAdditionalForwarding(tString forwardingType, tString bindingUrl, tString forwardTo);
 
-    void
+    tUint64
     RequestAdditionalForwarding(tString forwardTo);
 
     bool
