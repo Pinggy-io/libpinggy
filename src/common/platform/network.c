@@ -1112,7 +1112,7 @@ int
 ip_port_to_sockaddr(const char *ip_port, union sockaddr_ip *out, socklen_t *outlen)
 {
     char ip[INET6_ADDRSTRLEN];
-    char *colon = strrchr(ip_port, ':');
+    const char *colon = strrchr(ip_port, ':');
     if (!colon) return -1;
 
     if (!out || !outlen)

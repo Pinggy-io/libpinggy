@@ -18,7 +18,6 @@
 #include <platform/assert_pinggy.h>
 #include <map>
 #include <utils/Utils.hh>
-#include <utils/TemplateStreaming.hh> //this needs to be the last include
 
 
 const std::map<tValueType, tString> typeToTypeNameMap = {

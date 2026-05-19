@@ -16,7 +16,6 @@
 
 #include "UdpConnection.hh"
 #include <openssl/ssl.h>
-#include <utils/TemplateStreaming.hh> //this needs to be the last include
 
 
 namespace net

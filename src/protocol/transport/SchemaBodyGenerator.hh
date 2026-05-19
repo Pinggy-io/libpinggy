@@ -19,7 +19,6 @@
 
 #include "SchemaHeaderGenerator.hh"
 #include <algorithm>
-#include <utils/TemplateStreaming.hh> //remove
 
 //==============================================================================
 //    Define exception

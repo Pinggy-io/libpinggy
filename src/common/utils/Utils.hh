@@ -64,7 +64,11 @@ public:
     ~Url();
 
     tString
-    ToString()                  { return protocol + "://" + GetHost() + ":" + std::to_string(port) + path; }
+    ToString() override         { return protocol + "://" + GetHost() + ":" + std::to_string(port) + path; }
+
+    virtual void
+    Repr(std::ostream &os) override
+                                { os << protocol << "://" << GetHost() << ":" << std::to_string(port) << path; }
 
     tString
     GetSockAddrString()         { return GetHost() + ":" + portStr; }
@@ -137,84 +141,11 @@ NewUrlPtrNoProto(tString url, int defaultPort = 80, tString defaultProto = "")
     return NewUrlPtr(url, defaultPort, defaultProto);
 }
 
-std::ostream&
-operator<<(std::ostream& os, const UrlPtr& url);
-
 FsPath
 CreateTemporaryDirectory(tString templat="util-temp-XXXXX");
 
 bool
 DeleteDirTree(FsPath dirPath);
-
-
-template< typename T, typename U, typename V >
-std::basic_ostream<U, V>&
-operator<<(std::basic_ostream<U, V>& os, const std::vector<T>& vect);
-
-template<typename K, typename V, typename T, typename U >
-std::basic_ostream<T, U>&
-operator<<(std::basic_ostream<T, U>& os, const std::map<K, V>& map);
-
-template< typename T, typename U, typename V >
-std::basic_ostream<U, V>&
-operator<<(std::basic_ostream<U, V>& os, const std::set<T>& vect);
-
-template<typename U, typename V, typename... Args >
-std::basic_ostream<U, V>&
-operator<<(std::basic_ostream<U, V>& os, const std::tuple<Args...>& t);
-
-template<typename K, typename V, typename T, typename U >
-std::basic_ostream<T, U>&
-operator<<(std::basic_ostream<T, U>& os, const std::pair<K, V>& pair);
-
-
-
-//==============
-template<typename T>
-size_t
-DumpMemoryUsages(std::ostream& os, tString varName, const std::vector<T>& vect);
-
-template<typename T>
-size_t
-DumpMemoryUsages(std::ostream& os, tString varName, const std::queue<T>& queue);
-
-template<typename K, typename V>
-size_t
-DumpMemoryUsages(std::ostream& os, tString varName, const std::map<K, V>& map);
-
-template<typename T>
-size_t
-DumpMemoryUsages(std::ostream& os, tString varName, const std::set<T>& vect);
-
-template<typename... Args >
-size_t
-DumpMemoryUsages(std::ostream& os, tString varName, const std::tuple<Args...>& t);
-
-template<typename K, typename V>
-size_t
-DumpMemoryUsages(std::ostream& os, tString varName, const std::pair<K, V>& pair);
-
-//=
-size_t
-DumpMemoryUsages(std::ostream& os, tString varName, const tString& val);
-
-template<typename T> //literals
-size_t
-DumpMemoryUsages(std::ostream& os, tString varName, const T& val);
-
-template<typename T>
-size_t
-DumpMemoryUsages(std::ostream& os, tString varName, const std::shared_ptr<T>& ptr);
-
-template<typename T>
-size_t
-DumpMemoryUsages(std::ostream& os, tString varName, const std::weak_ptr<T>& ptr);
-
-template<typename T>
-size_t
-DumpMemoryUsages(std::ostream& os, tString varName, const T *t);
-
-// #define DUMP_MEM_USAGE(os, var, ci, ib)
 
 
 #endif /* SERVER_UTILS_HH_ */

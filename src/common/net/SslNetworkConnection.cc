@@ -19,7 +19,6 @@
 #include <platform/Log.hh>
 #include <openssl/err.h>
 #include "SslNetConnBio.hh"
-#include <utils/TemplateStreaming.hh> //this needs to be the last include
 
 namespace net {
 

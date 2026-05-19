@@ -24,7 +24,6 @@
 #include <platform/assert_pinggy.h>
 #include <platform/Log.hh>
 #include <utils/Utils.hh>
-#include <utils/TemplateStreaming.hh>
 
 PRIMARY_DEPENDENT_HEADERS(PinggyPollLinux.hh)
 PRIMARY_DEPENDENT_HEADERS(PinggyPollCommon.hh)

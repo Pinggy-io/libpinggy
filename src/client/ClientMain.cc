@@ -19,7 +19,6 @@
 #include <utils/Utils.hh>
 #include "cli_getopt.h"
 
-#include <utils/TemplateStreaming.hh> //this needs to be the last include
 
 #ifndef PLATFORM_CONFIG_INCLUDED
 

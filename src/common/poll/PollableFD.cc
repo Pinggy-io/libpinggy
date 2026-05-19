@@ -16,7 +16,6 @@
 
 
 #include "PollableFD.hh"
-#include <utils/TemplateStreaming.hh> //this needs to be the last include
 
 class FunctionCallbackFDEventHandler: public virtual FDEventHandler
 {

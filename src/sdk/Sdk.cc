@@ -28,7 +28,6 @@
 #include <utils/Semaphore.hh>
 #include <platform/Defer.hh>
 #include "SdkException.hh"
-#include <utils/TemplateStreaming.hh> //this needs to be the last include
 
 const char BASE_CERTIFICATE[] = \
 "-----BEGIN CERTIFICATE-----\n"                                      \

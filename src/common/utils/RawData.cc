@@ -18,7 +18,6 @@
 #include <cstring>
 
 #include <platform/Log.hh>
-#include "TemplateStreaming.hh"
 
 /*
  * Raw data
