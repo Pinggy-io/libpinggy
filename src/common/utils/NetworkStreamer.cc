@@ -15,7 +15,6 @@
  */
 
 #include "NetworkStreamer.hh"
-#include "TemplateStreaming.hh" //this needs to be the last include
 
 class NetStreamBuf :
         public std::streambuf,

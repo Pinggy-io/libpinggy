@@ -24,7 +24,6 @@
 #include <utils/Json.hh>
 #include <platform/platform.h>
 #include "AddressCache.hh"
-#include <utils/TemplateStreaming.hh> //this needs to be the last include
 
 
 namespace net {
@@ -147,6 +146,30 @@ NetworkConnectionImpl::NetworkConnectionImpl(sock_t fd) :
     netState.Valid = IsValidSocket(fd);
 }
 
+NetworkConnectionImpl::NetworkConnectionImpl(sock_t fd, SocketAddressPtr peerAddress) :
+        fd(fd),
+        peerAddressCached(nullptr),
+        flags(0),
+        lastReturn(0),
+        blocking(false),
+        tryAgain(false),
+        connecting(false),
+        cachedAddressTried(false),
+        fetchAddressFromSystem(false)
+{
+    bzero(&currentAddress, sizeof(currentAddress));
+    soType = get_socket_type(fd);
+    soFamily = get_socket_family(fd);
+    netState.Tcp = (soFamily == AF_INET || soFamily == AF_INET6) && soType == SOCK_STREAM;
+    netState.Uds = soFamily == AF_UNIX;
+    set_close_on_exec(fd);
+    // set_blocking(fd, 1);
+    blocking = is_blocking(fd);
+    netState.Valid = IsValidSocket(fd);
+    if (peerAddress && peerAddress->IsValid())
+        peerAddressCached = peerAddress;
+}
+
 
 NetworkConnectionImpl::~NetworkConnectionImpl()
 {
@@ -202,7 +225,7 @@ NetworkConnectionImpl::CloseNClear(tString location)
 {
     int ret = 0;
     if(IsValidSocket(fd)) {
-        LOGD(this, location, "Closing fd:", fd);
+        LOGD(this, location, "Closing connection:", thisPtr);
         ret = SysSocketClose(fd);
         InValidateSocket(fd);
         netState.Valid = false;
@@ -477,16 +500,17 @@ SocketAddress::GetPath()
     return path;
 }
 
-tString
-SocketAddress::ToString()
+void
+SocketAddress::Repr(std::ostream &os)
 {
     if(!valid)
-        return "InValid"; //TODO thow exception
-    if (uds)
-        return path;
-    if (ipv6)
-        return "["+ip+"]:" + std::to_string(port);
-    return ip + ":" + std::to_string(port);
+        os << "InValid"; //TODO thow exception
+    else if (uds)
+        os << path;
+    else if (ipv6)
+        os << "[" << ip << "]:" << port;
+    else
+        os << ip << ":" << port;
 }
 
 void SocketAddress::parseSockaddr()
@@ -641,6 +665,59 @@ NetworkConnection::GetConnectionMetadata(tString indentifier, tString serverName
     return metadata;
 }
 
+void
+NetworkConnection::Repr(std::ostream &os)
+{
+    os << "<";
+
+    if (IsSsl())
+        os << "tcp:ssl ";
+    else if (IsTcp())
+        os << "tcp ";
+    else if (IsUdp())
+        os << "udp ";
+    else if (IsUds())
+        os << "uds ";
+    else
+        os << "nc:" << GetType() << " ";
+
+    auto fd = GetFd();
+
+    os << fd << " ";
+
+    auto dAddr = GetLocalAddress();
+    auto sAddr = GetPeerAddress();
+
+    net::SocketAddressPtr osAddr;
+    net::SocketAddressPtr odAddr;
+    if (IsRelayed()) {
+        odAddr = GetOrigLocalAddress();
+        osAddr = GetOrigPeerAddress();
+    }
+
+    if (dAddr) {
+        os << dAddr;
+        if (IsRelayed())
+            os << "(" << (odAddr ? odAddr->ToString() : "<nil>") << ")";
+    } else {
+        os << "<nil>";
+    }
+
+    os << "<->";
+
+    if (sAddr) {
+        os << sAddr;
+        if (IsRelayed())
+            os << "(" << (osAddr ? osAddr->ToString() : "<nil>") << ")";
+    } else {
+        os << "<nil>";
+    }
+
+    os << " " << this;
+
+    os << ">";
+}
+
 std::tuple<ssize_t, RawDataPtr>
 NetworkConnection::Read(len_t nbyte, int flags)
 {
@@ -676,13 +753,6 @@ NetworkConnection::Peek(len_t nbyte)
 
 } /* namespace net */
 
-std::ostream&
-operator <<(std::ostream &os, const net::SocketAddressPtr &sa)
-{
-    os << sa->ToString();
-    return os;
-}
-
 std::ostream &
 operator<<(std::ostream &os, net::tConnType &connType)
 {
@@ -695,5 +765,6 @@ operator<<(std::ostream &os, net::tConnType &connType)
     os << "}";
     return os;
 }
+
 
 INCLUDE_MEMORY_DUMP_DEFINITION

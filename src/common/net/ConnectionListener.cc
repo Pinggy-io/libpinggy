@@ -19,7 +19,6 @@
 
 #include <platform/Log.hh>
 #include "ConnectionListener.hh"
-#include <utils/TemplateStreaming.hh> //this needs to be the last include
 
 #define MAX_CONSECUTIVE_OPEN_FILE_ERROR 1024
 
@@ -202,7 +201,10 @@ NetworkConnectionPtr
 ConnectionListenerImpl::Accept()
 {
     tryAgain = false;
-    sock_t newsock = app_accept(fd, NULL, NULL);
+    sockaddr_ip addr;
+    socklen_t len = sizeof(addr);
+    bzero(&addr, sizeof(addr));
+    sock_t newsock = app_accept(fd, &addr, &len);
     if (newsock < 0) {
         if (app_is_eagain()) {
             tryAgain = true;
@@ -211,10 +213,12 @@ ConnectionListenerImpl::Accept()
         }
     }
     if (!IsValidSocket(newsock)) {
-        LOGE("Invalid socket");
+        if (!tryAgain)
+            LOGE("Invalid socket");
         return nullptr;
     }
-    auto netConn = NewNetworkConnectionImplPtr(newsock);
+    auto netConn = NewNetworkConnectionImplPtr(newsock, NewSocketAddressPtr(addr));
+    LOGD("New connection accepted", netConn);
     netConn->SetFlags(flagsForChild);
     netConn->SetConnType(ConnTypeForChild());
     netConn->SetBlocking(true);

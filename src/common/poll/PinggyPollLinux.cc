@@ -24,7 +24,6 @@
 #include <platform/assert_pinggy.h>
 #include <platform/Log.hh>
 #include <utils/Utils.hh>
-#include <utils/TemplateStreaming.hh> //this needs to be the last include
 
 PRIMARY_DEPENDENT_HEADERS(PinggyPollCommon.hh)
 

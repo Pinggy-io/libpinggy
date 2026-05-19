@@ -17,7 +17,6 @@
 #include "Schema.hh"
 #include "transport/SchemaHeaderGenerator.hh"
 #include "transport/SchemaBodyGenerator.hh"
-#include <utils/TemplateStreaming.hh> //this needs to be the last include
 
 
 DEFINE_TRANSPORT_SERIALIZER_DESERIALIZER_PTR_V2(ClientSpecificUsages,

@@ -19,7 +19,6 @@
 #include <shared_mutex>
 #include <exception>
 #include <platform/app_foreach_macro.h>
-#include <utils/TemplateStreaming.hh> //this needs to be the last include
 
 #define PINGGY_TYPETEST_ENABLED
 

@@ -22,7 +22,6 @@
 #include <utils/Json.hh>
 #include <utils/Utils.hh>
 #include <string>
-#include <utils/TemplateStreaming.hh> //this needs to be the last include
 
 
 PathRegistry::PathRegistry() : currentId(ROOT_PATH_ID), dirty(false)

@@ -20,7 +20,6 @@
 #include <platform/Log.hh>
 #include <platform/network.h>
 #include "SdkException.hh"
-#include <utils/TemplateStreaming.hh> //this needs to be the last include
 
 namespace sdk
 {

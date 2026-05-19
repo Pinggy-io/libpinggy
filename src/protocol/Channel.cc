@@ -16,7 +16,6 @@
 
 #include "Channel.hh"
 #include "Session.hh"
-#include <utils/TemplateStreaming.hh> //this needs to be the last include
 
 namespace protocol
 {

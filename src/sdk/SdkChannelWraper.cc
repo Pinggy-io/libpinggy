@@ -16,7 +16,6 @@
 
 #include "SdkChannelWraper.hh"
 #include "Sdk.hh"
-#include <utils/TemplateStreaming.hh> //this needs to be the last include
 
 namespace sdk
 {

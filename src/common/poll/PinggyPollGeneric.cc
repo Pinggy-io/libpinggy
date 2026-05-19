@@ -19,7 +19,6 @@
 #include <utils/Utils.hh>
 #include <platform/assert_pinggy.h>
 #include "PinggyPollGeneric.hh"
-#include <utils/TemplateStreaming.hh> //this needs to be the last include
 
 
 namespace common {

@@ -15,7 +15,6 @@
  */
 
 #include "Semaphore.hh"
-#include "TemplateStreaming.hh"
 
 
 #if __cplusplus < 202002L
