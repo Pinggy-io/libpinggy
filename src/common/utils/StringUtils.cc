@@ -143,7 +143,7 @@ EndsWith(tString const &fullString, tString const &ending, bool caseSensitive)
             return (0 == fullString.compare (fullString.length() - ending.length(), ending.length(), ending));
         auto haystack = fullString.c_str();
         auto needle = ending.c_str();
-        return strncasecmp(haystack + (fullString.length() - ending.length()), needle, ending.length());
+        return strncasecmp(haystack + (fullString.length() - ending.length()), needle, ending.length()) == 0;
     } else {
         return false;
     }

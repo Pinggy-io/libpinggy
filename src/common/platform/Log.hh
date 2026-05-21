@@ -126,6 +126,12 @@ extern bool                     __PINGGY_GLOBAL_ENABLED__;
     #define LOGFC(...)
 #endif
 
+#if LOG_LEVEL <= LogLevelError
+    #define LOGA(...) __LOG(__PINGGY_LOGGER_SINK__,  "ANALYSIS:: " __EXPAND_LOGS__(__VA_ARGS__))
+#else
+    #define LOGA(...)
+#endif
+
 //====
 
 #if LOG_LEVEL <= LogLevelTrace
@@ -224,7 +230,7 @@ void
 SetLogPrefix(std::string pref);
 
 void
-InitLogWithOstream(std::ostream &os)
+InitLogWithOstream(std::ostream &os);
 
 void
 InitLogWithCout();

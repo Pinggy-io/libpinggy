@@ -215,7 +215,7 @@ ClassName##ClassSuffix::ClassName##ClassSuffix(                                 
 
 #define _SCHEMA_BODY_DefineVarToPinggyValue_(x, y, ...)                         \
     APP_EXPAND(_SCHEMA_BODY_IfDefaultToPinggy(clsPtr->y, ##__VA_ARGS__, _1,     \
-         _0, _0))                                                               \
+         _1, _0))                                                               \
     pv.SetFrom(#y, clsPtr->y);
 
 #define _SCHEMA_BODY_DefineVarToPinggyValue(x)                                  \
@@ -234,7 +234,7 @@ ClassName##ClassSuffix::ClassName##ClassSuffix(                                 
         _SCHEMA_BODY_IfDefaultFromPinggy##isDef, typ, val, def)
 
 #define _SCHEMA_BODY_DefineVarFromPinggyValue_(x, y, ...)                       \
-    APP_EXPAND(_SCHEMA_BODY_IfDefaultFromPinggy(x, y, ##__VA_ARGS__, _1, _0, _0))
+    APP_EXPAND(_SCHEMA_BODY_IfDefaultFromPinggy(x, y, ##__VA_ARGS__, _1, _1, _0))
 
 #define _SCHEMA_BODY_DefineVarFromPinggyValue(x)                                \
     _SCHEMA_BODY_DefineVarFromPinggyValue_ x
@@ -625,7 +625,7 @@ Deflate(SerializerPtr serializer, type mode)                                    
 static void                                                                     \
 ToPinggyValue(PinggyValue &pv, const type &mode)                                \
 {                                                                               \
-    pv.ToPinggyValue((castTo)mode);                                             \
+    pv.SetFrom((castTo)mode);                                                   \
 }                                                                               \
 static void                                                                     \
 Inflate(DeserializerPtr deserializer, type &mode)                               \
