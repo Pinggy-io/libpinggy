@@ -1,4 +1,4 @@
-# libpinggy  -  core sdk for Pinggy
+# libpinggy - core sdk for Pinggy
 A C++ library intended for creating bindings to all major languages.
 
 ## Building instructions for windows
