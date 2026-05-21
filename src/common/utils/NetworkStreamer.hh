@@ -18,10 +18,14 @@
 #define __SRC_CPP_PRIVATE_COMMON_UTILS_NETWORKSTREAMER_HH__
 
 #include <platform/SharedPtr.hh>
-#include <net/NetworkConnection.hh>
 #include <ostream>
 #include <streambuf>
 #include <cstddef>
+
+// Forward-declare net::NetworkConnection
+namespace net {
+    DeclareClassWithSharedPtr(NetworkConnection);
+}
 
 DeclareClassWithSharedPtr(NetStreamBuf);
 
