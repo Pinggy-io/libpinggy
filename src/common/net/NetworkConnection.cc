@@ -338,14 +338,16 @@ NetworkConnectionImpl::connectTimeoutOccured()
 bool
 NetworkConnectionImpl::getNextAddressToConnect()
 {
-    currentAddress = sock_addrinfo{0};
+    currentAddress = sock_addrinfo{};
     if (!cachedAddressTried) {
         cachedAddressTried = true;
         fetchAddressFromSystem = true;
         auto addrCache = AddressCache::GetInstance();
-        currentAddress = addrCache->GetAddrInfo(hostToConnect, portToConnect, true);
-        if (currentAddress.valid)
+        auto cachedAddr = addrCache->GetAddrInfo(hostToConnect, portToConnect, true);
+        if (cachedAddr.has_value()) {
+            currentAddress = cachedAddr.value();
             return true;
+        }
     }
 
     if (fetchAddressFromSystem) {

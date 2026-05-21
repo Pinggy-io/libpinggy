@@ -414,7 +414,7 @@ Sdk::HandleSessionAuthenticationFailed(tString error, std::vector<tString> authe
 {
     authenticationMsg = authenticationFailed;
     lastError = JoinString(authenticationFailed, "\n");
-    LOGE("Authentication Failed");
+    LOGE("Authentication Failed: ", lastError);
 
     releaseBaseConnection();
 

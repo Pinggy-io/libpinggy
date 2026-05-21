@@ -11,6 +11,8 @@
 * Added mechanism to Add anyType of raw data to our RawData structure.
 * Fixing map, vector and set printing.
 * Formatting code.
+* Fixing nullptr in transport.
+* Fixing log.
 
 ### Feat-Sync
 * Formating few code formatting.

@@ -84,7 +84,7 @@ enum tChannelType {
         (std::vector<tString>,      RedirectTo),                                        \
         (tString,                   Error,              "",                         1), \
         (std::vector<tString>,      Messages),                                          \
-        (TunnelInfoPtr,             TunnelInfo)                                         \
+        (TunnelInfoPtr,             TunnelInfo,         nullptr)                        \
     )                                                                                   \
     f(RemoteForwardRequest,                                                             \
         arg,                                                                            \

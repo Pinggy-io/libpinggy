@@ -974,6 +974,7 @@ int enable_keep_alive(sock_t fd, int keepCnt, int keepIdle, int keepIntvl, int e
         LOGEF(fd, "setsockopt");
         return 0;
     }
+    if (!enable) return 1;
 
     optval = keepCnt;
     if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPCNT, (void*)&optval, sizeof(optval)) < 0) {
