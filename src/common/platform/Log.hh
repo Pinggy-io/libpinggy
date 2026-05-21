@@ -30,6 +30,9 @@
 #include <stdlib.h>
 #include "platform.h"
 #include "app_foreach_macro.h"
+#ifdef __cplusplus
+#include <utils/NetworkStreamer.hh>
+#endif
 
 #ifdef __ALREADY_LOG_H_INCLUDED__
 #define __ALREADY_LOG_HH_INCLUDED__
@@ -60,39 +63,47 @@ extern std::string              __PINGGY_LOG_PREFIX__;
 extern pid_t                    __PINGGY_LOG_PID__;
 extern bool                     __PINGGY_GLOBAL_ENABLED__;
 
-// Signature for per-thread log callback. See SetLogCallback below.
+// Signature for the log callback. 
 typedef void (*PinggyLogCallbackFn)(void *user_data, int level, const char *message);
 
-extern thread_local PinggyLogCallbackFn  __PINGGY_LOG_CALLBACK__;
-extern thread_local void                *__PINGGY_LOG_CALLBACK_USER_DATA__;
+extern PinggyLogCallbackFn       __PINGGY_LOG_CALLBACK__;
+extern void                     *__PINGGY_LOG_CALLBACK_USER_DATA__;
 
-void
-DispatchLogCallback(int level, const std::string &line);
 
 
 #define __LTIME \
     (std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count())
 
-#define __LOG(__level, x__, __y) do{ \
+#define __LOG(__level, x__, __y) do { \
     if (__PINGGY_GLOBAL_ENABLED__) { \
         auto ttime = __LTIME; \
-        std::ostringstream __pgy_oss__; \
-        __pgy_oss__ << ttime << ":: " __FILE__ ":" \
-            APP_CONVERT_TO_STRING(__LINE__) << " " << __PINGGY_LOG_PREFIX__ << "(" << __PINGGY_LOG_PID__ << ")::" __y ""; \
-        std::string __pgy_line__ = __pgy_oss__.str(); \
-        (x__.is_open()?x__:std::cout) << __pgy_line__ << std::endl; \
-        DispatchLogCallback(__level, __pgy_line__); \
+        (x__.is_open()?x__:std::cout) << ttime << ":: " __FILE__ ":" \
+            APP_CONVERT_TO_STRING(__LINE__) << " " << __PINGGY_LOG_PREFIX__ \
+            << "(" << __PINGGY_LOG_PID__ << ")::" __y std::endl; \
+        /* Callback path — only when a callback is registered. */ \
+        if (__PINGGY_LOG_CALLBACK__) { \
+            LogCallbackAwareOStream __pgy_stream(__PINGGY_LOG_CALLBACK__, \
+                                                 __PINGGY_LOG_CALLBACK_USER_DATA__, \
+                                                 __level); \
+            __pgy_stream << ttime << ":: " __FILE__ ":" \
+                APP_CONVERT_TO_STRING(__LINE__) << " " << __PINGGY_LOG_PREFIX__ \
+                << "(" << __PINGGY_LOG_PID__ << ")::" __y std::endl; \
+        } \
     } \
-}while(0)
+} while(0)
 
-#define __LOG_FL(__level, FL__, x__, __y) do{ \
+#define __LOG_FL(__level, FL__, x__, __y) do { \
     if (__PINGGY_GLOBAL_ENABLED__) { \
         auto ttime = __LTIME; \
-        std::ostringstream __pgy_oss__; \
-        __pgy_oss__ << ttime << ":: " << FL__ << " " << __PINGGY_LOG_PREFIX__ << "(" << __PINGGY_LOG_PID__ << ")::" __y ""; \
-        std::string __pgy_line__ = __pgy_oss__.str(); \
-        (x__.is_open()?x__:std::cout) << __pgy_line__ << std::endl; \
-        DispatchLogCallback(__level, __pgy_line__); \
+        (x__.is_open()?x__:std::cout) << ttime << ":: " << FL__ << " " \
+            << __PINGGY_LOG_PREFIX__ << "(" << __PINGGY_LOG_PID__ << ")::" __y std::endl; \
+        if (__PINGGY_LOG_CALLBACK__) { \
+            LogCallbackAwareOStream __pgy_stream(__PINGGY_LOG_CALLBACK__, \
+                                                 __PINGGY_LOG_CALLBACK_USER_DATA__, \
+                                                 __level); \
+            __pgy_stream << ttime << ":: " << FL__ << " " \
+                << __PINGGY_LOG_PREFIX__ << "(" << __PINGGY_LOG_PID__ << ")::" __y std::endl; \
+        } \
     } \
 } while(0)
 
@@ -251,9 +262,6 @@ UpdatePidForLog();
 void
 SetGlobalLogEnable(bool enable = true);
 
-// Register a thread-local log callback. Each thread that calls into libpinggy
-// can register its own callback; log lines emitted on that thread route there.
-// Pass (nullptr, nullptr) to clear.
 void
 SetLogCallback(PinggyLogCallbackFn cb, void *user_data);
 

@@ -33,10 +33,9 @@ pid_t                           __PINGGY_LOG_PID__ = 0;
 // int64_t                         __LastChrono = 0;
 bool                            __PINGGY_GLOBAL_ENABLED__ = true;
 
-// Thread-local log callback. Each thread that calls into libpinggy can
-// register its own callback; log lines emitted on that thread route to it.
-thread_local PinggyLogCallbackFn __PINGGY_LOG_CALLBACK__ = nullptr;
-thread_local void               *__PINGGY_LOG_CALLBACK_USER_DATA__ = nullptr;
+// Process-global log callback. Set via SetLogCallback / pinggy_set_log_callback.
+PinggyLogCallbackFn              __PINGGY_LOG_CALLBACK__           = nullptr;
+void                            *__PINGGY_LOG_CALLBACK_USER_DATA__ = nullptr;
 
 //Local
 std::string                     __logPath = "";
@@ -79,18 +78,10 @@ SetGlobalLogEnable(bool enable)
 void
 SetLogCallback(PinggyLogCallbackFn cb, void *user_data)
 {
-    __PINGGY_LOG_CALLBACK__ = cb;
+    __PINGGY_LOG_CALLBACK__           = cb;
     __PINGGY_LOG_CALLBACK_USER_DATA__ = user_data;
 }
 
-void
-DispatchLogCallback(int level, const std::string &line)
-{
-    PinggyLogCallbackFn cb = __PINGGY_LOG_CALLBACK__;
-    if (cb) {
-        cb(__PINGGY_LOG_CALLBACK_USER_DATA__, level, line.c_str());
-    }
-}
 
 void
 UpdatePidForLog()

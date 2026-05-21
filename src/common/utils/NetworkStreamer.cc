@@ -15,6 +15,8 @@
  */
 
 #include "NetworkStreamer.hh"
+#include <net/NetworkConnection.hh>     
+#include <cstdio>                       // for EOF
 #include "TemplateStreaming.hh" //this needs to be the last include
 
 class NetStreamBuf :
@@ -63,6 +65,55 @@ NetOStream::NetOStream(net::NetworkConnectionPtr netConn)
 {
     buf = NewNetStreamBufPtr(netConn);
     rdbuf(buf.get());
+}
+
+LogCallbackAwareOStream::StreamBuf::StreamBuf(CallbackFn cb, void *ud, int level)
+        : cb_(cb), ud_(ud), level_(level), pos_(0)
+{ }
+
+int
+LogCallbackAwareOStream::StreamBuf::overflow(int ch)
+{
+    if (ch == EOF) return !EOF;
+    if (pos_ >= sizeof(buf_) - 1) flush_line();
+    buf_[pos_++] = static_cast<char>(ch);
+    if (ch == '\n') flush_line();
+    return ch;
+}
+
+std::streamsize
+LogCallbackAwareOStream::StreamBuf::xsputn(const char *s, std::streamsize n)
+{
+    for (std::streamsize i = 0; i < n; ++i) {
+        if (pos_ >= sizeof(buf_) - 1) flush_line();
+        buf_[pos_++] = s[i];
+        if (s[i] == '\n') flush_line();
+    }
+    return n;
+}
+
+int
+LogCallbackAwareOStream::StreamBuf::sync()
+{
+    flush_line();
+    return 0;
+}
+
+void
+LogCallbackAwareOStream::StreamBuf::flush_line()
+{
+    if (pos_ == 0 || !cb_) { pos_ = 0; return; }
+    // Strip trailing newline so consumers don't get double-newlines.
+    size_t n = (buf_[pos_-1] == '\n') ? pos_-1 : pos_;
+    buf_[n] = '\0';
+    cb_(ud_, level_, buf_);
+    pos_ = 0;
+}
+
+LogCallbackAwareOStream::LogCallbackAwareOStream(CallbackFn cb, void *ud, int level)
+        : std::ostream(nullptr), buf_(cb, ud, level)
+{
+    rdbuf(&buf_);
 }
 
 

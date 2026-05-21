@@ -198,10 +198,8 @@ pinggy_set_log_enable(pinggy_bool_t);
  * @brief Callback invoked for each libpinggy log line.
  *
  * The callback runs synchronously on the thread that produced the log line.
- * Registration is thread-local: in a multi-threaded host (e.g. Node.js
- * worker_threads), each worker that calls into libpinggy must register its
- * own callback, and lines emitted on that thread are routed to that
- * worker's callback only.
+ * Registration is process-global: the most recent pinggy_set_log_callback
+ * call wins for the entire process.
  *
  * @param user_data User-defined pointer supplied to pinggy_set_log_callback.
  * @param level     Log level. 1=Trace, 2=Debug, 3=Info, 4=Error, 5=Fatal.
@@ -212,10 +210,9 @@ typedef pinggy_void_t (*pinggy_on_log_cb_t)                                     
                             (pinggy_void_p_t user_data, pinggy_int_t level, pinggy_const_char_p_t message);
 
 /**
- * Register a thread-local log callback. Pass (NULL, NULL) to clear.
+ * Register a process-global log callback. Pass (NULL, NULL) to clear.
  * Coexists with `pinggy_set_log_path`: every log line is written to the
- * configured file/stdout AND dispatched to the calling thread's callback
- * if one is set.
+ * configured file/stdout AND dispatched to the callback if one is set.
  */
 PINGGY_EXPORT pinggy_void_t
 pinggy_set_log_callback(pinggy_on_log_cb_t cb, pinggy_void_p_t user_data);
