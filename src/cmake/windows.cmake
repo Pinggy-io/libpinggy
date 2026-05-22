@@ -34,7 +34,7 @@ target_compile_options(compiler_flags INTERFACE
     "$<${gcc_like_cxx}:$<BUILD_INTERFACE:-Wall;-Werror;-Wunused;-Wno-unused-parameter;-Wno-missing-field-initializers;-Wno-ignored-qualifiers;-D_GNU_SOURCE>>"
     "$<${msvc_cxx}:$<BUILD_INTERFACE:-W3>>"
 )
-target_compile_options(compiler_flags INTERFACE /wd4244 /wd5105 /wd4458 /wd4996 /wd4250 /wd4702 /wd4267 /EHsc)
+target_compile_options(compiler_flags INTERFACE /wd4244 /wd5105 /wd4458 /wd4996 /wd4250 /wd4702 /wd4267 /EHsc /Zc:preprocessor)
 
 include(cmake/commonFuncDef.cmake)
 
