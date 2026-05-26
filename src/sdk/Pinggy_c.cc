@@ -86,7 +86,8 @@ getObj(pinggy_ref_t ref)
 }
 
 static pinggy_bool_t
-removeRef(pinggy_ref_t ref) {
+removeRef(pinggy_ref_t ref)
+{
     std::unique_lock<std::shared_mutex> lock(globalMutex);
     if (pinggyReferenceMap.find(ref) != pinggyReferenceMap.end()) {
         // LOGI("Freeing ref", ref);
