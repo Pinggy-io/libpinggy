@@ -114,7 +114,8 @@ ClassName##ClassSuffix::ClassName##ClassSuffix(                                 
 
 #define _SCHEMA_BODY_DefineDumpMemoryFunction_(ClassName, RootClass,            \
     ClassSuffix, ClassSmallSuffix, ...)                                         \
-    size_t ClassName##ClassSuffix::DumpMemory(std::ostream &os)                 \
+    size_t                                                                      \
+    ClassName##ClassSuffix::DumpMemory(std::ostream &os)                        \
     {                                                                           \
         DEFINE_DUMP_MEMORY_BODY_SUPER_F(                                        \
             _SCHEMA_BODY_DefineDumpMemoryFunction_VarStriper_,                  \
@@ -128,18 +129,45 @@ ClassName##ClassSuffix::ClassName##ClassSuffix(                                 
         x, _SCHEMA_HEADER_StripParen vars, __VA_ARGS__)
 
 
+//====================================================
+#define _SCHEMA_BODY_ValidateDefaultArguments_IsValid(w, x, y, z, ...) z
 
-#define _SCHEMA_BODY_DefineGetDebugStringFunction_LAST(x) \
-        { rawData->AddData(" (" APP_CONVERT_TO_STRING(x) ":",           \
-                sizeof(" (" APP_CONVERT_TO_STRING(x) ":") - 1);             \
-            DumpValue(rawData, x);                                          \
-            rawData->AddData(")", 1); }
+#define _SCHEMA_BODY_ValidateDefaultArguments_IsValid_F1(x, y, ...) _SCHEMA_BODY_ValidateDefaultArguments_IsValid(y, ##__VA_ARGS__, 0, 0, 1)
+#define _SCHEMA_BODY_ValidateDefaultArguments_IsValid_F(x) _SCHEMA_BODY_ValidateDefaultArguments_IsValid_F1 x
+
+
+#define _SCHEMA_BODY_ValidateDefaultArguments_IsValid_(w, x, y, z, ...) || z
+
+#define _SCHEMA_BODY_ValidateDefaultArguments_IsValid_R1(x, y, ...) _SCHEMA_BODY_ValidateDefaultArguments_IsValid_(y, ##__VA_ARGS__, 0, 0, 1)
+#define _SCHEMA_BODY_ValidateDefaultArguments_IsValid_R(x) _SCHEMA_BODY_ValidateDefaultArguments_IsValid_R1 x
+
+
+#define _SCHEMA_BODY_ValidateDefaultArguments_(ClassName, ...)                  \
+    static_assert(APP_MACRO_FOR_EACH_BACK_END(                                  \
+        _SCHEMA_BODY_ValidateDefaultArguments_IsValid_R,                        \
+        _SCHEMA_BODY_ValidateDefaultArguments_IsValid_F, __VA_ARGS__),          \
+        APP_CONVERT_TO_STRING(ClassName)                                        \
+        " must have atleast one non-default parameter");
+
+#define _SCHEMA_BODY_ValidateDefaultArguments(x, vars, ...)                     \
+    _SCHEMA_BODY_ValidateDefaultArguments_(x, __VA_ARGS__)
+
+//======================================================
+
+#define _SCHEMA_BODY_DefineGetDebugStringFunction_LAST(x)                       \
+        {                                                                       \
+            rawData->AddData(" (" APP_CONVERT_TO_STRING(x) ":",                 \
+                sizeof(" (" APP_CONVERT_TO_STRING(x) ":") - 1);                 \
+            DumpValue(rawData, x);                                              \
+            rawData->AddData(")", 1);                                           \
+        }
+
 #define _SCHEMA_BODY_DefineGetDebugStringFunction_REST(x) _SCHEMA_BODY_DefineGetDebugStringFunction_LAST(x)
 
-#define _SCHEMA_BODY_DefineGetDebugStringFunction_REST_F(f, var) \
+#define _SCHEMA_BODY_DefineGetDebugStringFunction_REST_F(f, var)                \
         _SCHEMA_BODY_DefineGetDebugStringFunction_REST(f(var))
 
-#define _SCHEMA_BODY_DefineGetDebugStringFunction_LAST_F(f, var) \
+#define _SCHEMA_BODY_DefineGetDebugStringFunction_LAST_F(f, var)                \
         _SCHEMA_BODY_DefineGetDebugStringFunction_LAST(f(var))
 
 
@@ -149,7 +177,8 @@ ClassName##ClassSuffix::ClassName##ClassSuffix(                                 
 
 #define _SCHEMA_BODY_DefineGetDebugStringFunction_(ClassName, RootClass,        \
     ClassSuffix, ClassSmallSuffix, ...)                                         \
-    void ClassName##ClassSuffix::AddDebugStringToRawData(RawDataPtr rawData)    \
+    void                                                                        \
+    ClassName##ClassSuffix::AddDebugStringToRawData(RawDataPtr rawData)         \
     {                                                                           \
         rawData->AddData(APP_CONVERT_TO_STRING(ClassSuffix##Type) " (",         \
             sizeof(APP_CONVERT_TO_STRING(ClassSuffix##Type) " (") - 1);         \
@@ -243,22 +272,26 @@ ClassName##ClassSuffix::ClassName##ClassSuffix(                                 
 #define _SCHEMA_BODY_DefineProtocolFunctions_(ClassName, RootClass,             \
     ClassSuffix, ClassSmallSuffix, ...)                                         \
                                                                                 \
-static void Deflate(SerializerPtr serializer,                                   \
+static void                                                                     \
+Deflate(SerializerPtr serializer,                                               \
     ClassName##ClassSuffix##Ptr clsPtr)                                         \
 {                                                                               \
     APP_MACRO_FOR_EACH_FORNT(_SCHEMA_BODY_DefineVarSerializer, __VA_ARGS__)     \
 }                                                                               \
-static void Inflate(DeserializerPtr deserializer,                               \
+static void                                                                     \
+Inflate(DeserializerPtr deserializer,                                           \
     ClassName##ClassSuffix##Ptr &clsPtr)                                        \
 {                                                                               \
     APP_MACRO_FOR_EACH_FORNT(_SCHEMA_BODY_DefineVarDeserializer, __VA_ARGS__)   \
 }                                                                               \
-static void ToPinggyValue(PinggyValue &pv,                                      \
+static void                                                                     \
+ToPinggyValue(PinggyValue &pv,                                                  \
     const ClassName##ClassSuffix##Ptr &clsPtr)                                  \
 {                                                                               \
     APP_MACRO_FOR_EACH_FORNT(_SCHEMA_BODY_DefineVarToPinggyValue, __VA_ARGS__)  \
 }                                                                               \
-static void FromPinggyValue(PinggyValue &pv,                                    \
+static void                                                                     \
+FromPinggyValue(PinggyValue &pv,                                                \
     ClassName##ClassSuffix##Ptr &clsPtr)                                        \
 {                                                                               \
     APP_MACRO_FOR_EACH_FORNT(_SCHEMA_BODY_DefineVarFromPinggyValue,             \
@@ -332,7 +365,8 @@ static tString _##RootClass##_##ClassSmallSuffix##TypeArray[] = {               
 
 #define _SCHEMA_BODY_DefineInflateFunction(RootClass, ClassSuffix,              \
     ClassSmallSuffix, Definition)                                               \
-void Inflate(DeserializerPtr deserializer,                                      \
+void                                                                            \
+Inflate(DeserializerPtr deserializer,                                           \
     RootClass##ClassSuffix##Ptr &ClassSmallSuffix)                              \
 {                                                                               \
     tUint8 ClassSmallSuffix##Type = ClassSuffix##Type_Invalid;                  \
@@ -462,8 +496,8 @@ FromPinggyValue(PinggyValue &pv, RootClass##ClassSuffix##Ptr &ClassSmallSuffix) 
 
 #define _SCHEMA_BODY_DefineDeflateFunction(RootClass, ClassSuffix,              \
     ClassSmallSuffix, Definition)                                               \
-void Deflate(SerializerPtr serializer,                                          \
-    RootClass##ClassSuffix##Ptr ClassSmallSuffix)                               \
+void                                                                            \
+Deflate(SerializerPtr serializer, RootClass##ClassSuffix##Ptr ClassSmallSuffix) \
 {                                                                               \
     switch(ClassSmallSuffix->ClassSmallSuffix##Type) {                          \
 Definition(_SCHEMA_BODY_DefineDeflate, (RootClass,                              \
@@ -474,7 +508,8 @@ Definition(_SCHEMA_BODY_DefineDeflate, (RootClass,                              
         return;                                                                 \
     }                                                                           \
 }                                                                               \
-void ToPinggyValue(PinggyValue &pv,                                             \
+void                                                                            \
+ToPinggyValue(PinggyValue &pv,                                                  \
     const RootClass##ClassSuffix##Ptr &ClassSmallSuffix)                        \
 {                                                                               \
     switch(ClassSmallSuffix->ClassSmallSuffix##Type) {                          \
@@ -492,12 +527,14 @@ Definition(_SCHEMA_BODY_DefineToPinggyValue, (RootClass,                        
 
 #define _SCHEMA_BODY_RootClassMemDump(RootClass, ClassSuffix,                   \
         ClassSmallSuffix)                                                       \
-    size_t RootClass##ClassSuffix::DumpMemory(std::ostream &os)                 \
+    size_t                                                                      \
+    RootClass##ClassSuffix::DumpMemory(std::ostream &os)                        \
     {                                                                           \
         DEFINE_DUMP_MEMORY_BODY(RootClass##ClassSuffix,                         \
             ClassSmallSuffix##Type);                                            \
     }                                                                           \
-    void RootClass##ClassSuffix::AddDebugString(common::PingyWriterPtr writer)  \
+    void                                                                        \
+    RootClass##ClassSuffix::AddDebugString(common::PingyWriterPtr writer)       \
     {                                                                           \
         if (!writer) return;                                                    \
         auto rawData = NewRawDataPtr();                                         \
@@ -509,6 +546,7 @@ Definition(_SCHEMA_BODY_DefineToPinggyValue, (RootClass,                        
 
 #define SCHEMA_BODY__DEFINE_BODIES(RootClass, ClassSuffix,                      \
                                         ClassSmallSuffix, Definition)           \
+        Definition(_SCHEMA_BODY_ValidateDefaultArguments, RootClass)            \
         _SCHEMA_BODY_DefineExceptionClasses(RootClass, ClassSuffix)             \
         Definition(_SCHEMA_BODY_DefineMsgConstructor, (RootClass, ClassSuffix)) \
         Definition(_SCHEMA_BODY_DefineProtocolFunctions, (RootClass,            \
@@ -737,14 +775,18 @@ HandlingClassName::~HandlingClassName()                                         
     }                                                                           \
 }                                                                               \
                                                                                 \
-void HandlingClassName::EnablePinggyValueMode(bool enable) {                    \
+void                                                                            \
+HandlingClassName::EnablePinggyValueMode(bool enable)                           \
+{                                                                               \
     pinggyValueMode = enable;                                                   \
     if (transportManager) {                                                     \
         transportManager->EnablePinggyValueMode(enable);                        \
     }                                                                           \
 }                                                                               \
                                                                                 \
-size_t HandlingClassName::DumpMemory(std::ostream &os) {                        \
+size_t                                                                          \
+HandlingClassName::DumpMemory(std::ostream &os)                                 \
+{                                                                               \
     DEFINE_DUMP_MEMORY_BODY(HandlingClassName,                                  \
         netConn,                                                                \
         transportManager,                                                       \
@@ -756,7 +798,9 @@ size_t HandlingClassName::DumpMemory(std::ostream &os) {                        
     );                                                                          \
 }                                                                               \
                                                                                 \
-bool HandlingClassName::Start(bool handshakeRequired) {                         \
+bool                                                                            \
+HandlingClassName::Start(bool handshakeRequired)                                \
+{                                                                               \
     transportManager = NewTransportManagerPtr(netConn, thisPtr, false,          \
         handshakeRequired);                                                     \
     netConn->RegisterFDEvenHandler(transportManager);                           \
@@ -765,7 +809,9 @@ bool HandlingClassName::Start(bool handshakeRequired) {                         
     return true;                                                                \
 }                                                                               \
                                                                                 \
-bool HandlingClassName::Stop() {                                                \
+bool                                                                            \
+HandlingClassName::Stop()                                                       \
+{                                                                               \
     if (transportManager) {                                                     \
         transportManager->EndTransport();                                       \
         transportManager = nullptr;                                             \
@@ -778,7 +824,8 @@ bool HandlingClassName::Stop() {                                                
     return true;                                                                \
 }                                                                               \
                                                                                 \
-bool HandlingClassName::Send##ClassSuffix(RootClass##ClassSuffix##Ptr           \
+bool                                                                            \
+HandlingClassName::Send##ClassSuffix(RootClass##ClassSuffix##Ptr                \
     ClassSmallSuffix, bool queue)                                               \
 {                                                                               \
     bool success = false;                                                       \
@@ -805,8 +852,8 @@ bool HandlingClassName::Send##ClassSuffix(RootClass##ClassSuffix##Ptr           
     return success;                                                             \
 }                                                                               \
                                                                                 \
-void HandlingClassName::HandleConnectionReset(net::NetworkConnectionPtr         \
-    netConn)                                                                    \
+void                                                                            \
+HandlingClassName::HandleConnectionReset(net::NetworkConnectionPtr netConn)     \
 {                                                                               \
     if (eventHandler) {                                                         \
         eventHandler->Handle##RootClass##ConnectionReset(thisPtr);              \
@@ -821,7 +868,8 @@ void HandlingClassName::HandleConnectionReset(net::NetworkConnectionPtr         
     running = false;                                                            \
 }                                                                               \
                                                                                 \
-void HandlingClassName::HandleIncomingDeserialize(DeserializerPtr deserializer) \
+void                                                                            \
+HandlingClassName::HandleIncomingDeserialize(DeserializerPtr deserializer)      \
 {                                                                               \
     RootClass##ClassSuffix##Ptr tmp##ClassSuffix;                               \
     try {                                                                       \
@@ -846,7 +894,8 @@ void HandlingClassName::HandleIncomingDeserialize(DeserializerPtr deserializer) 
     }                                                                           \
 }                                                                               \
                                                                                 \
-void HandlingClassName::HandleIncomingPinggyValue(PinggyValue &pv)              \
+void                                                                            \
+HandlingClassName::HandleIncomingPinggyValue(PinggyValue &pv)                   \
 {                                                                               \
     RootClass##ClassSuffix##Ptr tmp##ClassSuffix;                               \
     try {                                                                       \
@@ -871,7 +920,8 @@ void HandlingClassName::HandleIncomingPinggyValue(PinggyValue &pv)              
     }                                                                           \
 }                                                                               \
                                                                                 \
-void HandlingClassName::HandleReadyToSendBuffer()                               \
+void                                                                            \
+HandlingClassName::HandleReadyToSendBuffer()                                    \
 {                                                                               \
     while (!sendQueue.empty()) {                                                \
         auto ClassSmallSuffix = sendQueue.front();                              \
@@ -891,7 +941,8 @@ void HandlingClassName::HandleReadyToSendBuffer()                               
     }                                                                           \
 }                                                                               \
                                                                                 \
-void HandlingClassName::HandleIncompleteHandshake()                             \
+void                                                                            \
+HandlingClassName::HandleIncompleteHandshake()                                  \
 {                                                                               \
     LOGE("Something fishy. Cannot complete handshake");                         \
     Stop();                                                                     \

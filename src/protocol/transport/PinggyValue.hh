@@ -23,6 +23,7 @@
 #include <variant>
 #include <stdexcept>
 #include <type_traits>
+#include <platform/assert_pinggy.h>
 
 #define LiteralCasting(f)                                           \
 f(Raw, Raw)                                                         \
@@ -634,6 +635,7 @@ PinggyValue::SetFrom(const T &val)
         throw std::invalid_argument("Already assigned value");
     }
     ToPinggyValue(*this, val);
+    Assert(this->self);
 }
 
 template <typename T>

@@ -115,7 +115,7 @@ PollController::GetNextTaskTimeout(int argTimeout)
         return 0;
     }
 
-    if (task->deadline <= pollTime) //task already pending. Need to execute immidiately.
+    if (task->deadline <= pollTime) //task already pending. Need to execute immediately.
         return 0;
 
     auto timeout = task->deadline - pollTime;

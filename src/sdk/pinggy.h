@@ -195,7 +195,7 @@ pinggy_set_log_enable(pinggy_bool_t);
 
 
 /**
- * @brief check if interuption occured while running last command. It is just a wrapper for
+ * @brief check if interruption occurred while running last command. It is just a wrapper for
  * errno==EINTR
  * @return
  */
@@ -385,7 +385,7 @@ typedef pinggy_void_t (*pinggy_on_raise_exception_cb_t)                         
 //================
 
 /**
- * @brief  Set a function pointer which would handle exception occured inside the library
+ * @brief  Set a function pointer which would handle exception occurred inside the library
  * @param  pointer to function with type pinggy_on_raise_exception_cb_t
  *
  * @Example

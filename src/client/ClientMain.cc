@@ -493,9 +493,9 @@ main(int argc, char* argv[])
         config = nullptr;
         sdkEventHandler = nullptr;
     } catch (std::exception &e) {
-        LOGF("Exception occured: ", e.what());
+        LOGF("Exception occurred: ", e.what());
     } catch(...) {
-        LOGF("Unknown exception occured");
+        LOGF("Unknown exception occurred");
     }
 
     return 0;

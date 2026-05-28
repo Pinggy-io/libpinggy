@@ -126,8 +126,8 @@ extern "C" {
 #define APP_MACRO_FOR_EACH_LASTFUNC(_fn1, _fnl1, _fn2, _fnl2, ...) APP_MACRO_FOR_EACH_N(_fn1, _fnl1, _fn2, _fnl2, PP_NARG(__VA_ARGS__), __VA_ARGS__)
 #define APP_MACRO_FOR_EACH_FORNT(_fn, ...) APP_MACRO_FOR_EACH(_fn, APP_MACRO_DUMMY, __VA_ARGS__)
 #define APP_MACRO_FOR_EACH_FORNT_END(_fn, _fnl, ...) APP_MACRO_FOR_EACH_LASTFUNC(_fn, _fnl, APP_MACRO_DUMMY, APP_MACRO_DUMMY, __VA_ARGS__)
-#define APP_MACRO_FOR_EACH_BACK(_fn, ...)  APP_MACRO_FOR_EACH(APP_MACRO_DUMMY, _fn1, __VA_ARGS__)
-#define APP_MACRO_FOR_EACH_BACK_END(_fn, _fnl, ...)  APP_MACRO_FOR_EACH_LASTFUNC(APP_MACRO_DUMMY, APP_MACRO_DUMMY, _fn1, _fnl, __VA_ARGS__)
+#define APP_MACRO_FOR_EACH_BACK(_fn, ...)  APP_MACRO_FOR_EACH(APP_MACRO_DUMMY, _fn, __VA_ARGS__)
+#define APP_MACRO_FOR_EACH_BACK_END(_fn, _fnl, ...)  APP_MACRO_FOR_EACH_LASTFUNC(APP_MACRO_DUMMY, APP_MACRO_DUMMY, _fn, _fnl, __VA_ARGS__)
 
 //============================================
 

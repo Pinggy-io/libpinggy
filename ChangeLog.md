@@ -13,6 +13,7 @@
 * Formatting code.
 * Fixing nullptr in transport.
 * Fixing log.
+* Fixing transport to handle null pointer.
 
 ### Feat-Sync
 * Formating few code formatting.

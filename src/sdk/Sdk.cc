@@ -648,7 +648,7 @@ Sdk::HandleSessionConnectionReset()
 void
 Sdk::HandleSessionError(tUint32 errorNo, tString what, tBool recoverable)
 {
-    LOGD("Session error occured: ", what);
+    LOGD("Session error occurred: ", what);
 
     if (!recoverable) {
         releaseBaseConnection();
@@ -834,7 +834,7 @@ Sdk::internalConnect()
         }
     } catch (const std::exception &e) {
         baseConnection = nullptr;
-        LOGE("Exception occured: ", e.what());
+        LOGE("Exception occurred: ", e.what());
         reconnectOrStopLoop(e.what());
         return;
     }
