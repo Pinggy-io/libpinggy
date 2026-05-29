@@ -21,7 +21,7 @@
 #include <platform/app_foreach_macro.h>
 
 #define PINGGY_TYPETEST_ENABLED
-
+#include "RefTable.hh"
 #include "pinggy.h"
 
 #ifndef PLATFORM_CONFIG_INCLUDED
@@ -39,8 +39,10 @@
 
 
 //==============================================================
-std::map<pinggy_ref_t, pinggy::VoidPtr> pinggyReferenceMap;
-std::shared_mutex globalMutex;
+// std::map<pinggy_ref_t, pinggy::VoidPtr> pinggyReferenceMap;
+// std::shared_mutex globalMutex;
+//==============================================================
+static RefTable refTable;
 //==============================================================
 PINGGY_EXPORT pinggy_void_t
 pinggy_set_log_path(pinggy_char_p_t path)
@@ -66,32 +68,20 @@ pinggy_is_interrupted()
 static pinggy_ref_t
 getRef(pinggy::VoidPtr ptr)
 {
-    std::unique_lock<std::shared_mutex> lock(globalMutex);
-
-    static pinggy_ref_t curRef= 2;
-    curRef += 1;
-
-    pinggyReferenceMap[curRef] = ptr;
-    return curRef;
+    return refTable.GetRef(ptr);
 }
 
 static pinggy::VoidPtr
 getObj(pinggy_ref_t ref)
 {
-    std::shared_lock<std::shared_mutex> lock(globalMutex);
-    if (pinggyReferenceMap.find(ref) == pinggyReferenceMap.end()) {
-        return nullptr;
-    }
-    return pinggyReferenceMap[ref];
+    return refTable.GetObj(ref);
 }
 
 static pinggy_bool_t
 removeRef(pinggy_ref_t ref)
 {
-    std::unique_lock<std::shared_mutex> lock(globalMutex);
-    if (pinggyReferenceMap.find(ref) != pinggyReferenceMap.end()) {
-        // LOGI("Freeing ref", ref);
-        pinggyReferenceMap.erase(ref);
+    auto ret = refTable.RemoveRef(ref);
+    if (ret) {
         return pinggy_true;
     } else {
         LOGE("Invalid ref", ref);
