@@ -14,17 +14,12 @@ fi
 
 SETUP_FILE="/bin/setup.sh"
 
-ARCH="$archArgv"
+ARCH=$(uname -m)
 
 
 RELEASE_PATH="$SCRIPTPATH/../../$releaseDir/linux/$ARCH"
 RELEASE_HEADER_PATH="$SCRIPTPATH/../../$releaseDir"
 RELEASE_ARCHIVE_PATH="$SCRIPTPATH/../../$releaseDir"
-
-
-# SETUP_FILE="/opt/setup-${archArgv}.sh"
-# TOOLCHAIN_FILE="/opt/toolchain-${archArgv}.cmake"
-# OPENSSL_VERSION=3.3.1
 
 mkdir -p $BUILD_PATH
 
