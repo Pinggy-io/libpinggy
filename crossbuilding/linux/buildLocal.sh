@@ -12,40 +12,7 @@ else
   releaseDir="$RELEASE_DIR_NAME"
 fi
 
-if [ $# -eq 0 ]
-then
-  echo you have to pass architecture type
-  exit 1
-fi
-
 SETUP_FILE="/bin/setup.sh"
-OPENSSL_MACHINE_TYPE=""
-
-archArgv=$(uname -m)
-if [ "$archArgv" == "armv7" ]
-then
-  OPENSSL_MACHINE_TYPE="linux-armv4"
-elif [ "$archArgv" == "aarch64" ]
-then
-  OPENSSL_MACHINE_TYPE="linux-aarch64"
-elif [ "$archArgv" == "x86_64" ]
-then
-  OPENSSL_MACHINE_TYPE="linux-x86_64"
-elif [ "$archArgv" == "i686" ]
-then
-  OPENSSL_MACHINE_TYPE="linux-x86"
-elif [ "$archArgv" == "mingw" ]
-then
-  OPENSSL_MACHINE_TYPE="mingw"
-else
-  echo "invalid architechture $archArgv. use one of following"
-  echo "      armv7"
-  echo "      aarch64"
-  echo "      x86_64"
-  echo "      i686"
-  echo "      mingw"
-  exit 1
-fi
 
 ARCH="$archArgv"
 
