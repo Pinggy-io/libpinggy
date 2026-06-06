@@ -39,9 +39,6 @@
 
 
 //==============================================================
-// std::map<pinggy_ref_t, pinggy::VoidPtr> pinggyReferenceMap;
-// std::shared_mutex globalMutex;
-//==============================================================
 static RefTable refTable;
 //==============================================================
 PINGGY_EXPORT pinggy_void_t

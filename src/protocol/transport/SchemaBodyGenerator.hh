@@ -57,7 +57,7 @@ private:                                                                        
 //    Define constructors
 //==============================================================================
 
-#define _SCHEMA_BODY_IfDefaultInitializerList_0(...)
+#define _SCHEMA_BODY_IfDefaultInitializerList_0(val, ...) , val()
 #define _SCHEMA_BODY_IfDefaultInitializerList_1(val, def, ...) , val(def)
 #define _SCHEMA_BODY_IfDefaultInitializerList_2(val, def, ...) , val(a##val)
 #define _SCHEMA_BODY_IfDefaultInitializerList_(x, y, z, ...) x(y, z)
