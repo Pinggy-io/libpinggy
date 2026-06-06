@@ -911,8 +911,15 @@ Sdk::cleanup()
     if (notificationConn) {
         notificationConn->CloseConn();
         notificationConn = nullptr;
+        _notificateMonitorConn->DeregisterFDEvenHandler();
         _notificateMonitorConn->CloseConn();
         _notificateMonitorConn = nullptr;
+    }
+
+    if (baseConnection) {
+        baseConnection->DeregisterFDEvenHandler();
+        baseConnection->CloseConn();
+        baseConnection = nullptr;
     }
 
     if (pollController) {
