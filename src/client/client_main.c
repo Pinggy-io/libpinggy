@@ -22,6 +22,7 @@
 #include <stdint.h>
 
 #include <pinggy.h>
+#include <signal.h>
 #include "cli_getopt.h"
 
 #ifndef PLATFORM_CONFIG_INCLUDED
@@ -589,6 +590,14 @@ pinggy_on_raise_exception_cb(pinggy_const_char_p_t where, pinggy_const_char_p_t 
     printf("Exception: %s ==> %s\n", where, what);
 }
 
+volatile int                    interrupted = 0;
+
+void
+sigint_handler(int sig)
+{
+    interrupted = 1;  // Just record it
+}
+
 // --- Main ---
 int
 main(int argc, char* argv[])
@@ -601,6 +610,7 @@ main(int argc, char* argv[])
 
 #if defined(__LINUX_OS__) || defined(__MAC_OS__)
     ignore_sigpipe();
+    signal(SIGINT, sigint_handler);
 #endif
 
     pinggy_set_on_exception_callback(pinggy_on_raise_exception_cb);
@@ -630,7 +640,14 @@ main(int argc, char* argv[])
     pinggy_tunnel_set_on_forwardings_changed_callback(config->tunnel_ref, on_forwardings_changed, config);
 
     pinggy_tunnel_start_usage_update(config->tunnel_ref);
-    pinggy_tunnel_start(config->tunnel_ref);
+    pinggy_tunnel_start_non_blocking(config->tunnel_ref);
+
+    while (!interrupted && pinggy_tunnel_resume(config->tunnel_ref));
+    if (interrupted) {
+        printf("!!!Interrupted. Stopping now.");
+        pinggy_tunnel_stop(config->tunnel_ref);
+        while (pinggy_tunnel_resume(config->tunnel_ref));
+    }
 
     if (config->error && strlen(config->error) > 0) {
         printf("Tunnel ended with msg: %s\n", config->error);

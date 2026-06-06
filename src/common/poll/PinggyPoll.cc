@@ -169,6 +169,12 @@ PollController::CleanupAllTasks()
         task->DisArm();
         taskQueue.pop();
     }
+
+    while (immediateTaskQueue.size() > 0) {
+        auto task = immediateTaskQueue.top();
+        task->DisArm();
+        immediateTaskQueue.pop();
+    }
 }
 
 }; // NameSpace Common

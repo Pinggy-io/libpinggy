@@ -1,6 +1,9 @@
 
 # Changed Log
 
+### LockFree Trasition over Native Binding
+* Currently every call to pinggy native needs to though a synchtonisation state. This transition is require lock all the time. Idea is simple. Rmove tha hash table. return raw ptr.
+
 ### Sync-WithCore
 * Added protocol message logging support in `Session` to output sent/received messages to a stream.
 * Implemented `std::function` based callback handlers (`FunctionCallbackListenerHandler` and `FunctionCallbackFDEventHandler`) for `ConnectionListener` and `PollableFD`.
