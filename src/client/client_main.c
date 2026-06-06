@@ -589,6 +589,14 @@ pinggy_on_raise_exception_cb(pinggy_const_char_p_t where, pinggy_const_char_p_t 
     printf("Exception: %s ==> %s\n", where, what);
 }
 
+volatile sig_atomic_t           interrupted = 0;
+
+void
+sigint_handler(int sig)
+{
+    interrupted = 1;  // Just record it
+}
+
 // --- Main ---
 int
 main(int argc, char* argv[])
@@ -630,7 +638,9 @@ main(int argc, char* argv[])
     pinggy_tunnel_set_on_forwardings_changed_callback(config->tunnel_ref, on_forwardings_changed, config);
 
     pinggy_tunnel_start_usage_update(config->tunnel_ref);
-    pinggy_tunnel_start(config->tunnel_ref);
+    pinggy_tunnel_start_non_blocking(config->tunnel_ref);
+
+    while(!interrupted && pinggy_tunnel_resume(config->tunnel_ref));
 
     if (config->error && strlen(config->error) > 0) {
         printf("Tunnel ended with msg: %s\n", config->error);
