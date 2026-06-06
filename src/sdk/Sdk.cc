@@ -877,7 +877,7 @@ Sdk::initiateNotificationChannel()
 
         netConn->SetBlocking(false);
         netConn->SetPollController(pollController)->RegisterFDEvenHandler(thisPtr, NOTIFICATION_FD);
-        _notificateMonitorConn = _netConn1;
+        _notificateMonitorConn = netConn;
     }
 }
 
@@ -911,6 +911,7 @@ Sdk::cleanup()
     if (notificationConn) {
         notificationConn->CloseConn();
         notificationConn = nullptr;
+        _notificateMonitorConn->CloseConn();
         _notificateMonitorConn = nullptr;
     }
 
