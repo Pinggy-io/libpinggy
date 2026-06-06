@@ -55,7 +55,8 @@
 
 #ifdef __cplusplus
 
-extern std::ofstream            __PINGGY_LOGGER_SINK__;
+extern std::ostream            *__PINGGY_LOGGER_OSTREAM_SINK__;
+#define __PINGGY_LOGGER_SINK__  (*__PINGGY_LOGGER_OSTREAM_SINK__)
 extern std::string              __PINGGY_LOG_PREFIX__;
 extern pid_t                    __PINGGY_LOG_PID__;
 extern bool                     __PINGGY_GLOBAL_ENABLED__;
@@ -67,7 +68,7 @@ extern bool                     __PINGGY_GLOBAL_ENABLED__;
 #define __LOG(x__, __y) do{ \
     if (__PINGGY_GLOBAL_ENABLED__) { \
         auto ttime = __LTIME; \
-        (x__.is_open()?x__:std::cout) << ttime << ":: " __FILE__ ":" \
+        x__ << ttime << ":: " __FILE__ ":" \
             APP_CONVERT_TO_STRING(__LINE__) << " " << __PINGGY_LOG_PREFIX__ << "(" << __PINGGY_LOG_PID__ << ")::" __y std::endl; \
     } \
 }while(0)
@@ -75,7 +76,7 @@ extern bool                     __PINGGY_GLOBAL_ENABLED__;
 #define __LOG_FL(FL__, x__, __y) do{ \
     if (__PINGGY_GLOBAL_ENABLED__) { \
         auto ttime = __LTIME; \
-        (x__.is_open()?x__:std::cout) << ttime << ":: " << FL__ << " " << __PINGGY_LOG_PREFIX__ << "(" << __PINGGY_LOG_PID__ << ")::" __y std::endl; \
+        x__ << ttime << ":: " << FL__ << " " << __PINGGY_LOG_PREFIX__ << "(" << __PINGGY_LOG_PID__ << ")::" __y std::endl; \
     } \
 } while(0)
 
@@ -123,6 +124,12 @@ extern bool                     __PINGGY_GLOBAL_ENABLED__;
 #else
     #define LOGF(...)
     #define LOGFC(...)
+#endif
+
+#if LOG_LEVEL <= LogLevelError
+    #define LOGA(...) __LOG(__PINGGY_LOGGER_SINK__,  "ANALYSIS:: " __EXPAND_LOGS__(__VA_ARGS__))
+#else
+    #define LOGA(...)
 #endif
 
 //====
@@ -221,6 +228,9 @@ GetLogPrefix();
 
 void
 SetLogPrefix(std::string pref);
+
+void
+InitLogWithOstream(std::ostream &os);
 
 void
 InitLogWithCout();

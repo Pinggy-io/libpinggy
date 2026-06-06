@@ -15,7 +15,6 @@
  */
 
 #include "PinggyPoll.hh"
-#include <utils/TemplateStreaming.hh> //this needs to be the last include
 
 
 
@@ -116,7 +115,7 @@ PollController::GetNextTaskTimeout(int argTimeout)
         return 0;
     }
 
-    if (task->deadline <= pollTime) //task already pending. Need to execute immidiately.
+    if (task->deadline <= pollTime) //task already pending. Need to execute immediately.
         return 0;
 
     auto timeout = task->deadline - pollTime;
@@ -169,6 +168,12 @@ PollController::CleanupAllTasks()
         auto task = taskQueue.top();
         task->DisArm();
         taskQueue.pop();
+    }
+
+    while (immediateTaskQueue.size() > 0) {
+        auto task = immediateTaskQueue.top();
+        task->DisArm();
+        immediateTaskQueue.pop();
     }
 }
 

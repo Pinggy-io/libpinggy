@@ -24,9 +24,11 @@
 #define ThisIsNetworkConnectionRoot
 
 #include <platform/network.h>
-#include <utils/Utils.hh>
+// #include <utils/Utils.hh>
 #include <iostream>
 #include <poll/PollableFD.hh>
+#include <platform/PinggyWriter.hh>
+#include <utils/RawData.hh>
 #include <utils/JsonH.hh>
 #include <tuple>
 
@@ -232,25 +234,26 @@ DefineMakeSharedPtr(SocketStat);
 
 NLOHMANN_DECLARE_TYPE_NON_INTRUSIVE_CUSTOME_PTR(SocketStat);
 
-abstract class NetworkSocket : public virtual PollableFD {
+abstract class NetworkSocket : public virtual PollableFD
+{
 public:
     virtual
     ~NetworkSocket()            { }
 
-    virtual
-    void SetRecvTimeoutms(uint16_t timeout) = 0;
+    virtual void
+    SetRecvTimeoutms(uint16_t timeout) = 0;
 
-    virtual
-    void SetSendTimeoutms(uint16_t timeout) = 0;
+    virtual void
+    SetSendTimeoutms(uint16_t timeout) = 0;
 
-    virtual
-    tString GetType() = 0;
+    virtual tString
+    GetType() = 0;
 
-    virtual
-    void SetBlocking(bool block = true) = 0;
+    virtual void
+    SetBlocking(bool block = true) = 0;
 
-    virtual
-    bool IsBlocking() = 0;
+    virtual bool
+    IsBlocking() = 0;
 
     virtual bool
     IsPollable()                { return GetState().Pollable; }
@@ -287,9 +290,6 @@ public:
     tString
     GetPath();
 
-    tString
-    ToString();
-
     bool
     IsIpv6() const              { return ipv6; }
 
@@ -304,6 +304,9 @@ public:
 
     const sockaddr_ip
     GetSockAddr() const         { return sockAddr; }
+
+    virtual void
+    Repr(std::ostream &os) override;
 
     DefineMandatoryClassFunctionsWOSuper(SocketAddress);
 
@@ -322,7 +325,8 @@ private:
 };
 DefineMakeSharedPtr(SocketAddress);
 
-abstract class NetworkConnection : public virtual NetworkSocket {
+abstract class NetworkConnection : public virtual NetworkSocket, public virtual common::PingyWriter
+{
 public:
     NetworkConnection()         { connType.Raw = 0; }
 
@@ -333,7 +337,7 @@ public:
     Read(len_t nbyte, int flags = 0);
 
     virtual ssize_t
-    Write(RawDataPtr rwData, int flags = 0);
+    Write(RawDataPtr rwData, int flags = 0) override;
 
     virtual std::tuple<ssize_t, RawDataPtr>
     Peek(len_t nbyte);
@@ -342,7 +346,7 @@ public:
     Read(void *buf, size_t nbyte, int flags = 0) = 0;
 
     virtual ssize_t
-    Write(const void *buf, size_t nbyte, int flags = 0) = 0;
+    Write(const void *buf, size_t nbyte, int flags = 0) override = 0;
 
     virtual ssize_t
     Peek(void *, size_t)        { return -1; }
@@ -355,6 +359,14 @@ public:
 
     virtual SocketAddressPtr
     GetLocalAddress() = 0;
+
+    //For relays
+    virtual SocketAddressPtr
+    GetOrigPeerAddress()        { return GetPeerAddress(); }
+
+    //For relays
+    virtual SocketAddressPtr
+    GetOrigLocalAddress()       { return GetLocalAddress(); }
 
     virtual bool
     IsSsl() final               { return GetState().Ssl; }
@@ -418,6 +430,9 @@ public:
     SetConnType(tConnType connType)
                                 { this->connType = connType; }
 
+    virtual void
+    Repr(std::ostream &os) override;
+
 private:
     tConnType                   connType;
 };
@@ -448,6 +463,7 @@ public:
     NetworkConnectionImpl(tString path);
 #endif
     NetworkConnectionImpl(sock_t fd);
+    NetworkConnectionImpl(sock_t fd, SocketAddressPtr peerAddress);
 
     virtual
     ~NetworkConnectionImpl();
@@ -504,8 +520,7 @@ public:
     GetLocalAddress() override;
 
     virtual bool
-    EnableKeepAlive(int keepCnt, int keepIdleSec,
-            int keepIntvl, bool enable = true) override;
+    EnableKeepAlive(int keepCnt, int keepIdleSec, int keepIntvl, bool enable = true) override;
 
     virtual bool
     ReassigntoLowerFd() override
@@ -528,11 +543,7 @@ public:
 
 
     virtual void
-    Connect(NonBlockingConnectEventHandlerPtr handler,
-            pinggy::VoidPtr ptr = nullptr, tString tag = "");
-
-    // virtual PollableFDPtr
-    // GetOrig() override          { return thisPtr; }
+    Connect(NonBlockingConnectEventHandlerPtr handler, pinggy::VoidPtr ptr = nullptr, tString tag = "");
 
     virtual tNetState
     GetState() override         { return netState; }
@@ -613,12 +624,9 @@ DefineMakeSharedPtr(NetworkConnectionImpl);
 
 } /* namespace net */
 
-std::ostream&
-operator<<(std::ostream& os, const net::SocketAddressPtr& sa);
-        //Here call by reference is mandatory
-
 
 std::ostream&
-operator<<(std::ostream& os, net::tConnType& connType);
+operator<<(std::ostream &os, net::tConnType &connType);
+
 
 #endif /* CPP_COMMON_NETWORKCONNECTION_HH_ */

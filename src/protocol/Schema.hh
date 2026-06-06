@@ -50,45 +50,45 @@ enum tChannelType {
 // it is a saving.
 
 //      dataType                    Name             default value           present_in_constructor]
-#define Schema_SchemaDefinition(f, arg)                                             \
-    f(ClientHello,                                                                  \
-        arg,                                                                        \
-        (tUint32,                   Version,            0),                             \
+#define Schema_SchemaDefinition(f, arg)                                                 \
+    f(ClientHello,                                                                      \
+        arg,                                                                            \
+        (tUint32,                   Version),                                           \
         (tUint32,                   Version2,           0),                             \
         (tString,                   Message,            "")                             \
     )                                                                                   \
     f(ServerHello,                                                                      \
         arg,                                                                            \
-        (tUint32,                   Version,            0),                             \
+        (tUint32,                   Version),                                           \
         (tUint32,                   Version2,           0),                             \
         (tString,                   Message,            "")                             \
     )                                                                                   \
     f(Error,                                                                            \
         arg,                                                                            \
-        (tMsgId,                    MsgId,              0),                             \
+        (tMsgId,                    MsgId),                                             \
         (tError,                    ErrorNo,            0,                          1), \
         (tString,                   What,               "",                         1), \
         (tUint8,                    Recoverable,        0,                          1)  \
     )                                                                                   \
     f(Authenticate,                                                                     \
         arg,                                                                            \
-        (tMsgId,                    MsgId,              0),                             \
+        (tMsgId,                    MsgId),                                             \
         (tString,                   Username,           "",                         1), \
         (tUint8,                    AdvancedParsing,    1,                          1), \
         (tString,                   Arguments,          "",                         1)  \
     )                                                                                   \
     f(AuthenticationResponse,                                                           \
         arg,                                                                            \
-        (tMsgId,                    MsgId,              0),                             \
+        (tMsgId,                    MsgId),                                             \
         (tUint8,                    Success,            0,                          1), \
         (std::vector<tString>,      RedirectTo),                                        \
         (tString,                   Error,              "",                         1), \
         (std::vector<tString>,      Messages),                                          \
-        (TunnelInfoPtr,             TunnelInfo)                                         \
+        (TunnelInfoPtr,             TunnelInfo,         nullptr)                        \
     )                                                                                   \
     f(RemoteForwardRequest,                                                             \
         arg,                                                                            \
-        (tMsgId,                    MsgId,              0),                             \
+        (tMsgId,                    MsgId),                                             \
         (tReqId,                    ReqId,              0,                          1), \
         (tInt16,                    ListeningPort,      0,                          1), \
         (tString,                   Bind,               "",                         1), \
@@ -98,7 +98,7 @@ enum tChannelType {
     )                                                                                   \
     f(RemoteForwardResponse,                                                            \
         arg,                                                                            \
-        (tMsgId,                    MsgId,              0),                             \
+        (tMsgId,                    MsgId),                                             \
         (tReqId,                    ReqId,              0,                          1), \
         (tForwardingId,             ForwardingId,       InvalidForwardingId,        1), \
         (std::vector<RemoteForwardingPtr>,                                              \
@@ -109,7 +109,7 @@ enum tChannelType {
     )                                                                                   \
     f(SetupChannel,                                                                     \
         arg,                                                                            \
-        (tMsgId,                    MsgId,              0),                             \
+        (tMsgId,                    MsgId),                                             \
         (tForwardingId,             ForwardingId,       InvalidForwardingId,        1), \
         (tChannelId,                ChannelId,          0,                          1), \
         (tUint16,                   ConnectToPort,      0,                          1), \
@@ -122,7 +122,7 @@ enum tChannelType {
     )                                                                                   \
     f(SetupChannelResponse,                                                             \
         arg,                                                                            \
-        (tMsgId,                    MsgId,              0),                             \
+        (tMsgId,                    MsgId),                                             \
         (tChannelId,                ChannelId,          0,                          1), \
         (tUint8,                    Accept,             0,                          1), \
         (tString,                   Error,              "",                         1), \
@@ -131,46 +131,46 @@ enum tChannelType {
     )                                                                                   \
     f(ChannelData,                                                                      \
         arg,                                                                            \
-        (tMsgId,                    MsgId,              0),                             \
+        (tMsgId,                    MsgId),                                             \
         (tChannelId,                ChannelId,          0,                          1), \
         (tRaw,                      Data)                                               \
     )                                                                                   \
     f(ChannelWindowAdjust,                                                              \
         arg,                                                                            \
-        (tMsgId,                    MsgId,              0),                             \
+        (tMsgId,                    MsgId),                                             \
         (tChannelId,                ChannelId,          0,                          1), \
         (tUint32,                   AdditionalBytes,    0,                          1)  \
     )                                                                                   \
     f(ChannelClose,                                                                     \
         arg,                                                                            \
-        (tMsgId,                    MsgId,              0),                             \
+        (tMsgId,                    MsgId),                                             \
         (tChannelId,                ChannelId,          0,                          1)  \
     )                                                                                   \
     f(ChannelError,                                                                     \
         arg,                                                                            \
-        (tMsgId,                    MsgId,              0),                             \
+        (tMsgId,                    MsgId),                                             \
         (tChannelId,                ChannelId,          0,                          1), \
         (tError,                    ErrorNo,            0,                          1), \
         (tString,                   Error,              "",                         1)  \
     )                                                                                   \
     f(KeepAlive,                                                                        \
         arg,                                                                            \
-        (tMsgId,                    MsgId,              0),                             \
+        (tMsgId,                    MsgId),                                             \
         (tUint64,                   Tick,               0,                          1)  \
     )                                                                                   \
     f(KeepAliveResponse,                                                                \
         arg,                                                                            \
-        (tMsgId,                    MsgId,              0),                             \
+        (tMsgId,                    MsgId),                                             \
         (tUint64,                   ForTick,            0,                          1)  \
     )                                                                                   \
     f(Disconnect,                                                                       \
         arg,                                                                            \
-        (tMsgId,                    MsgId,              0),                             \
+        (tMsgId,                    MsgId),                                             \
         (tString,                   Reason,             "",                         1)  \
     )                                                                                   \
     f(Warning,                                                                          \
         arg,                                                                            \
-        (tMsgId,                    MsgId,              0),                             \
+        (tMsgId,                    MsgId),                                             \
         (tError,                    ErrorNo,            0,                          1), \
         (tString,                   What,               "",                         1)  \
     )                                                                                   \

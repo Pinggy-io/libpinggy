@@ -19,11 +19,60 @@
 
 #include <platform/Log.hh>
 #include "ConnectionListener.hh"
-#include <utils/TemplateStreaming.hh> //this needs to be the last include
 
 #define MAX_CONSECUTIVE_OPEN_FILE_ERROR 1024
 
 namespace net {
+
+
+class FunctionCallbackListenerHandler: public virtual ConnectionListenerHandler
+{
+public:
+    FunctionCallbackListenerHandler(ConnectionListener::NewVisitorCallback callback)
+            : callback(callback) { }
+
+    virtual ~FunctionCallbackListenerHandler()
+    {
+        if (listener) {
+            listener->DeregisterFDEvenHandler();
+            listener->CloseConn();
+            listener = nullptr;
+        }
+    }
+
+    virtual void
+    NewVisitor(NetworkConnectionPtr netConn) override
+    {
+        if (callback) {
+            callback(netConn);
+        } else {
+            netConn->CloseConn();
+        }
+    }
+
+    virtual void
+    ConnectionListenerClosed(ConnectionListenerPtr listener) override
+    {
+        if (this->listener == listener) {
+            this->listener = nullptr;
+        }
+    }
+
+    void
+    SetListener(ConnectionListenerPtr listener)
+    {
+        this->listener = listener;
+    }
+
+    DefineMandatoryClassFunctionsNoDump(FunctionCallbackListenerHandler);
+
+private:
+    ConnectionListener::NewVisitorCallback
+                                callback;
+    ConnectionListenerPtr       listener;
+};
+DefineMakeSharedPtr(FunctionCallbackListenerHandler);
+
 
 ConnectionListenerImpl::ConnectionListenerImpl(sock_t fd):
         fd(fd),
@@ -152,7 +201,10 @@ NetworkConnectionPtr
 ConnectionListenerImpl::Accept()
 {
     tryAgain = false;
-    sock_t newsock = app_accept(fd, NULL, NULL);
+    sockaddr_ip addr;
+    socklen_t len = sizeof(addr);
+    bzero(&addr, sizeof(addr));
+    sock_t newsock = app_accept(fd, &addr, &len);
     if (newsock < 0) {
         if (app_is_eagain()) {
             tryAgain = true;
@@ -161,10 +213,12 @@ ConnectionListenerImpl::Accept()
         }
     }
     if (!IsValidSocket(newsock)) {
-        LOGE("Invalid socket");
+        if (!tryAgain)
+            LOGE("Invalid socket");
         return nullptr;
     }
-    auto netConn = NewNetworkConnectionImplPtr(newsock);
+    auto netConn = NewNetworkConnectionImplPtr(newsock, NewSocketAddressPtr(addr));
+    LOGD("New connection accepted", netConn);
     netConn->SetFlags(flagsForChild);
     netConn->SetConnType(ConnTypeForChild());
     netConn->SetBlocking(true);
@@ -261,6 +315,24 @@ ConnectionListener::AcceptSocket()
 {
     throw ConnectionListenerException("Not implemented", thisPtr);
     return INVALID_SOCKET;
+}
+
+//=== ConnectionListener overloads for callbacks ===
+
+void
+ConnectionListener::RegisterListenerHandler(NewVisitorCallback callback, len_t acceptConn)
+{
+    auto handler = NewFunctionCallbackListenerHandlerPtr(callback);
+    RegisterListenerHandler(handler, acceptConn);
+}
+
+void
+ConnectionListener::RegisterListenerHandler(common::PollControllerPtr pollController,
+        NewVisitorCallback callback, len_t acceptConn)
+{
+    auto handler = NewFunctionCallbackListenerHandlerPtr(callback);
+    handler->SetListener(thisPtr);
+    RegisterListenerHandler(pollController, handler, acceptConn);
 }
 
 } /* namespace net */

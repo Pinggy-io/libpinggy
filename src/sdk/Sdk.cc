@@ -28,7 +28,6 @@
 #include <utils/Semaphore.hh>
 #include <platform/Defer.hh>
 #include "SdkException.hh"
-#include <utils/TemplateStreaming.hh> //this needs to be the last include
 
 const char BASE_CERTIFICATE[] = \
 "-----BEGIN CERTIFICATE-----\n"                                      \
@@ -415,7 +414,7 @@ Sdk::HandleSessionAuthenticationFailed(tString error, std::vector<tString> authe
 {
     authenticationMsg = authenticationFailed;
     lastError = JoinString(authenticationFailed, "\n");
-    LOGE("Authentication Failed");
+    LOGE("Authentication Failed: ", lastError);
 
     releaseBaseConnection();
 
@@ -649,7 +648,7 @@ Sdk::HandleSessionConnectionReset()
 void
 Sdk::HandleSessionError(tUint32 errorNo, tString what, tBool recoverable)
 {
-    LOGD("Session error occured: ", what);
+    LOGD("Session error occurred: ", what);
 
     if (!recoverable) {
         releaseBaseConnection();
@@ -835,7 +834,7 @@ Sdk::internalConnect()
         }
     } catch (const std::exception &e) {
         baseConnection = nullptr;
-        LOGE("Exception occured: ", e.what());
+        LOGE("Exception occurred: ", e.what());
         reconnectOrStopLoop(e.what());
         return;
     }
@@ -878,7 +877,7 @@ Sdk::initiateNotificationChannel()
 
         netConn->SetBlocking(false);
         netConn->SetPollController(pollController)->RegisterFDEvenHandler(thisPtr, NOTIFICATION_FD);
-        _notificateMonitorConn = _netConn1;
+        _notificateMonitorConn = netConn;
     }
 }
 
@@ -912,7 +911,15 @@ Sdk::cleanup()
     if (notificationConn) {
         notificationConn->CloseConn();
         notificationConn = nullptr;
+        _notificateMonitorConn->DeregisterFDEvenHandler();
+        _notificateMonitorConn->CloseConn();
         _notificateMonitorConn = nullptr;
+    }
+
+    if (baseConnection) {
+        baseConnection->DeregisterFDEvenHandler();
+        baseConnection->CloseConn();
+        baseConnection = nullptr;
     }
 
     if (pollController) {

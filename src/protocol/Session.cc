@@ -16,7 +16,6 @@
 
 #include "Session.hh"
 #include "Channel.hh"
-#include <utils/TemplateStreaming.hh> //this needs to be the last include
 
 
 namespace protocol
@@ -92,6 +91,9 @@ Session::Cleanup()
         channel->cleanup();
     }
     channels.clear();
+
+    closeWriter();
+
     netConn->DeregisterFDEvenHandler();
     netConn->CloseConn();
     netConn = nullptr;
@@ -240,6 +242,12 @@ Session::SetEnablePinggyValueMode(bool enable)
     }
 }
 
+void
+Session::SetSdkEventLogger(net::NetworkConnectionPtr writer)
+{
+    msgWriter = writer;
+}
+
 void Session::HandleConnectionReset(net::NetworkConnectionPtr netConn)
 {
     for (auto ch : channels)
@@ -248,6 +256,9 @@ void Session::HandleConnectionReset(net::NetworkConnectionPtr netConn)
     channels.clear(); //There will be no callback from transport any more
     if (eventHandler)
         eventHandler->HandleSessionConnectionReset();
+
+    closeWriter();
+
     if (netConn) {
         netConn->DeregisterFDEvenHandler();
         netConn->CloseConn();
@@ -379,6 +390,21 @@ Session::sendMsg(ProtoMsgPtr msg, bool queue)
     if (success && msg->msgType == MsgType_Disconnect) {
         transportManager->EndTransport(); //this is not immediate
     }
+    if (msgWriter) {
+        if (msgWriter->Write("send: ", 6) <= 0) {
+            closeWriter();
+        } else {
+            auto writer = msgWriter;
+            msg->AddDebugString(writer);
+            if (msgWriter == writer && writer->LastReturn() > 0) {
+                if (msgWriter->Write("\n", 1) <= 0) {
+                    closeWriter();
+                }
+            } else if (msgWriter == writer) {
+                closeWriter();
+            }
+        }
+    }
     if (!success && queue) {
         sendQueue.push(msg);
         return true;
@@ -477,9 +503,35 @@ Session::setupChannelCloseTimeout(ChannelPtr channel)
 }
 
 void
+Session::closeWriter()
+{
+    if (!msgWriter)
+        return;
+
+    msgWriter->DeregisterFDEvenHandler();
+    msgWriter->CloseConn();
+    msgWriter = nullptr;
+}
+
+void
 Session::handleDeserializedMsg(ProtoMsgPtr protoMsg)
 {
     incomingActivities = true;
+     if (msgWriter) {
+        if (msgWriter->Write("recv: ", 6) <= 0) {
+            closeWriter();
+        } else {
+            auto writer = msgWriter;
+            protoMsg->AddDebugString(writer);
+            if (msgWriter == writer && writer->LastReturn() > 0) {
+                if (msgWriter->Write("\n", 1) <= 0) {
+                    closeWriter();
+                }
+            } else if (msgWriter == writer) {
+                closeWriter();
+            }
+        }
+    }
     switch(protoMsg->msgType) {
         case MsgType_ServerHello:
         {

@@ -14,39 +14,72 @@
  * limitations under the License.
  */
 
- #ifndef __SRC_CPP_PUBLIC_COMMON_UTILS_TEMPLATELOGGING_HH__
- #define __SRC_CPP_PUBLIC_COMMON_UTILS_TEMPLATELOGGING_HH__
+#ifndef __PINGGY_SHAREDPTR_INTERNAL_INCLUDE__
+#error "ContainerStreaming.hh is internal; include <platform/SharedPtr.hh> instead."
+#endif
 
-#include "Utils.hh"
-#include <platform/Log.hh>
-#include <type_traits>
+#ifndef COMMON_PLATFORM_CONTAINERSTREAMING_HH_
+#define COMMON_PLATFORM_CONTAINERSTREAMING_HH_
 
-template <typename T, typename = void>
-struct pinggy_is_complete : std::false_type {};
+#include "PrimitiveStreaming.hh"
+#include <vector>
+#include <queue>
+#include <map>
+#include <set>
+#include <tuple>
+#include <utility>
+#include <ostream>
 
-template <typename T>
-struct pinggy_is_complete<T, decltype(void(sizeof(T)))> : std::true_type {};
-
-template <typename T>
-struct pinggy_is_bool : std::false_type {};
-
-template <>
-struct pinggy_is_bool<bool> : std::true_type {};
-
-template< typename T, typename U, typename V >
-inline void
-__dump_value(std::basic_ostream<U, V>& os, const std::shared_ptr<T>& ptr)
-{
-    DumpPtr(os, ptr);
-}
-
+// Forward declarations so phase-1 unqualified lookup inside any container template
+// can find every other container's overload (cross-container nesting like
+// vector<tuple<...>> would otherwise fail because ADL on std types only searches std).
 
 template< typename T, typename U, typename V >
-inline void
-__dump_value(std::basic_ostream<U, V>& os, const T &val)
-{
-    os << val;
-}
+std::basic_ostream<U, V>&
+operator<<(std::basic_ostream<U, V>& os, const std::vector<T>& vect);
+
+template<typename K, typename V, typename T, typename U >
+std::basic_ostream<T, U>&
+operator<<(std::basic_ostream<T, U>& os, const std::map<K, V>& map);
+
+template< typename T, typename U, typename V >
+std::basic_ostream<U, V>&
+operator<<(std::basic_ostream<U, V>& os, const std::set<T>& vect);
+
+template<typename U, typename V, typename... Args >
+std::basic_ostream<U, V>&
+operator<<(std::basic_ostream<U, V>& os, const std::tuple<Args...>& t);
+
+template<typename K, typename V, typename T, typename U >
+std::basic_ostream<T, U>&
+operator<<(std::basic_ostream<T, U>& os, const std::pair<K, V>& pair);
+
+template<typename T>
+size_t
+DumpMemoryUsages(std::ostream& os, tString varName, const std::vector<T>& vect);
+
+template<typename T>
+size_t
+DumpMemoryUsages(std::ostream& os, tString varName, const std::queue<T>& queue);
+
+template<typename K, typename V>
+size_t
+DumpMemoryUsages(std::ostream& os, tString varName, const std::map<K, V>& map);
+
+template<typename T>
+size_t
+DumpMemoryUsages(std::ostream& os, tString varName, const std::set<T>& vect);
+
+template<typename... Args >
+size_t
+DumpMemoryUsages(std::ostream& os, tString varName, const std::tuple<Args...>& t);
+
+template<typename K, typename V>
+size_t
+DumpMemoryUsages(std::ostream& os, tString varName, const std::pair<K, V>& pair);
+
+size_t
+DumpMemoryUsages(std::ostream& os, tString varName, const tString& val);
 
 template< typename T, typename U, typename V >
 inline std::basic_ostream<U, V>&
@@ -58,8 +91,7 @@ operator<<(std::basic_ostream<U, V>& os, const std::vector<T>& vect)
         if (comma)
             os << ", ";
         comma = true;
-        __dump_value(os, ele);
-        // os << ele;
+        os << ele;
     }
     os << "]";
     return os;
@@ -76,8 +108,7 @@ operator<<(std::basic_ostream<T, U>& os, const std::map<K, V>& map)
             os << ", ";
         comma = true;
         os << ele.first << ": ";
-        __dump_value(os, ele.second);
-        //  << ele.second;
+        os << ele.second;
     }
     os << "}";
     return os;
@@ -94,8 +125,7 @@ operator<<(std::basic_ostream<U, V>& os, const std::set<T>& vect)
         if (comma)
             os << ", ";
         comma = true;
-        __dump_value(os, ele);
-        // os << ele;
+        os << ele;
     }
     os << "}";
     return os;
@@ -112,8 +142,7 @@ inline std::basic_ostream<U, V>&
 operator<<(std::basic_ostream<U, V>& os, const std::tuple<Args...>& t)
 {
     for_each_in_tuple(t, [&](const auto& x) {
-        __dump_value(os, x);
-        os << " ";
+        os << x << " ";
     });
     return os;
 }
@@ -126,19 +155,11 @@ operator<<(std::basic_ostream<T, U>& os, const std::pair<K, V>& pair)
     return os;
 }
 
-//======
-
-inline tString
-quoteString(tString var)
-{
-    return "\"" + var + "\"";
-}
-
 template <typename T>
 inline size_t
 DumpMemoryUsages(std::ostream &os, tString varName, const std::vector<T> &vect)
 {
-    size_t size = 0; //= sizeof(vect);
+    size_t size = 0;
     if (!varName.empty())
         os << quoteString(varName) << ": ";
 
@@ -161,7 +182,7 @@ template <typename T>
 inline size_t
 DumpMemoryUsages(std::ostream &os, tString varName, const std::queue<T> &queue)
 {
-    size_t size = 0; //sizeof(queue);
+    size_t size = 0;
     if (!varName.empty())
         os << quoteString(varName) << ": ";
 
@@ -185,7 +206,7 @@ template <typename K, typename V>
 inline size_t
 DumpMemoryUsages(std::ostream &os, tString varName, const std::map<K, V> &map)
 {
-    size_t size = 0;// sizeof(map);
+    size_t size = 0;
 
     if (!varName.empty())
         os << quoteString(varName) << ": ";
@@ -210,7 +231,7 @@ template <typename T>
 inline size_t
 DumpMemoryUsages(std::ostream &os, tString varName, const std::set<T> &vect)
 {
-    size_t size = 0; //sizeof(vect);
+    size_t size = 0;
     if (!varName.empty())
         os << quoteString(varName) << ": ";
 
@@ -234,7 +255,7 @@ inline size_t
 DumpMemoryUsages(std::ostream &os, tString varName, const std::tuple<Args...> &t)
 {
 
-    size_t size = 0; // sizeof(t);
+    size_t size = 0;
 
     if (!varName.empty())
         os << quoteString(varName) << ": ";
@@ -259,7 +280,7 @@ template <typename K, typename V>
 inline size_t
 DumpMemoryUsages(std::ostream &os, tString varName, const std::pair<K, V> &pair)
 {
-    size_t size = 0; // sizeof(pair);
+    size_t size = 0;
     if (!varName.empty())
         os << quoteString(varName) << ": ";
 
@@ -273,133 +294,4 @@ DumpMemoryUsages(std::ostream &os, tString varName, const std::pair<K, V> &pair)
     return size;
 }
 
-template<typename T>
-void __print_primitive_value(std::ostream &os, const T& value) {
-    if constexpr (std::is_pointer_v<T>) {
-        os << ", \"value\":" << static_cast<const void*>(value);
-    } else if constexpr (std::is_arithmetic_v<T>) {
-        os << ", \"value\":" << value;
-    }
-}
-
-#define __pp_ff(T) \
-inline constexpr std::string_view \
-_p_type_name(const T &x) { return TO_STR(T); } \
-inline constexpr std::string_view \
-_p_type_name(const T * &x) { return "*" TO_STR(T); }
-PINGGY_PRIMITIVES_TYPES(__pp_ff)
-
-template<typename T>
-inline constexpr std::string_view
-_p_type_name(const T &x) { if constexpr (std::is_function_v<T>) return "function"; return ""; }
-
-inline constexpr std::string_view
-_p_type_name(const bool &x) { return "bool"; }
-
-template <typename T>
-inline size_t
-DumpMemoryUsages(std::ostream &os, tString varName, const T &val)
-{
-    if (!varName.empty())
-        os << quoteString(varName) << ": ";
-    size_t size = 0;
-
-    os << "{\"type\":\"primitive<" << _p_type_name(val) << ">\",\"size\":" << sizeof(val);
-
-    if constexpr (std::is_pointer_v<T> && std::is_same_v<std::remove_cv_t<std::remove_pointer_t<T>>, char>) {
-        if (val && std::strlen(val) < 16) {
-            os << ", \"value\":" << val;
-        }
-    } else if constexpr (std::is_function_v<T>) {
-        os << "";
-    } else if constexpr (std::is_pointer_v<T>) {
-        if constexpr (std::is_function_v<std::remove_pointer_t<std::decay_t<T>>> || std::is_function_v<std::remove_reference_t<T>>) {
-            os << "";
-        } else {
-            os << ", \"value\":\"" << static_cast<const void*>(val) << "\"";\
-        }
-    } else if constexpr (std::is_same_v<T, tInt8>) {
-        std::cout << ", \"value\":" << static_cast<int>(val);
-    } else if constexpr (std::is_same_v<T, tUint8>) {
-        std::cout << ", \"value\":" << static_cast<tUint>(val);
-    } else if constexpr (pinggy_is_bool<T>::value) {
-        os << ", \"value\":" << (val ? "true" : "false");
-    } else if constexpr (std::is_arithmetic_v<T>) {
-        os << ", \"value\":" << val;
-    }
-
-    os << "}";
-    return size;
-}
-
-template <typename T>
-inline size_t
-__dumpMemoryUsagesImpl(std::ostream &os, tString varName, const std::shared_ptr<T> &ptr, std::true_type)
-{
-    size_t size = 0; // sizeof(std::shared_ptr<T>);
-    if (!varName.empty())
-        os << quoteString(varName) << ": ";
-
-    if (ptr) {
-        if (!ptr->IsMemoryDumpingAllowed()) {
-            os << "\"<already accounted (" << static_cast<const void*>(ptr.get()) << ")>\"";
-            return size;
-        }
-        size += ptr->MemberClsSize();
-        os << "{\"type\":\"shared_ptr<" << ptr->MemberClsName();
-        os << "(" << static_cast<const void*>(ptr.get()) << ")>\",\"content\":";
-        size += ptr->DumpMemory(os);
-        os << "}";
-    } else {
-        os << "null";
-    }
-
-    return size;
-}
-
-template <typename T>
-inline size_t
-__dumpMemoryUsagesImpl(std::ostream &os, tString varName, const std::shared_ptr<T> &ptr, std::false_type)
-{
-    size_t size = 0; // as it is incomplete
-    if (!varName.empty())
-        os << quoteString(varName) << ": ";
-
-    if (ptr)
-        os << "{\"type\":\"shared_ptr<incompleteType(" << static_cast<const void*>(ptr.get()) <<")>\"}";
-    else
-        os << "null";
-    return size;
-}
-
-template <typename T>
-inline size_t
-DumpMemoryUsages(std::ostream &os, tString varName, const std::shared_ptr<T> &ptr)
-{
-    return __dumpMemoryUsagesImpl(os, varName, ptr, pinggy_is_complete<T>{});
-}
-
-template <typename T>
-inline size_t
-DumpMemoryUsages(std::ostream &os, tString varName, const std::weak_ptr<T> &wptr)
-{
-    auto aptr = wptr.lock();
-    size_t size = 0;
-    if (aptr)
-        size += sizeof(aptr);
-    size += DumpMemoryUsages(os, varName, aptr);
-    return size;
-}
-
-template <typename T>
-inline size_t DumpMemoryUsages(std::ostream &os, tString varName, const T *t)
-{
-    ABORT_WITH_MSG("Not allowed");
-    return 0;
-}
-
-//==============
-
-
-
-#endif // __SRC_CPP_PUBLIC_COMMON_UTILS_TEMPLATELOGGING_HH__
+#endif // COMMON_PLATFORM_CONTAINERSTREAMING_HH_

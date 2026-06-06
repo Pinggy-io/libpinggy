@@ -21,6 +21,7 @@
 #include <platform/network.h>
 #include <platform/SharedPtr.hh>
 #include <map>
+#include <optional>
 
 namespace net
 {
@@ -40,7 +41,7 @@ public:
         return AddressCache::instance;
     }
 
-    sock_addrinfo
+    std::optional<sock_addrinfo>
     GetAddrInfo(tString host, tString port, bool tcp = true);
 
     void

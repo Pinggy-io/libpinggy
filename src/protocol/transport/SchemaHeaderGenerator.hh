@@ -18,6 +18,7 @@
 #define __SRC_CPP_PROTOCOL_TRANSPORT_SCHEMAHEADERGENERATOR_HH__
 
 #include <platform/platform.h>
+#include <platform/PinggyWriter.hh>
 #include "TransportManager.hh"
 
 /*
@@ -117,6 +118,8 @@ public:                                                                         
     virtual ~ ClassName##ClassSuffix() {}                                       \
     DefineMandatoryClassFunctionsNoDump(ClassName##ClassSuffix);                \
     virtual size_t DumpMemory(std::ostream &os) override;                       \
+protected:                                                                       \
+    virtual void AddDebugStringToRawData(RawDataPtr rawData) override;          \
 };                                                                              \
 DefineMakeSharedPtr(ClassName##ClassSuffix);                                    \
 
@@ -149,6 +152,9 @@ public:                                                                         
     static tString ClassSuffix##Type##Str[];                                    \
     DefineMandatoryClassFunctionsNoDump(RootClass##ClassSuffix);                \
     virtual size_t DumpMemory(std::ostream &os) override;                       \
+    void AddDebugString(common::PingyWriterPtr writer);                         \
+protected:                                                                       \
+    virtual void AddDebugStringToRawData(RawDataPtr rawData) = 0;               \
 };                                                                              \
 DefineMakeSharedPtr(RootClass##ClassSuffix)                                     \
                                                                                 \

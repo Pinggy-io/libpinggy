@@ -21,7 +21,6 @@
 #include <platform/platform.h>
 #include "CertificateFileDetail.hh"
 
-#include "TemplateStreaming.hh"
 
 #ifdef __WINDOWS_OS__
 static std::string getRealPath(const std::string& path) {

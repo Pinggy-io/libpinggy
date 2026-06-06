@@ -24,7 +24,6 @@
 #include <platform/assert_pinggy.h>
 #include <platform/Log.hh>
 #include <utils/Utils.hh>
-#include <utils/TemplateStreaming.hh>
 
 PRIMARY_DEPENDENT_HEADERS(PinggyPollLinux.hh)
 PRIMARY_DEPENDENT_HEADERS(PinggyPollCommon.hh)
@@ -91,7 +90,7 @@ tInt32 PollControllerLinux::PollOnce(tInt32 argTimeout)
     if ((dummyReadPoll.size() > 0 || dummyRead4NonPollables.size() > 0 || dummyWrite4NonPollables.size() > 0) && !notified) {
         auto ret = app_send(notificationFd, "1", 1, 0);
         if (ret <= 0) {
-            ABORT_WITH_MSG("Error occured");
+            ABORT_WITH_MSG("Error occurred");
         }
         notified = true;
     }

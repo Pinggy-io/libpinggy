@@ -19,7 +19,6 @@
 #include <utils/Utils.hh>
 #include <platform/assert_pinggy.h>
 #include "PinggyPollGeneric.hh"
-#include <utils/TemplateStreaming.hh> //this needs to be the last include
 
 
 namespace common {
@@ -338,7 +337,7 @@ tInt32 PollControllerGeneric::PollOnce(tInt32 argTimeout)
     if ((dummyReadPoll.size() > 0 || dummyRead4NonPollables.size() > 0 || dummyWrite4NonPollables.size() > 0) && !notified) {
         auto ret = app_send(notificationFd, "1", 1, 0);
         if (ret <= 0) {
-            ABORT_WITH_MSG("Error occured")
+            ABORT_WITH_MSG("Error occurred")
         }
         notified = true;
     }

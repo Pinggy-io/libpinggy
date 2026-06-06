@@ -18,7 +18,6 @@
 #include <stdlib.h>
 #include <platform/Log.hh>
 #include "ThreadPool.hh"
-#include <utils/TemplateStreaming.hh> //this needs to be the last include
 
 namespace common {
 

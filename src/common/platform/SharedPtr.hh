@@ -22,7 +22,14 @@
 #include <memory>
 #include "platform.h"
 #include <iostream>
+#include <type_traits>
+#include <sstream>
+#include <typeinfo>
 #include "app_foreach_macro.h"
+
+#define __PINGGY_SHAREDPTR_INTERNAL_INCLUDE__
+#include "PrimitiveStreaming.hh"
+#undef __PINGGY_SHAREDPTR_INTERNAL_INCLUDE__
 
 //#define NO_SHARED_PTR
 
@@ -83,9 +90,18 @@ struct SharedObject: public std::enable_shared_from_this<SharedObject>
         ptr = std::static_pointer_cast<D>(shared_from_this());
     }
 
-    virtual std::string
-    GetString() {
-        return std::to_string(Hash());
+    virtual tString
+    ToString()
+    {
+        std::stringstream os;
+        Repr(os);
+        return os.str();;
+    }
+
+    virtual void
+    Repr(std::ostream& os)
+    {
+        os << std::to_string(Hash());
     }
 
     virtual size_t
@@ -203,6 +219,92 @@ typedef SharedObject *VoidPtr;
 typedef pinggy::VoidPtr tVoidPtr;
 typedef pinggy::VoidWPtr tVoidWPtr;
 
+#ifndef NO_SHARED_PTR
+
+template<typename T>
+inline std::ostream&
+operator<<(std::ostream& os, const std::shared_ptr<T> &ptr)
+{
+    if (!ptr) {
+        os << "<null>";
+        return os;
+    }
+    ptr->Repr(os);
+    return os;
+}
+
+template <typename T>
+inline size_t
+__dumpMemoryUsagesImpl(std::ostream &os, tString varName, const std::shared_ptr<T> &ptr, std::true_type)
+{
+    size_t size = 0;
+    if (!varName.empty())
+        os << "\"" << varName << "\": ";
+
+    if (ptr) {
+        if (!ptr->IsMemoryDumpingAllowed()) {
+            os << "\"<already accounted (" << static_cast<const void*>(ptr.get()) << ")>\"";
+            return size;
+        }
+        size += ptr->MemberClsSize();
+        os << "{\"type\":\"shared_ptr<" << ptr->MemberClsName();
+        os << "(" << static_cast<const void*>(ptr.get()) << ")>\",\"content\":";
+        size += ptr->DumpMemory(os);
+        os << "}";
+    } else {
+        os << "null";
+    }
+
+    return size;
+}
+
+template <typename T>
+inline size_t
+__dumpMemoryUsagesImpl(std::ostream &os, tString varName, const std::shared_ptr<T> &ptr, std::false_type)
+{
+    size_t size = 0;
+    if (!varName.empty())
+        os << "\"" << varName << "\": ";
+
+    if (ptr)
+        os << "{\"type\":\"shared_ptr<incompleteType(" << static_cast<const void*>(ptr.get()) <<")>\"}";
+    else
+        os << "null";
+    return size;
+}
+
+template <typename T>
+inline size_t
+DumpMemoryUsages(std::ostream &os, tString varName, const std::shared_ptr<T> &ptr)
+{
+    return __dumpMemoryUsagesImpl(os, varName, ptr, pinggy_is_complete<T>{});
+}
+
+template <typename T>
+inline size_t
+DumpMemoryUsages(std::ostream &os, tString varName, const std::weak_ptr<T> &wptr)
+{
+    auto aptr = wptr.lock();
+    size_t size = 0;
+    if (aptr)
+        size += sizeof(aptr);
+    size += DumpMemoryUsages(os, varName, aptr);
+    return size;
+}
+
+template <typename T>
+inline void
+DumpValue(std::ostream &os, const std::shared_ptr<T> &ptr)
+{
+    if (ptr) {
+        os << "<shared_ptr to " << typeid(T).name() << " at " << static_cast<const void*>(ptr.get()) << ">";
+    } else {
+        os << "nullptr";
+    }
+}
+
+#endif // NO_SHARED_PTR
+
 #ifndef DefineMakeSharedPtr
 
 #ifndef NO_SHARED_PTR
@@ -231,8 +333,8 @@ typedef pinggy::VoidWPtr tVoidWPtr;
 #endif
 
 #define DeclareSharedPtr(x, ...) _EXP_EXP_(DeclareSharedPtr2(x, x##Ptr, x##WPtr, ## __VA_ARGS__))
-#define DefineMakeCustomSharedPtr(x, name) \
-    DeclareSharedPtr(x, name) \
+
+#define DefineMakeCustomSharedPtr_MakeShared(x, name) \
     template <typename ... Arguments> \
     inline name New##x##Ptr(Arguments ... args) \
     { \
@@ -241,6 +343,8 @@ typedef pinggy::VoidWPtr tVoidWPtr;
         _v->__Init(); \
         return _v; \
     } \
+
+#define DefineMakeCustomSharedPtr_New(x, name) \
     inline name New##x##Ptr(x *y) \
     { \
         auto _v = std::shared_ptr<x>(y); \
@@ -249,7 +353,20 @@ typedef pinggy::VoidWPtr tVoidWPtr;
         return _v; \
     }
 
+#define DefineMakeCustomSharedPtr(x, name) \
+    DeclareSharedPtr(x, name) \
+    DefineMakeCustomSharedPtr_MakeShared(x, name) \
+    DefineMakeCustomSharedPtr_New(x, name)
+
 #define DefineMakeSharedPtr(x) DefineMakeCustomSharedPtr(x, x##Ptr)
+
+#define DefineMakeSharedPtr_MakeShared(x) \
+    _EXP_EXP_(DeclareSharedPtr(x, x##Ptr)) \
+    _EXP_EXP_(DefineMakeCustomSharedPtr_MakeShared(x, x##Ptr))
+
+#define DefineMakeSharedPtr_New(x) \
+    _EXP_EXP_(DeclareSharedPtr(x, x##Ptr)) \
+    _EXP_EXP_(DefineMakeCustomSharedPtr_New(x, x##Ptr))
 
 #define DefineMakePrivateCustomSharedPtr(x, name) \
     DeclareSharedPtr(x, name) \
@@ -296,18 +413,6 @@ typedef pinggy::VoidWPtr tVoidWPtr;
     DeclareSharedPtr(x, x##Ptr);
 
 #define thisPtr pinggy::DynamicPointerCast(this, shared_from_this())
-
-
-template< typename T, typename U, typename V >
-void
-DumpPtr(std::basic_ostream<U, V>& os, const std::shared_ptr<T>& ptr)
-{
-    if (!ptr) {
-        os << "<null>";
-        return;
-    }
-    os << ptr->GetString();
-}
 
 #else
 
@@ -512,8 +617,18 @@ DumpPtr(std::basic_ostream<U, V>& os, const std::shared_ptr<T>& ptr)
 #define _DefineMandatoryAbsClassFunctionsImpl(x) \
     DefineMandatoryDumpFunction(x)
 
+#define _DefineMandatoryAbsClassFunctionsImplNoDump(x)
+
 #define DefineMandatoryAbsClassFunctionsWOSuper(x) _DefineMandatoryAbsClassFunctionsImpl(x)
 #define DefineMandatoryAbsClassFunctionsWithSuper(x, y) _DefineMandatoryAbsClassFunctionsImpl(x)
 
+
+#define DefineMandatoryAbsClassFunctionsWOSuperNoDump(x) _DefineMandatoryAbsClassFunctionsImplNoDump(x)
+#define DefineMandatoryAbsClassFunctionsWithSuperNoDump(x, y) _DefineMandatoryAbsClassFunctionsImplNoDump(x)
+
+
+#define __PINGGY_SHAREDPTR_INTERNAL_INCLUDE__
+#include "ContainerStreaming.hh"
+#undef __PINGGY_SHAREDPTR_INTERNAL_INCLUDE__
 
 #endif /* CPP_COMMON_SHAREDPTR_H_ */

@@ -31,7 +31,6 @@
 #include <platform/assert_pinggy.h> //platform
 #include <platform/Log.hh> //platform
 
-#include "TemplateStreaming.hh" //this needs to be the last include
 
 static std::regex urlRegex = std::regex(R"(^(?:(\w+):\/\/)?([^\/:#?]+)(?::(\d+))?([^?#]*)(?:\?([^#]*))?(?:#(.*))?$)");
 static std::regex urlRegexIpv6 = std::regex("^(.*?):\\/\\/(\\[?[^\\]/]+\\]?)?(?::([0-9]+))?(\\/.*)?$");
@@ -161,14 +160,6 @@ Url::Url(): port(0), ipv6(false)
 {
 
 }
-
-std::ostream &
-operator<<(std::ostream &os, const UrlPtr &url)
-{
-    os << url->ToString();
-    return os;
-}
-
 
 size_t
 DumpMemoryUsages(std::ostream &os, tString varName, const tString &val)

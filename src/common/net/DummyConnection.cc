@@ -19,7 +19,6 @@
 #include <utils/Utils.hh>
 #include <queue>
 #include <openssl/ssl.h>
-#include <utils/TemplateStreaming.hh> //this needs to be the last include
 
 namespace net {
 struct DummyMetaData : public virtual pinggy::SharedObject {

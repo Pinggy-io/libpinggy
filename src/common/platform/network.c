@@ -974,6 +974,7 @@ int enable_keep_alive(sock_t fd, int keepCnt, int keepIdle, int keepIntvl, int e
         LOGEF(fd, "setsockopt");
         return 0;
     }
+    if (!enable) return 1;
 
     optval = keepCnt;
     if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPCNT, (void*)&optval, sizeof(optval)) < 0) {
@@ -1112,7 +1113,7 @@ int
 ip_port_to_sockaddr(const char *ip_port, union sockaddr_ip *out, socklen_t *outlen)
 {
     char ip[INET6_ADDRSTRLEN];
-    char *colon = strrchr(ip_port, ':');
+    const char *colon = strrchr(ip_port, ':');
     if (!colon) return -1;
 
     if (!out || !outlen)

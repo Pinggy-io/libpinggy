@@ -23,11 +23,13 @@
 #include <fstream>
 #include <stdarg.h>
 #include "Log.hh"
+#include <memory>
 
 
 
 //externs
-std::ofstream                   __PINGGY_LOGGER_SINK__;
+std::unique_ptr<std::ofstream>  __PINGGY_LOGGER_OFS_SINK__;
+std::ostream                   *__PINGGY_LOGGER_OSTREAM_SINK__ = &std::cout;
 std::string                     __PINGGY_LOG_PREFIX__ = "";
 pid_t                           __PINGGY_LOG_PID__ = 0;
 // int64_t                         __LastChrono = 0;
@@ -50,17 +52,29 @@ SetLogPrefix(std::string pref)
 }
 
 void
-InitLogWithCout()
+InitLogWithOstream(std::ostream &os)
 {
-    // if(__PINGGY_LOGGER_SINK__.is_open()) __PINGGY_LOGGER_SINK__.close();
     __PINGGY_LOG_PID__ = app_getpid();
     __logPath = "";
+    __PINGGY_LOGGER_OSTREAM_SINK__ = &os;
+    __PINGGY_LOGGER_OFS_SINK__.reset();
+}
+
+void
+InitLogWithCout()
+{
+    InitLogWithOstream(std::cout);
 }
 
 void
 InitLog(std::string path)
 {
-    __PINGGY_LOGGER_SINK__.open(path, std::ofstream::out|std::ofstream::app);
+    auto f = std::make_unique<std::ofstream>(path, std::ofstream::out|std::ofstream::app);
+
+    if (!f->is_open())
+        return;
+    __PINGGY_LOGGER_OSTREAM_SINK__ = f.get();
+    __PINGGY_LOGGER_OFS_SINK__ = std::move(f);
     __logPath = path;
     __PINGGY_LOG_PID__ = app_getpid();
 }

@@ -15,19 +15,17 @@
  */
 
 #include "AddressCache.hh"
-#include <utils/TemplateStreaming.hh> //this needs to be the last include
 
 namespace net
 {
 
 
-sock_addrinfo
+std::optional<sock_addrinfo>
 AddressCache::GetAddrInfo(tString host, tString port, bool tcp)
 {
-    sock_addrinfo ret = sock_addrinfo{0};
     auto key = std::tuple(host, port, tcp);
     if (addrInfoMap.find(key) == addrInfoMap.end())
-        return ret;
+        return std::nullopt;
     return addrInfoMap[key];
 }
 

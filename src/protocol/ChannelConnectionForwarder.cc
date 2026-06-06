@@ -15,7 +15,6 @@
  */
 
 #include "ChannelConnectionForwarder.hh"
-#include <utils/TemplateStreaming.hh> //this needs to be the last include
 
 namespace protocol
 {
@@ -240,7 +239,7 @@ ChannelConnectionForwarder::ChannelReadyToSend(ChannelPtr, tUint32 availableBuff
 void
 ChannelConnectionForwarder::ChannelError(ChannelPtr, tError errorCode, tString errorText)
 {
-    LOGE("Error occured with channel", errorText);
+    LOGE("Error occurred with channel", errorText);
 }
 
 void

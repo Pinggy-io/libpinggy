@@ -26,6 +26,33 @@
             "sourceLanguages": ["cpp"]
         },
         {
+            "name": "gdb-pinggyclientc",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/releases/linux/x86_64/pinggyclientc",
+            // "args": [ "-p443", "-r", "-R0:l:4000", "-L4300:l:4300", "a.pinggy.io"],
+            "args": [ "-p443", "-r", "-R0:l:4000", "-L4300:l:4300", "-st.pinggy.io", "core2.t.pinggy.io"],
+            // "args": [ "-r", "-R0:l:4000", "-Rtcp//l/11232:0:l:8080", "-L4300:l:4300", "-sexample.com", "-p7879", "-n", "handleTcpPort@l"],
+            "stopAtEntry": false,
+            "cwd": "${fileDirname}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "miDebuggerPath": "/usr/bin/gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "Set Disassembly Flavor to Intel",
+                    "text": "-gdb-set disassembly-flavor intel",
+                    "ignoreFailures": true
+                }
+            ]
+        },
+        {
             "name": "lldb-pinggyclient",
             "type": "lldb-dap",
             "request": "launch",

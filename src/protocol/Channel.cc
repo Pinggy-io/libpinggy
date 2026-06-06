@@ -16,7 +16,6 @@
 
 #include "Channel.hh"
 #include "Session.hh"
-#include <utils/TemplateStreaming.hh> //this needs to be the last include
 
 namespace protocol
 {
@@ -438,7 +437,7 @@ Channel::handleChannelData(ChannelDataMsgPtr dataMsg)
     if (ev)
         ev->ChannelDataReceived(thisPtr);
     else
-        LOGE(channelId, ": Event handler required but not found");
+        LOGE(channelId, ": Event handler required but not found"); //it might be that local side socker isn't opened yet.
 }
 
 void

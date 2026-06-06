@@ -1,12 +1,22 @@
 
 # Changed Log
 
+### LockFree Trasition over Native Binding
+* Currently every call to pinggy native needs to though a synchtonisation state. This transition is require lock all the time. Idea is simple. Rmove tha hash table. return raw ptr.
+
 ### Sync-WithCore
+* Added protocol message logging support in `Session` to output sent/received messages to a stream.
+* Implemented `std::function` based callback handlers (`FunctionCallbackListenerHandler` and `FunctionCallbackFDEventHandler`) for `ConnectionListener` and `PollableFD`.
+* Added `AddDebugString` in schema generators to format protocol messages into `RawData`.
+* Extended `DumpValue` with overloads to serialize basic types and pointers into `RawDataPtr`.
 * There was issue with the netConn architecture. It is by default follows a decorator pattern. However, the problem lies with the poll handler. It was very difficult to handle which one is original and which one is the top layer. I am changing the architecture. Now the pollEventHandler is a seperate object and all the network layers are another seperate object. Any layer can call the poll object.
 * Added a GetString function to sharedPtr to easy loging.
 * Added mechanism to Add anyType of raw data to our RawData structure.
 * Fixing map, vector and set printing.
 * Formatting code.
+* Fixing nullptr in transport.
+* Fixing log.
+* Fixing transport to handle null pointer.
 
 ### Feat-Sync
 * Formating few code formatting.
