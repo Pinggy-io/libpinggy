@@ -1057,7 +1057,7 @@ Sdk::acquireAccessLock(bool block)
         }
     }
     running = true;
-    runningThreadId = std::this_thread::get_id();
+    runningThreadId = curThreadId;
 }
 
 
