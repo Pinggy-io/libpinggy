@@ -1,6 +1,9 @@
 
 # Changed Log
 
+### Removing old typed serializer/deserializer
+* Removed old deserializer which is any way not being used and is not fully compatible with new pinggyvalue based decoding
+
 ### LockFree Trasition over Native Binding
 * Currently every call to pinggy native needs to though a synchtonisation state. This transition is require lock all the time. Idea is simple. Rmove tha hash table. return raw ptr.
 

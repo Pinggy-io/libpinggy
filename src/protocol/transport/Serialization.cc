@@ -101,8 +101,6 @@ Serializer::Serializer(PathRegistryPtr pathRegistry, bool mismatchedEndianness, 
             pathRegistry(pathRegistry),
             stream(stream),
             pathId(pathId),
-            isArray(false),
-            isNotArray(false),
             mismatchedEndianness(mismatchedEndianness),
             transportManager(trans)
 {
@@ -114,38 +112,6 @@ Serializer::Serializer(PathRegistryPtr pathRegistry, bool mismatchedEndianness, 
 Serializer::~Serializer()
 {
 }
-
-bool Serializer::Send()
-{
-    return transportManager.lock()->SendMsg(thisPtr);
-}
-
-#define DeclareSerializeMemFuncBodyWithKey(_x)                              \
-SerializerPtr Serializer::Serialize(std::string key, t##_x t)               \
-{                                                                           \
-    Assert(isArray == false);                                               \
-    isNotArray = true;                                                      \
-    Assert(key.length() > 0 && key.find('.') == key.npos);                  \
-    auto path = key; /*curPath + "." + key;*/                               \
-    auto type = ValueType_##_x;                                             \
-    auto pathId = pathRegistry->RegisterPath(path, type, this->pathId);     \
-    Serialize_Lit(stream, pathId, mismatchedEndianness);                    \
-    Serialize_Lit(stream, t, mismatchedEndianness);                         \
-    return thisPtr;                                                         \
-}                                                                           \
-
-
-
-
-#define DeclareSerializeMemFuncBody(_x)  DeclareSerializeMemFuncBodyWithKey(_x)
-
-
-
-DeclareSerializeMemFuncBody(CChar) //This is basically for Serializer only.
-FOREACH_ALL_TYPE(DeclareSerializeMemFuncBody)
-
-
-
 
 void
 Serializer::encode(PinggyValue &val)

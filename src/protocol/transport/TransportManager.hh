@@ -36,11 +36,7 @@ public:
     HandleConnectionReset(net::NetworkConnectionPtr netConn) = 0;
 
     virtual void
-    HandleIncomingDeserialize(DeserializerPtr deserializer) = 0;
-
-    virtual void
-    HandleIncomingPinggyValue(PinggyValue &)
-                                { }
+    HandleIncomingPinggyValue(PinggyValue &) = 0;
 
     virtual void
     HandleReadyToSendBuffer() = 0;
@@ -61,7 +57,6 @@ private:
                                 eventHandler;
 
     std::queue<RawDataPtr>      senderQueue;
-    bool                        enablePinggyValue;
 
     bool                        readingHeader;
     RawDataPtr                  recvRawData;
@@ -100,6 +95,9 @@ private:
     void
     closeConnections();
 
+    bool
+    SendMsg(SerializerPtr serializer);
+
 public:
     TransportManager(net::NetworkConnectionPtr netConn, TransportManagerEventHandlerPtr eventHandler=nullptr,
                         bool isServer = false, bool handshakeRequired=true);
@@ -109,15 +107,8 @@ public:
     virtual
     ~TransportManager();
 
-    inline void
-    EnablePinggyValueMode(bool enable = true)
-                                { enablePinggyValue = enable; }
-
-    virtual SerializerPtr
+    SerializerPtr
     GetSerializer();
-
-    virtual bool
-    SendMsg(SerializerPtr serializer);
 
     virtual bool
     SendMsg(PinggyValue &v); //not using const because we want take controll of this object

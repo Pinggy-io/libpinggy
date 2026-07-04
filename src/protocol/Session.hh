@@ -202,17 +202,11 @@ public:
                                 { return features->IsPrimaryForwardingModeEnabled();}
 
     void
-    SetEnablePinggyValueMode(bool enable = true);
-
-    void
     SetSdkEventLogger(net::NetworkConnectionPtr writer);
 
 // TransportManagerEventHandler
     virtual void
     HandleConnectionReset(net::NetworkConnectionPtr netConn) override;
-
-    virtual void
-    HandleIncomingDeserialize(DeserializerPtr deserializer) override;
 
     virtual void
     HandleIncomingPinggyValue(PinggyValue &) override;
@@ -284,7 +278,6 @@ private:
     tString                     endReason;
     tUint64                     keepAliveSentTick;
     bool                        incomingActivities;
-    bool                        enablePinggyValue;
     SessionFeaturesPtr          features;
     common::PollControllerPtr   pollController;
     net::NetworkConnectionPtr   msgWriter;
