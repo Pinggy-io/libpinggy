@@ -29,7 +29,6 @@ Session::Session(net::NetworkConnectionPtr netConn, common::PollControllerPtr po
             endSent(false),
             keepAliveSentTick(0),
             incomingActivities(false),
-            enablePinggyValue(false),
             pollController(pollController)
 {
     lastChannelId = 4;
@@ -69,8 +68,6 @@ void Session::Start(SessionEventHandlerPtr eventHandler)
         sendMsg(clientHello);
         state = SessionState_ClientHelloSent;
     }
-    if (enablePinggyValue)
-        transportManager->EnablePinggyValueMode(true);
 }
 
 void
@@ -234,15 +231,6 @@ Session::SendUsages(ClientSpecificUsagesPtr usage)
 }
 
 void
-Session::SetEnablePinggyValueMode(bool enable)
-{
-    enablePinggyValue = enable;
-    if (transportManager) {
-        transportManager->EnablePinggyValueMode(enable);
-    }
-}
-
-void
 Session::SetSdkEventLogger(net::NetworkConnectionPtr writer)
 {
     msgWriter = writer;
@@ -269,21 +257,11 @@ void Session::HandleConnectionReset(net::NetworkConnectionPtr netConn)
 }
 
 void
-Session::HandleIncomingDeserialize(DeserializerPtr deserializer)
-{
-    ProtoMsgPtr msg;// = Deserialize(deserializer);
-    deserializer->Deserialize("msg", msg);
-    handleDeserializedMsg(msg);
-    // LOGD("Handling without using pinggyValue");
-}
-
-void
 Session::HandleIncomingPinggyValue(PinggyValue &pv)
 {
-    ProtoMsgPtr msg;// = Deserialize(deserializer);
+    ProtoMsgPtr msg;
     pv.GetTo("msg", msg);
     handleDeserializedMsg(msg);
-    // LOGD("Handling using pinggyValue");
 }
 
 void
@@ -305,14 +283,10 @@ Session::HandleReadyToSendBuffer()
         auto msg = sendQueue.front();
         bool success = false;
 
-        if (enablePinggyValue) {
-            PinggyValue pv;
-            pv.SetFrom("msg", msg);
-            success = transportManager->SendMsg(pv);
-        } else {
-            success = transportManager->GetSerializer()->Serialize("msg", msg)->Send();
-        }
-        if (success && msg->msgType == MsgType_Disconnect) {
+        PinggyValue pv;
+        pv.SetFrom("msg", msg);
+        success = transportManager->SendMsg(pv);
+        if (success && msg->msgType == ProtoMsgType_Disconnect) {
             transportManager->EndTransport(); //this is not immediate
         }
         if (!success) {
@@ -373,21 +347,17 @@ Session::sendMsg(ProtoMsgPtr msg, bool queue)
         return false;
     }
 
-    if (msg->msgType == MsgType_Disconnect) {
+    if (msg->msgType == ProtoMsgType_Disconnect) {
         endSent = true;
     }
 
     bool success = false;
     if (sendQueue.empty()) {
-        if (enablePinggyValue) {
-            PinggyValue pv;
-            pv.SetFrom("msg", msg);
-            success = transportManager->SendMsg(pv);
-        } else {
-            success = transportManager->GetSerializer()->Serialize("msg", msg)->Send();
-        }
+        PinggyValue pv;
+        pv.SetFrom("msg", msg);
+        success = transportManager->SendMsg(pv);
     }
-    if (success && msg->msgType == MsgType_Disconnect) {
+    if (success && msg->msgType == ProtoMsgType_Disconnect) {
         transportManager->EndTransport(); //this is not immediate
     }
     if (msgWriter) {
@@ -533,7 +503,7 @@ Session::handleDeserializedMsg(ProtoMsgPtr protoMsg)
         }
     }
     switch(protoMsg->msgType) {
-        case MsgType_ServerHello:
+        case ProtoMsgType_ServerHello:
         {
             if (state != SessionState_ClientHelloSent)
                 ABORT_WITH_MSG("Not expected state");
@@ -544,7 +514,7 @@ Session::handleDeserializedMsg(ProtoMsgPtr protoMsg)
         }
         break;
 
-        case MsgType_ClientHello:
+        case ProtoMsgType_ClientHello:
         {
             if (state != SessionState_ServerHelloSent)
                 ABORT_WITH_MSG("Not expected state");
@@ -555,7 +525,7 @@ Session::handleDeserializedMsg(ProtoMsgPtr protoMsg)
         }
         break;
 
-        case MsgType_Authenticate:
+        case ProtoMsgType_Authenticate:
         {
             if (state != SessionState_ServerHelloSent) {
                 ABORT_WITH_MSG("Not expected state");
@@ -566,7 +536,7 @@ Session::handleDeserializedMsg(ProtoMsgPtr protoMsg)
         }
         break;
 
-        case MsgType_AuthenticationResponse:
+        case ProtoMsgType_AuthenticationResponse:
         {
             if (state != SessionState_AuthenticationRequestSent) {
                 ABORT_WITH_MSG("Not expected state");
@@ -582,7 +552,7 @@ Session::handleDeserializedMsg(ProtoMsgPtr protoMsg)
         }
         break;
 
-        case MsgType_RemoteForwardRequest:
+        case ProtoMsgType_RemoteForwardRequest:
         {
             if(state != SessionState_AuthenticatedAsServer) {
                 ABORT_WITH_MSG("Not expected state");
@@ -593,7 +563,7 @@ Session::handleDeserializedMsg(ProtoMsgPtr protoMsg)
         }
         break;
 
-        case MsgType_RemoteForwardResponse:
+        case ProtoMsgType_RemoteForwardResponse:
         {
             if(state != SessionState_AuthenticatedAsClient) {
                 ABORT_WITH_MSG("Not expected state");
@@ -603,7 +573,7 @@ Session::handleDeserializedMsg(ProtoMsgPtr protoMsg)
         }
         break;
 
-        case MsgType_SetupChannel:
+        case ProtoMsgType_SetupChannel:
         {
             if (state != SessionState_AuthenticatedAsClient && state != SessionState_AuthenticatedAsServer)
                 ABORT_WITH_MSG("Not expected state");
@@ -612,7 +582,7 @@ Session::handleDeserializedMsg(ProtoMsgPtr protoMsg)
         }
         break;
 
-        case MsgType_SetupChannelResponse:
+        case ProtoMsgType_SetupChannelResponse:
         {
             if (state != SessionState_AuthenticatedAsClient && state != SessionState_AuthenticatedAsServer)
                 ABORT_WITH_MSG("Not expected state");
@@ -627,7 +597,7 @@ Session::handleDeserializedMsg(ProtoMsgPtr protoMsg)
         }
         break;
 
-        case MsgType_ChannelData:
+        case ProtoMsgType_ChannelData:
         {
             if (state != SessionState_AuthenticatedAsClient && state != SessionState_AuthenticatedAsServer)
                 ABORT_WITH_MSG("Not expected state");
@@ -642,7 +612,7 @@ Session::handleDeserializedMsg(ProtoMsgPtr protoMsg)
         }
         break;
 
-        case MsgType_ChannelWindowAdjust:
+        case ProtoMsgType_ChannelWindowAdjust:
         {
             if (state != SessionState_AuthenticatedAsClient && state != SessionState_AuthenticatedAsServer)
                 ABORT_WITH_MSG("Not expected state");
@@ -657,7 +627,7 @@ Session::handleDeserializedMsg(ProtoMsgPtr protoMsg)
         }
         break;
 
-        case MsgType_ChannelClose:
+        case ProtoMsgType_ChannelClose:
         {
             if (state != SessionState_AuthenticatedAsClient && state != SessionState_AuthenticatedAsServer)
                 ABORT_WITH_MSG("Not expected state");
@@ -673,7 +643,7 @@ Session::handleDeserializedMsg(ProtoMsgPtr protoMsg)
         }
         break;
 
-        case MsgType_ChannelError:
+        case ProtoMsgType_ChannelError:
         {
             auto msg = protoMsg->DynamicPointerCast<ChannelErrorMsg>();
             if (channels.find(msg->ChannelId) == channels.end()) {
@@ -685,21 +655,21 @@ Session::handleDeserializedMsg(ProtoMsgPtr protoMsg)
         }
         break;
 
-        case MsgType_Error:
+        case ProtoMsgType_Error:
         {
             auto msg = protoMsg->DynamicPointerCast<ErrorMsg>();
             eventHandler->HandleSessionError(msg->ErrorNo, msg->What, msg->Recoverable != 0);
         }
         break;
 
-        case MsgType_Warning:
+        case ProtoMsgType_Warning:
         {
             auto msg = protoMsg->DynamicPointerCast<WarningMsg>();
             eventHandler->HandleSessionWarning(msg->ErrorNo, msg->What);
         }
         break;
 
-        case MsgType_KeepAlive:
+        case ProtoMsgType_KeepAlive:
         {
             auto msg = protoMsg->DynamicPointerCast<KeepAliveMsg>();
             auto newMsg = NewKeepAliveResponseMsgPtr(msg->Tick);
@@ -708,14 +678,14 @@ Session::handleDeserializedMsg(ProtoMsgPtr protoMsg)
         }
         break;
 
-        case MsgType_KeepAliveResponse:
+        case ProtoMsgType_KeepAliveResponse:
         {
             auto msg = protoMsg->DynamicPointerCast<KeepAliveResponseMsg>();
             eventHandler->HandleSessionKeepAliveResponseReceived(msg->ForTick);
         }
         break;
 
-        case MsgType_Disconnect:
+        case ProtoMsgType_Disconnect:
         {
             auto msg = protoMsg->DynamicPointerCast<DisconnectMsg>();
             endReason = msg->Reason;
@@ -723,7 +693,7 @@ Session::handleDeserializedMsg(ProtoMsgPtr protoMsg)
         }
         break;
 
-        case MsgType_Usages:
+        case ProtoMsgType_Usages:
         {
             auto msg = protoMsg->DynamicPointerCast<UsagesMsg>();
             auto usages = msg->Usages;

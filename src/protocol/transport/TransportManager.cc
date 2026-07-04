@@ -41,7 +41,6 @@ TransportManager::TransportManager(net::NetworkConnectionPtr netConn, TransportM
             sendersNetConn(netConn),
             recversNetConn(netConn),
             eventHandler(eventHandler),
-            enablePinggyValue(false),
             readingHeader(true),
             expectedLen(HANDSHAKE_LENGTH),
             mismatchedEndianness(false),
@@ -67,7 +66,6 @@ TransportManager::TransportManager(net::NetworkConnectionPtr sendersNetConn, net
             sendersNetConn(sendersNetConn),
             recversNetConn(recversNetConn),
             eventHandler(eventHandler),
-            enablePinggyValue(false),
             readingHeader(true),
             expectedLen(HANDSHAKE_LENGTH),
             mismatchedEndianness(false),
@@ -203,20 +201,13 @@ TransportManager::parseBody(RawDataPtr stream)
     recverPathRegistry->dirty = false;
     auto deserializer = NEW_DESERIALIZE_PTR(mismatchedEndianness);
 
-    if (enablePinggyValue)
-        deserializer->Decode(stream, newPathRegistry);
-    else
-        deserializer->Parse(stream, newPathRegistry);
+    deserializer->Decode(stream, newPathRegistry);
 
     if(!eventHandler)
         return;
 
-    if (enablePinggyValue) {
-        auto &val = deserializer->getDecodedStream();
-        eventHandler->HandleIncomingPinggyValue(val);
-    } else {
-        eventHandler->HandleIncomingDeserialize(deserializer);
-    }
+    auto &val = deserializer->getDecodedStream();
+    eventHandler->HandleIncomingPinggyValue(val);
 }
 
 void TransportManager::closeConnections()

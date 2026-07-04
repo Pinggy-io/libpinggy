@@ -118,7 +118,7 @@ public:                                                                         
     virtual ~ ClassName##ClassSuffix() {}                                       \
     DefineMandatoryClassFunctionsNoDump(ClassName##ClassSuffix);                \
     virtual size_t DumpMemory(std::ostream &os) override;                       \
-protected:                                                                       \
+protected:                                                                      \
     virtual void AddDebugStringToRawData(RawDataPtr rawData) override;          \
 };                                                                              \
 DefineMakeSharedPtr(ClassName##ClassSuffix);                                    \
@@ -134,32 +134,30 @@ DefineMakeSharedPtr(ClassName##ClassSuffix);                                    
 
 #define SCHEMA_HEADER__DEFINE_HEADERS(RootClass, ClassSuffix,                   \
                                         ClassSmallSuffix, Definition)           \
-enum t##ClassSuffix##Type {                                                     \
-    ClassSuffix##Type_Invalid = 0,                                              \
-    Definition(_SCHEMA_HEADER_DefineMsgType, ClassSuffix)                       \
-    ClassSuffix##Type_Count                                                     \
+enum t##RootClass##ClassSuffix##Type {                                                     \
+    RootClass##ClassSuffix##Type_Invalid = 0,                                              \
+    Definition(_SCHEMA_HEADER_DefineMsgType, RootClass##ClassSuffix)                       \
+    RootClass##ClassSuffix##Type_Count                                                     \
 };                                                                              \
                                                                                 \
 class RootClass##ClassSuffix : virtual public pinggy::SharedObject              \
 {                                                                               \
 public:                                                                         \
     RootClass##ClassSuffix                                                      \
-        (t##ClassSuffix##Type                                                   \
-            ClassSmallSuffix##Type=ClassSuffix##Type_Invalid):                  \
+        (t##RootClass##ClassSuffix##Type                                                   \
+            ClassSmallSuffix##Type=RootClass##ClassSuffix##Type_Invalid):                  \
                 ClassSmallSuffix##Type(ClassSmallSuffix##Type) {}               \
     virtual ~ RootClass##ClassSuffix () {}                                      \
-    const t##ClassSuffix##Type ClassSmallSuffix##Type;                          \
+    const t##RootClass##ClassSuffix##Type ClassSmallSuffix##Type;                          \
     static tString ClassSuffix##Type##Str[];                                    \
     DefineMandatoryClassFunctionsNoDump(RootClass##ClassSuffix);                \
     virtual size_t DumpMemory(std::ostream &os) override;                       \
     void AddDebugString(common::PingyWriterPtr writer);                         \
-protected:                                                                       \
+protected:                                                                      \
     virtual void AddDebugStringToRawData(RawDataPtr rawData) = 0;               \
 };                                                                              \
 DefineMakeSharedPtr(RootClass##ClassSuffix)                                     \
                                                                                 \
-void Inflate(DeserializerPtr, RootClass##ClassSuffix##Ptr &);                   \
-void Deflate(SerializerPtr serializer, RootClass##ClassSuffix##Ptr);            \
 void FromPinggyValue(PinggyValue &val, RootClass##ClassSuffix##Ptr &);          \
 void ToPinggyValue(PinggyValue &v, const RootClass##ClassSuffix##Ptr &);        \
                                                                                 \
@@ -168,8 +166,6 @@ Definition(_SCHEMA_HEADER_DefineProtocolClass,(RootClass, ClassSuffix))         
 //=============================================================================
 
 #define DECLARE_TRANSPORT_SERIALIZER_DESERIALIZER_PTR(cls, ...)                 \
-    static void Deflate(SerializerPtr serializer, cls##Ptr objPtr);             \
-    static void Inflate(DeserializerPtr deserializer, cls##Ptr &objPtr);        \
     static void ToPinggyValue(PinggyValue &v, const cls##Ptr &objPtr);          \
     static void FromPinggyValue(PinggyValue &val, cls##Ptr &objPtr);            \
 
@@ -245,8 +241,6 @@ Definition(_SCHEMA_HEADER_DefineProtocolClass,(RootClass, ClassSuffix))         
         virtual void                                                                                \
         HandleConnectionReset(net::NetworkConnectionPtr netConn) override;                          \
         virtual void                                                                                \
-        HandleIncomingDeserialize(DeserializerPtr deserializer) override;                           \
-        virtual void                                                                                \
         HandleIncomingPinggyValue(PinggyValue &) override;                                          \
         virtual void                                                                                \
         HandleReadyToSendBuffer() override;                                                         \
@@ -254,7 +248,6 @@ Definition(_SCHEMA_HEADER_DefineProtocolClass,(RootClass, ClassSuffix))         
         HandleIncompleteHandshake() override;                                                       \
         virtual net::NetworkConnectionPtr GetNetConn() { return netConn; }                          \
         virtual pinggy::VoidPtr GetPtr() { return ptr; }                                            \
-        virtual void EnablePinggyValueMode(bool enable = true) final;                               \
         DefineMandatoryClassFunctionsNoDump(HandlingClassName);                                     \
         virtual size_t DumpMemory(std::ostream &os) override;                                       \
                                                                                                     \
@@ -265,7 +258,6 @@ Definition(_SCHEMA_HEADER_DefineProtocolClass,(RootClass, ClassSuffix))         
         HandlingClassName##EventHandler##Ptr eventHandler;                                          \
         pinggy::VoidPtr ptr;                                                                        \
         bool running;                                                                               \
-        bool pinggyValueMode;                                                                       \
     };                                                                                              \
     DefineMakeSharedPtr(HandlingClassName)
 

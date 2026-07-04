@@ -218,6 +218,10 @@ FOREACH_ALL_TYPE(DeclareSetFrom)
     void
     SetFrom(tString key, const T &val);
 
+    template<typename T>
+    void
+    SetFrom(tString key, const std::shared_ptr<T> &val);
+
 private:
     //===========
 
@@ -666,6 +670,28 @@ template <typename T>
 inline void
 PinggyValue::SetFrom(tString key, const T &val)
 {
+    PinggyInternalType_ObjectPtr s = nullptr;
+    if (self) {
+        s = dynamic_cast<PinggyInternalType_ObjectPtr>(self);
+    } else {
+        s = NewPinggyInternalType_ObjectPtr();
+        self = s;
+    }
+    if (!s)
+        throw std::bad_cast();
+    PinggyValue pv;
+    pv.SetFrom(val);
+    s->Set(key, pv.self);
+    pv.self = nullptr; // so that it won't get deleted
+}
+
+template <typename T>
+inline void
+PinggyValue::SetFrom(tString key, const std::shared_ptr<T> &val)
+{
+    if (!val) {
+        return;
+    }
     PinggyInternalType_ObjectPtr s = nullptr;
     if (self) {
         s = dynamic_cast<PinggyInternalType_ObjectPtr>(self);
