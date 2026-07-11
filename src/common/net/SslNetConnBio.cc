@@ -16,6 +16,8 @@
 
 #include "SslNetConnBio.hh"
 
+#include <openssl/ssl.h>
+
 namespace net
 {
 

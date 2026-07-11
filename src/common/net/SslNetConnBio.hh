@@ -16,7 +16,7 @@
 
 #ifndef __SRC_CPP_PUBLIC_COMMON_NET_SSLNETCONNBIO_HH__
 #define __SRC_CPP_PUBLIC_COMMON_NET_SSLNETCONNBIO_HH__
-#include <openssl/ssl.h>
+#include <openssl/types.h>
 #include "NetworkConnection.hh"
 #include <platform/Log.hh>
 

@@ -17,6 +17,7 @@
 
 #include "SslNetworkConnection.hh"
 #include <platform/Log.hh>
+#include <openssl/ssl.h>
 #include <openssl/err.h>
 #include "SslNetConnBio.hh"
 
@@ -688,6 +689,10 @@ SslNetworkConnection::freeCtxIfCreated(SSL_CTX *&ctx)
 SSL_CTX *
 SslNetworkConnection::CreateSslContext(int minVersion, int maxVersion, tString certificate)
 {
+    if (minVersion == 0)
+        minVersion = TLS1_3_VERSION;
+    if (maxVersion == 0)
+        maxVersion = TLS1_3_VERSION;
     auto method = TLS_client_method();  /* Create new client-method instance */
     SSL_CTX *ctx = SSL_CTX_new(method);   /* Create new context */
     if ( ctx == NULL )
