@@ -331,7 +331,7 @@ public:
     NetworkConnection()         { connType.Raw = 0; }
 
     virtual
-    ~NetworkConnection()        { LOGD("Cleaning up: ", this); }
+    ~NetworkConnection()        { LOGT("Cleaning up: ", this); }
 
     virtual std::tuple<ssize_t, RawDataPtr>
     Read(len_t nbyte, int flags = 0);

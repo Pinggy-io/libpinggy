@@ -16,6 +16,8 @@
 
 #include "SslNetConnBio.hh"
 
+#include <openssl/ssl.h>
+
 namespace net
 {
 
@@ -75,7 +77,7 @@ netConnBioDestroy(BIO *bio)
         BIO_set_data(bio, NULL); // Clear the context
     }
 
-    LOGD("FREEING up bio");
+    LOGT("FREEING up bio");
     return 1; // Success
 }
 
@@ -120,8 +122,9 @@ netConnBioWrite(BIO *bio, const char *buf, int len)
     if (result <= 0) {
         if (myBioData->netConn->TryAgain()) {
             BIO_set_retry_write(bio);
+        } else {
+            LOGE("Issue with writing (", myBioData->netConn->GetType() , ")(", myBioData->netConn->GetFd() , "): ", app_get_errno(), app_get_strerror(app_get_errno()));
         }
-        LOGD("Issue with writing (", myBioData->netConn->GetType() , ")(", myBioData->netConn->GetFd() , "): ", app_get_errno(), app_get_strerror(app_get_errno()));
     }
 
     return result;                          // Return bytes written or an error
@@ -130,7 +133,6 @@ netConnBioWrite(BIO *bio, const char *buf, int len)
 static long
 netConnBioCtrl(BIO *bio, int cmd, long num, void *ptr)
 {
-    // LOGE("CTRL: ", cmd);
     switch (cmd) {
         case BIO_C_SET_FD:
             if(BIO_get_shutdown(bio)) {

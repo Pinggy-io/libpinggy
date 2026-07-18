@@ -181,8 +181,6 @@ void
 SDKConfig::SetForwarding(tString val)
 {
     try {
-        LOGD("The forwardings: ", val);
-        // json j = json::parse(forwardings);
         std::vector<SdkForwardingPtr> parsedForwardings;
         FROM_JSON_STR(parsedForwardings, val);
         ResetForwardings();
@@ -192,7 +190,6 @@ SDKConfig::SetForwarding(tString val)
     } catch (std::exception &e) {
         ResetForwardings();
         AddForwarding(val);
-        // LOGD(e.what());
     }
 }
 

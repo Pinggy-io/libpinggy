@@ -22,7 +22,7 @@
 #include <utils/Utils.hh>
 
 
-#include <openssl/ssl.h>
+#include <openssl/types.h>
 
 
 namespace net {
@@ -196,7 +196,7 @@ CustomeException(Certificate);
 #undef CustomeException
 
     static SSL_CTX *
-    CreateSslContext(int minVersion = TLS1_3_VERSION, int maxVersion = TLS1_3_VERSION, tString pem = "");
+    CreateSslContext(int minVersion = 0, int maxVersion = 0, tString pem = "");
 
     //PollableFD
     virtual EventHandlerForPollableFdPtr

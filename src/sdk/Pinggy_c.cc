@@ -260,7 +260,7 @@ public:
     OnTunnelEstablished(std::vector<tString> urls) override
     {
         if (!onTunnelEstablishedCB) {
-            LOGD("onTunnelEstablishedCB does not exists");
+            LOGT("onTunnelEstablishedCB does not exists");
             return;
         }
         GetCStringArray(cUrls, urls);
@@ -1145,7 +1145,7 @@ pinggy_tunnel_start_isblocking(pinggy_ref_t ref, bool blocking)
     }
     try {
         if (!sdk->Start(blocking)) {
-            LOGI("Didn't work");
+            LOGE("Failed to start in blocking");
             return pinggy_false;
         }
     } catch (const std::exception &e) {

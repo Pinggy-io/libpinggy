@@ -146,7 +146,7 @@ tInt32 PollControllerLinux::PollOnce(tInt32 argTimeout)
             if (ev & (~(EPOLLIN|EPOLLOUT)) ) {
                 if (ev & EPOLLHUP) {
                     if (ev & EPOLLIN) {
-                        LOGD("EPOLLHUP, ignoring ", ev, " fd: ", eventFd);
+                        LOGT("EPOLLHUP, ignoring ", ev, " fd: ", eventFd);
                         continue;
                     }
                 }
@@ -186,8 +186,6 @@ void PollControllerLinux::enableDisableHandler(sock_t fd, uint mode, bool enable
 
     if(fds.find(fd) == fds.end())
         return;
-
-//    LOGD("Disabling fd:" << fd);
 
     Assert(socketState.find(fd) != socketState.end());
     auto state = socketState[fd];

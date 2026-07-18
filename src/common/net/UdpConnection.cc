@@ -144,7 +144,7 @@ UdpConnectionImpl::CloseNClear(tString location)
 {
     int ret = 0;
     if(IsValidSocket(fd)) {
-        LOGI(this, location, "Closing fd:", fd);
+        LOGD(this, location, "Closing fd:", fd);
         ret = SysSocketClose(fd);
         InValidateSocket(fd);
         netState.Valid = false;

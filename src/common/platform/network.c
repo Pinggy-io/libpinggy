@@ -217,7 +217,7 @@ int recv_fd(int unix_sock) {
         return -1;
     }
     else if (nr == 0) {
-        LOGE("Connection closed by server\n");
+        LOGI("Connection closed by server");
         return 0;
     }
 
@@ -1084,8 +1084,6 @@ int set_blocking(sock_t fd, int blocking)
 
 int is_blocking(sock_t fd)
 {
-    // LOGE("You are not supposed to call `is_blocking` from windows system");
-    // abort();
     return 1;
 }
 #endif
