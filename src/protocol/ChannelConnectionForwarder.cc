@@ -245,7 +245,7 @@ ChannelConnectionForwarder::ChannelError(ChannelPtr, tError errorCode, tString e
 void
 ChannelConnectionForwarder::ChannelRejected(ChannelPtr, tString reason)
 {
-    LOGE("Channel rejected by remote. Silently closing");
+    LOGT("Channel rejected by remote. Silently closing");
     netConn->DeregisterFDEvenHandler();
     netConn->CloseConn();
     netConn = nullptr;

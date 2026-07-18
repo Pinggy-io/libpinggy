@@ -18,7 +18,7 @@
 #ifndef CPP_SERVER_SSL_SSLConnectionListener_HH_
 #define CPP_SERVER_SSL_SSLConnectionListener_HH_
 
-#include <openssl/ssl.h>
+#include <openssl/types.h>
 #include <map>
 #include <ctime>
 

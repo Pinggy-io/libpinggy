@@ -75,6 +75,12 @@ public:
     void
     DisableCopyFromNetConn();
 
+    net::NetworkConnectionPtr
+    GetNetConn()                { return netConn; }
+
+    tUint64
+    GetNetConnHash()            { return (netConn ? netConn->Hash() : (tUint64)0);}
+
 //==FDEventHandler
     virtual len_t
     HandleFDRead(PollableFDPtr) override;

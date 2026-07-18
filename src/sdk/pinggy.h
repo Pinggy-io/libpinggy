@@ -805,6 +805,19 @@ pinggy_config_set_webdebugger_addr(pinggy_ref_t ref, pinggy_const_char_p_t addr)
 PINGGY_EXPORT pinggy_void_t
 pinggy_config_set_webdebugger(pinggy_ref_t config, pinggy_bool_t enable);
 
+/**
+ * @brief Enables the HAProxy PROXY protocol header on the tunnel.
+ *
+ * When set, the tunnel prepends a PROXY protocol header so the local
+ * server can recover the original client address. Accepts "v1" or "v2"
+ * (the PROXY protocol version); pass an empty string to reset/disable it.
+ *
+ * @param config  Reference to the tunnel config object.
+ * @param version PROXY protocol version ("v1" or "v2"), or empty to disable.
+ */
+PINGGY_EXPORT pinggy_void_t
+pinggy_config_set_haproxy(pinggy_ref_t config, pinggy_const_char_p_t version);
+
 //==============================
 
 /**
@@ -1144,6 +1157,27 @@ pinggy_config_get_webdebugger_addr_len(pinggy_ref_t config, pinggy_capa_t buffer
  */
 PINGGY_EXPORT pinggy_bool_t
 pinggy_config_get_webdebugger(pinggy_ref_t config);
+
+/**
+ * @brief Retrieves the configured HAProxy PROXY protocol version from the tunnel config.
+ * @param config      Reference to the tunnel config object.
+ * @param buffer_len  Length of the buffer provided for the HAProxy version string.
+ * @param buffer      Pointer to a character array where the HAProxy version string will be copied.
+ * @return            Number of bytes copied to the buffer (excluding null terminator).
+ */
+PINGGY_EXPORT pinggy_const_int_t
+pinggy_config_get_haproxy(pinggy_ref_t config, pinggy_capa_t buffer_len, pinggy_char_p_t buffer);
+
+/**
+ * @brief Retrieves the HAProxy PROXY protocol version from the tunnel config, and provides the required buffer size.
+ * @param config      Reference to the tunnel config object.
+ * @param buffer_len  Length of the buffer provided for the HAProxy version string.
+ * @param buffer      Pointer to a character array where the HAProxy version string will be copied.
+ * @param max_len     Pointer to a variable that will be set to the total length required to hold the full HAProxy version string (including null terminator).
+ * @return            Number of bytes copied to the buffer (excluding null terminator).
+ */
+PINGGY_EXPORT pinggy_const_int_t
+pinggy_config_get_haproxy_len(pinggy_ref_t config, pinggy_capa_t buffer_len, pinggy_char_p_t buffer, pinggy_capa_p_t max_len);
 
 //====================================
 
