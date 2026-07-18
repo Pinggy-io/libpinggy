@@ -231,6 +231,7 @@ SDKConfig::resetArguments() {
     originalRequestUrl  = false;
     allowPreflight      = false;
     localServerTls      = "";
+    haProxyVersion      = "";
 }
 
 SDKConfigPtr SDKConfig::clone()
@@ -257,6 +258,7 @@ SDKConfigPtr SDKConfig::clone()
     PLAIN_COPY(localServerTls);
     PLAIN_COPY(webDebug);
     PLAIN_COPY(webDebugBindAddr);
+    PLAIN_COPY(haProxyVersion);
 
 #define URLPTR_COPY(x) newConfig->x = x->Clone()
 
@@ -289,6 +291,23 @@ SDKConfigPtr SDKConfig::clone()
 }
 
 void
+SDKConfig::parseHaProxy(tString version)
+{
+    if (version.empty()) {
+        haProxyVersion = "";
+        return;
+    }
+    auto lv = StringToLower(version);
+    if (lv == "v1" || lv == "1") {
+        haProxyVersion = "v1";
+    } else if (lv == "v2" || lv == "2") {
+        haProxyVersion = "v2";
+    } else {
+        throw SdkConfigException("haProxy cannot be `" + version + "`");
+    }
+}
+
+void
 SDKConfig::validate()
 {
     if (!serverAddress) {
@@ -318,6 +337,12 @@ SDKConfig::getUser()
         return "";
 
     return user.substr(1);
+}
+
+void
+SDKConfig::SetHaProxy(tString version)
+{
+    parseHaProxy(version);
 }
 
 void
@@ -386,6 +411,11 @@ SDKConfig::SetArguments(tString args)
                         allowPreflight = true;
                     } else if (keyType == "noreverseproxy") {
                         reverseProxy = false;
+                    } else if (keyType == "haproxy") {
+                        if (bodies.size() < 2 || bodies[1].empty())
+                            haProxyVersion = "v1";
+                        else
+                            parseHaProxy(bodies[1]);
                     }
                 }
         }
@@ -454,6 +484,10 @@ SDKConfig::GetArguments()
 
     if (!localServerTls.empty())
         val.push_back("x:localServerTls:"+localServerTls);
+
+    if (!haProxyVersion.empty()) {
+        val.push_back("x:haproxy:" + haProxyVersion);
+    }
 
     auto cmds = ShlexJoinStrings(val);
 

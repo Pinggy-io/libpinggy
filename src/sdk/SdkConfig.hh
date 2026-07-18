@@ -160,28 +160,17 @@ struct SDKConfig: virtual public pinggy::SharedObject
     tString
     GetWebDebugAddr()           { return webDebugBindAddr; }
 
+    tString
+    GetHaProxy()                { return haProxyVersion; }
+
     //======
 
     void
     SetToken(tString token)     { isAllowed(); this->token = token; }
 
-    // void
-    // SetMode(tString mode)       { isAllowed(); this->mode = mode; }
-
-    // void
-    // SetUdpMode(tString udpMode) { isAllowed(); this->udpMode = udpMode; }
-
     void
     SetServerAddress(UrlPtr serverAddress)
                                 { isAllowed(); this->serverAddress = serverAddress; }
-
-    // void
-    // SetTcpForwardTo(tString tcpForwardTo)
-    //                             { isAllowed(); this->tcpForwardTo = NewUrlPtr(tcpForwardTo); }
-
-    // void
-    // SetUdpForwardTo(tString udpForwardTo)
-    //                             { isAllowed(); this->udpForwardTo = NewUrlPtr(udpForwardTo, 80, "udp"); }
 
     void
     SetForce(bool force)        { isAllowed(); this->force = force; }
@@ -272,6 +261,9 @@ struct SDKConfig: virtual public pinggy::SharedObject
     SetWebDebugAddr(tString bindAddr)
                                 { webDebugBindAddr = bindAddr; webDebug = !bindAddr.empty(); }
 
+    void
+    SetHaProxy(tString version = "");
+
     //===================
 
     void
@@ -291,22 +283,8 @@ private:
     //The token and any other parameters as well.
     tString                     token;
 
-    // //The tcp tunnel type tcp, tls, tlstcp or http
-    // tString                     mode;
-
-    // //The udp tunnel type i.e. udp
-    // tString                     udpMode;
-
-    //sshOverSsl does not exists here as it use ssl only, no ssh
-
     // Pinggy server address. It is supposed to be a.pinggy.io or regional server as well.
     UrlPtr                      serverAddress;
-
-    // //this TcpForwarding address
-    // UrlPtr                      tcpForwardTo;
-
-    // //this UdpForwarding address
-    // UrlPtr                      udpForwardTo;
 
     //force login. It add `force` as user name
     bool                        force;
@@ -324,6 +302,8 @@ private:
     //this needs to set to a.pinggy.io. Some test server may
     // accept values different than a.pinggy.io.
     tString                     sniServerName;
+
+    tString                     haProxyVersion;
 
     bool                        insecure;
 
@@ -347,6 +327,9 @@ private:
 
     bool                        webDebug = false;
     tString                     webDebugBindAddr = "localhost:0";
+
+    void
+    parseHaProxy(tString version);
 
     void
     isAllowed()                 { }
