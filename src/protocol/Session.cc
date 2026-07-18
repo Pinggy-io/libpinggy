@@ -603,7 +603,6 @@ Session::handleDeserializedMsg(ProtoMsgPtr protoMsg)
                 ABORT_WITH_MSG("Not expected state");
             auto msg = protoMsg->DynamicPointerCast<ChannelDataMsg>();
             if (channels.find(msg->ChannelId) == channels.end()) {
-                // sendWarningMsg(0, "Unknown channel id " + std::to_string(msg->ChannelId) + " " + std::to_string(__LINE__));
                 LOGD("Ignoring channel data as it is not registered: ", msg->ChannelId);
                 break;
             }

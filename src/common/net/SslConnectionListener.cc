@@ -288,7 +288,7 @@ SslConnectionListener::handleFDWPtr(PollableFDPtr pollableFD, pinggy::VoidPtr pt
     switch (ret)
     {
     case 0:
-        LOGI("Cannot accept as connection closed: ", netConn->GetPeerAddress());
+        LOGE("Cannot accept as connection closed: ", netConn);
         netConn->DeregisterFDEvenHandler();
         netConn->CloseConn();
         SSL_free(sslPtr->ssl);
@@ -321,7 +321,7 @@ SslConnectionListener::handleFDWPtr(PollableFDPtr pollableFD, pinggy::VoidPtr pt
                 return ret;
             default:
                 ERR_clear_error();
-                LOGI("Cannot accept as unknown error: ", sslErr, netConn->GetPeerAddress());
+                LOGE("Cannot accept as unknown error: ", sslErr, netConn->GetPeerAddress());
                 netConn->DeregisterFDEvenHandler();
                 netConn->CloseConn();
                 SSL_free(sslPtr->ssl);

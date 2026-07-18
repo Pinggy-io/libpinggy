@@ -29,7 +29,7 @@ netConnBioNewBio(NetworkConnectionPtr netConn);
 void
 setNetConnOrigFunc(BIO *bio, tString func);
 
-#define SET_NET_CONN_ORIG_FUNC(bio) {LOGE("asd: ", __func__); setNetConnOrigFunc(bio, __func__);}
+#define SET_NET_CONN_ORIG_FUNC(bio) {setNetConnOrigFunc(bio, __func__);}
 
 
 } // namespace net

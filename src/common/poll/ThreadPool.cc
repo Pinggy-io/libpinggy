@@ -173,7 +173,6 @@ ThreadPool::HandlePollRecv()
     char buf[100];
     auto len = read(pollFd, buf, 100);
     if(len == 0) {
-//        LOGF("Unknown Errors");
         abort();
     }
     for(;len > 0; len--)

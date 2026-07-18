@@ -415,7 +415,7 @@ tInt32 PollControllerGeneric::PollOnce(tInt32 argTimeout)
             if (ev & (~(POLLIN | POLLOUT))) {
                 if (ev & POLLHUP) {
                     if (ev & POLLIN) {
-                        LOGD("EPOLLHUP, ignoring ", ev, " fd: ", eventFd);
+                        LOGT("EPOLLHUP, ignoring ", ev, " fd: ", eventFd);
                         continue;
                     }
                 }

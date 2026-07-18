@@ -227,7 +227,7 @@ Sdk::GetUrls()
     }
     if (state >= SdkState::Stopped)
         return {};
-    LOGD("Returning urls");
+    LOGT("Returning urls");
     return urls;
 }
 
@@ -249,7 +249,7 @@ Sdk::LockIfDifferentThread()
 {
     auto curThreadId = std::this_thread::get_id();
     if (curThreadId == runningThreadId) { //it will never be same unless they are really same. We do not change running thread without lock
-        LOGD("Same thread. not locking.", curThreadId, runningThreadId);
+        LOGT("Same thread. not locking.", curThreadId, runningThreadId);
         return nullptr;
     }
     semaphore->Wait();

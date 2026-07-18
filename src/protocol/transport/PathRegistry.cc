@@ -84,7 +84,6 @@ PathRegistry::UpdatePathRegistryFromStream(RawDataPtr stream, bool mismatchedEnd
             auto pathId                     = pathDef->PathId;
             idToPathDefinition[pathId]      = pathDef;
             pathToPathDefinition[key]       = pathDef;
-            // LOGE("newPath: ", pathDef->PathId, pathString, (int)pathDef->ValType);
         }
         newPathIds.insert(std::pair(pathDef->PathId, pathDef->Parent));
     }

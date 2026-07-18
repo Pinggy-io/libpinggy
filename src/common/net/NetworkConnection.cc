@@ -280,7 +280,7 @@ NetworkConnectionImpl::HandleConnect()
 len_t
 NetworkConnectionImpl::HandleConnectError(tInt16 err)
 {
-    LOGD("Connect error occurred");
+    LOGE("Connect error occurred", thisPtr);
     return 0;
 }
 

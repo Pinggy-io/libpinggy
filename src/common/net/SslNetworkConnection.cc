@@ -319,7 +319,7 @@ SslNetworkConnection::ConnectAsync(SslConnectHandlerPtr handler, pinggy::VoidPtr
     this->RegisterFDEvenHandler(thisPtr);
     DisableReadPoll();
     EnableWritePoll();
-    LOGE("Async connection started for fd: ", netConn->GetFd());
+    LOGT("Async connection started for fd: ", netConn);
 }
 
 #undef CloseAndFreeFailedConnect
