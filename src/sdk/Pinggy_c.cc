@@ -784,6 +784,18 @@ pinggy_config_set_webdebugger(pinggy_ref_t ref, pinggy_bool_t enable)
     );
 }
 
+PINGGY_EXPORT pinggy_void_t
+pinggy_config_set_haproxy(pinggy_ref_t ref, pinggy_const_char_p_t version)
+{
+    auto sdkConf = getSDKConfig(ref);
+    if (!sdkConf) {
+        LOGE("No sdkConf found for the ref:", ref);
+        return;
+    }
+    ExpectException(
+        sdkConf->SetHaProxy(EmptyStringIfNull(version));
+    );
+}
 
 #define SdkConfigCopyStringToOutputLen(capa_, val_, str_, len_)                 \
     do {                                                                        \
@@ -1111,6 +1123,18 @@ pinggy_config_get_webdebugger(pinggy_ref_t ref)
         return pinggy_false;
     }
     return sdkConf->IsWebDebug() ? pinggy_true : pinggy_false;
+}
+
+PINGGY_EXPORT pinggy_const_int_t
+pinggy_config_get_haproxy(pinggy_ref_t ref, pinggy_capa_t capa, pinggy_char_p_t val)
+{
+    return pinggy_config_get_haproxy_len(ref, capa, val, NULL);
+}
+
+PINGGY_EXPORT pinggy_const_int_t
+pinggy_config_get_haproxy_len(pinggy_ref_t ref, pinggy_capa_t capa, pinggy_char_p_t val, pinggy_capa_p_t max_len)
+{
+    SdkConfigCopyStringToOutputLen(capa, val, GetHaProxy(), max_len);
 }
 
 #undef SdkConfigCopyStringToOutput

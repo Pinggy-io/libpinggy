@@ -1,6 +1,13 @@
 
 # Changed Log
 
+### Feat-AddHaProxy
+* Added support for prepending the HAProxy PROXY protocol header on the tunnel, so the local server can recover the original client address. Version accepts `v1` or `v2`; an empty string disables it. Also exposed via the `x:haproxy[:version]` argument.
+* Functions added:
+    1. pinggy_config_set_haproxy
+    1. pinggy_config_get_haproxy
+    1. pinggy_config_get_haproxy_len
+
 ### Removing old typed serializer/deserializer
 * Removed old deserializer which is any way not being used and is not fully compatible with new pinggyvalue based decoding
 
