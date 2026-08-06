@@ -1,6 +1,10 @@
 
 # Changed Log
 
+### Fix-InvalidReference
+* While removing lock for dereferencing pinggy_ref, 0 was included as valid reference. Fixing now.
+
+## 0.3.0
 ### Feat-AddHaProxy
 * Added support for prepending the HAProxy PROXY protocol header on the tunnel, so the local server can recover the original client address. Version accepts `v1` or `v2`; an empty string disables it. Also exposed via the `x:haproxy[:version]` argument.
 * Functions added:

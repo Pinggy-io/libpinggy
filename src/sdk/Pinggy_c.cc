@@ -39,7 +39,7 @@
 
 
 //==============================================================
-static RefTable refTable;
+static RefTable refTable(0);
 //==============================================================
 PINGGY_EXPORT pinggy_void_t
 pinggy_set_log_path(pinggy_char_p_t path)
