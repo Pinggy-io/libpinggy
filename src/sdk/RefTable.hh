@@ -15,24 +15,27 @@ private:
     std::vector<tVoidPtr>       table;
     std::queue<pinggy_ref_t>    freeList;
     std::mutex                  lock;
+    pinggy_ref_t                randomSeed;
 
     pinggy_void_t
     grow()
     {
-        pinggy_uint32_t oldSize = static_cast<pinggy_uint32_t>(table.size());
+        pinggy_ref_t oldSize = static_cast<pinggy_ref_t>(table.size());
 
-        pinggy_uint32_t newSize =
-            (oldSize == 0) ? 1024 : oldSize * 2;
+        pinggy_ref_t newSize = (oldSize == 0) ? 1024 : oldSize * 2;
 
         table.resize(newSize);
 
-        for (pinggy_uint32_t i = oldSize; i < newSize; ++i)
+        if (oldSize == 0)
+            oldSize += 1; //just to avoid zero.
+
+        for (pinggy_ref_t i = oldSize; i < newSize; ++i)
             freeList.push(i);
     }
 
 public:
     explicit
-    RefTable()
+    RefTable(pinggy_ref_t seed):randomSeed(seed)
     {
         grow();
     }
@@ -50,12 +53,13 @@ public:
 
         table[ref] = ptr;
 
-        return ref;
+        return ref+randomSeed;
     }
 
     tVoidPtr
     GetObj(pinggy_ref_t ref)
     {
+        ref -= randomSeed;
         if (ref >= table.size())
             return nullptr;
 
@@ -67,6 +71,8 @@ public:
     bool
     RemoveRef(pinggy_ref_t ref)
     {
+        ref -= randomSeed;
+
         std::lock_guard<std::mutex> guard(lock);
 
         if (ref >= table.size())
