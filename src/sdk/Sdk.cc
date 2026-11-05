@@ -68,6 +68,12 @@ namespace sdk
 
 tString NOTIFICATION_FD = "NOTIFICATION_FD";
 
+// Tells the server connect apart from connects to local services.
+const tString SERVER_CONNECT_TAG = "PINGGY_SERVER_CONNECT";
+
+// Limit for TCP, TLS, session, authentication and primary forwarding together.
+#define SDK_CONNECT_DEADLINE (30 * SECOND)
+
 #define PINGGY_LIFE_CYCLE_FUNC
 #define PINGGY_LIFE_CYCLE_WRAPPER_FUNC
 #define PINGGY_ATTRIBUTE_FUNC
@@ -460,6 +466,8 @@ Sdk::HandleSessionRemoteForwardingSucceeded(protocol::tReqId reqId, tForwardingI
 
         state = SdkState::ForwardingSucceeded;
 
+        disarmConnectDeadline();
+
         if (eventHandler) {
             if (reconnectMode) {
                 eventHandler->OnReconnectionCompleted(urls);
@@ -745,6 +753,11 @@ Sdk::HandleConnected(net::NetworkConnectionImplPtr netConn)
     protocol::ChannelPtr channel;
     if (!netConn)
         return 0;
+    // Before GetConnectEventPtr: the server connect has no event pointer.
+    if (netConn->GetConnectEventTag() == SERVER_CONNECT_TAG) {
+        serverTcpConnected(netConn);
+        return 0;
+    }
     netConn->GetConnectEventPtr(channel);
     if (!channel) {
         netConn->CloseConn();
@@ -764,11 +777,39 @@ Sdk::HandleConnectionFailed(net::NetworkConnectionImplPtr netConn)
     protocol::ChannelPtr channel;
     if (!netConn)
         return 0;
+    // Must come first, see HandleConnected.
+    if (netConn->GetConnectEventTag() == SERVER_CONNECT_TAG) {
+        if (netConn == pendingTcpConn)
+            failServerConnect("Unable to connect to the server");
+        return 0;
+    }
     netConn->GetConnectEventPtr(channel);
     if (channel) {
         channel->Reject("Could not connect to destination");
     }
     return 0;
+}
+
+void
+Sdk::SslConnected(net::SslNetworkConnectionPtr sslConn, pinggy::VoidPtr)
+{
+    LOGT("inside", __func__);
+    if (sslConn != pendingSslConn || state != SdkState::Connecting) {
+        // Late answer from an abandoned attempt, or the tunnel was stopped.
+        sslConn->CloseConn();
+        return;
+    }
+    pendingSslConn = nullptr;
+    serverConnected(sslConn);
+}
+
+void
+Sdk::SslConnectionFailed(net::SslNetworkConnectionPtr sslConn, pinggy::VoidPtr)
+{
+    LOGT("inside", __func__);
+    if (sslConn != pendingSslConn)
+        return;
+    failServerConnect("Unable to establish a secure connection to the server");
 }
 
 //Channel
@@ -821,28 +862,64 @@ Sdk::internalConnect()
 
     state = SdkState::Connecting;
 
-    //TODO Change both the connect to non-blocking
+    // Non-blocking: TCP, then TLS in serverTcpConnected, then serverConnected.
+    // Only the DNS lookup inside Connect() still blocks, bounded by the system resolver.
+
+    // Before the connect, so Stop() can reach this thread during it.
+    initiateNotificationChannel();
+
+    armConnectDeadline();
+
     try {
         auto serverAddress = sdkConfig->serverAddress;
-        baseConnection = net::NewNetworkConnectionImplPtr(serverAddress->GetRawHost(), serverAddress->GetPortStr());
-
-        if (sdkConfig->ssl){
-            auto sslConnection = net::NewSslNetworkConnectionPtr(baseConnection, sdkConfig->sniServerName);
-            sslConnection->SetBaseCertificate(BASE_CERTIFICATE);
-            sslConnection->Connect();
-            baseConnection = sslConnection;
-        }
+        LOGD("Connecting to server", serverAddress->GetRawHost(), serverAddress->GetPortStr());
+        // false: no blocking connect in the constructor.
+        pendingTcpConn = net::NewNetworkConnectionImplPtr(serverAddress->GetRawHost(), serverAddress->GetPortStr(), false);
+        pendingTcpConn->SetPollController(pollController);
+        // May call back before returning, so nothing may follow it.
+        pendingTcpConn->Connect(thisPtr, nullptr, SERVER_CONNECT_TAG);
     } catch (const std::exception &e) {
-        baseConnection = nullptr;
         LOGE("Exception occurred: ", e.what());
-        reconnectOrStopLoop(e.what());
+        failServerConnect(e.what());
+    }
+}
+
+void
+Sdk::serverTcpConnected(net::NetworkConnectionImplPtr netConn)
+{
+    if (netConn != pendingTcpConn || state != SdkState::Connecting) {
+        // Late answer from an abandoned attempt, or the tunnel was stopped.
+        netConn->CloseConn();
         return;
     }
 
-    if (!baseConnection) {
-        reconnectOrStopLoop("Unable to connect");
-        return; //unused code
+    LOGD("TCP connection to server established");
+
+    if (!sdkConfig->ssl) {
+        pendingTcpConn = nullptr;
+        serverConnected(netConn);
+        return;
     }
+
+    try {
+        auto sslConnection = net::NewSslNetworkConnectionPtr(netConn, sdkConfig->sniServerName);
+        sslConnection->SetBaseCertificate(BASE_CERTIFICATE);
+        sslConnection->SetPollController(pollController);
+        pendingSslConn = sslConnection;
+        pendingTcpConn = nullptr; // owned by sslConnection from here
+        sslConnection->ConnectAsync(thisPtr, nullptr);
+    } catch (const std::exception &e) {
+        LOGE("Exception occurred: ", e.what());
+        failServerConnect(e.what());
+    }
+}
+
+void
+Sdk::serverConnected(net::NetworkConnectionPtr netConn)
+{
+    LOGD("Connected to server");
+
+    baseConnection = netConn;
 
     state = SdkState::Connected;
 
@@ -853,9 +930,71 @@ Sdk::internalConnect()
     session->Start(thisPtr);
     LOGT("Session Started");
 
-    initiateNotificationChannel();
-
     state = SdkState::SessionInitiating;
+}
+
+void
+Sdk::failServerConnect(tString reason)
+{
+    disarmConnectDeadline();
+    closePendingServerConnections();
+
+    // Ignore duplicate or late reports; never reconnect a stopped tunnel.
+    if (state < SdkState::Connecting || state >= SdkState::ForwardingSucceeded)
+        return;
+
+    LOGE("Connection to server failed: ", reason);
+
+    releaseBaseConnection();
+
+    lastError = reason;
+    reconnectOrStopLoop(reason);
+}
+
+void
+Sdk::closePendingServerConnections()
+{
+    // Often called from inside a callback of the connection being closed, which
+    // keeps using the object after the callback returns. RetainObject keeps it
+    // alive until the current poll iteration ends.
+    if (pendingSslConn) {
+        if (pollController)
+            pollController->RetainObject(pendingSslConn);
+        pendingSslConn->DeregisterFDEvenHandler();
+        pendingSslConn->CloseConn();
+        pendingSslConn = nullptr;
+    }
+    if (pendingTcpConn) {
+        if (pollController)
+            pollController->RetainObject(pendingTcpConn);
+        pendingTcpConn->CancelConnect();
+        pendingTcpConn = nullptr;
+    }
+}
+
+void
+Sdk::armConnectDeadline()
+{
+    disarmConnectDeadline();
+    connectDeadlineTask = pollController->SetTimeout(SDK_CONNECT_DEADLINE, thisPtr, &Sdk::connectDeadlineReached);
+}
+
+void
+Sdk::disarmConnectDeadline()
+{
+    if (connectDeadlineTask) {
+        connectDeadlineTask->DisArm();
+        connectDeadlineTask = nullptr;
+    }
+}
+
+void
+Sdk::connectDeadlineReached()
+{
+    connectDeadlineTask = nullptr;
+    if (state < SdkState::Connecting || state >= SdkState::ForwardingSucceeded)
+        return;
+    failServerConnect("Timed out while connecting to the server");
 }
 
 bool
@@ -899,6 +1038,9 @@ Sdk::cleanup()
         keepAliveTask->DisArm();
         keepAliveTask = nullptr;
     }
+
+    disarmConnectDeadline();
+    closePendingServerConnections();
 
     if (session) {
         session->Cleanup();
@@ -974,6 +1116,10 @@ Sdk::stopWebDebugger()
 void
 Sdk::cleanupForReconnection()
 {
+    // For attempts that ended outside failServerConnect, e.g. server closed during auth.
+    disarmConnectDeadline();
+    closePendingServerConnections();
+
     if (_notificateMonitorConn)
         _notificateMonitorConn->SetPollController(nullptr);
     if (session) {

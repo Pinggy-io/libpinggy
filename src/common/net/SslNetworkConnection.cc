@@ -302,7 +302,7 @@ SslNetworkConnection::ConnectAsync(SslConnectHandlerPtr handler, pinggy::VoidPtr
         if (!bio) {
             LOGSSLE("Error while creating bio");
             CloseAndFreeFailedConnect(ssl, ctx, netConn);
-            return;
+            throw CannotConnectException("Cannot create bio");
         }
         SSL_set_bio(ssl, bio, bio);
     } else {
@@ -311,6 +311,7 @@ SslNetworkConnection::ConnectAsync(SslConnectHandlerPtr handler, pinggy::VoidPtr
 
     if (!SSL_set_tlsext_host_name(ssl, sniServerName.c_str())) {
         LOGSSLE("Cannot set sni");
+        CloseAndFreeFailedConnect(ssl, ctx, netConn);
         throw CannotSetSNIException("Cannot set sni");
     }
     this->asyncConnectPtr = asyncConnectPtr;
@@ -543,10 +544,10 @@ len_t
 SslNetworkConnection::HandleFDError(PollableFDPtr fdPtr, int16_t ecode)
 {
     LOGD("Closing by `HandleFDErrorWTag` for fd: ", fdPtr->GetFd(), " errno: ", ecode);
+    // Same order as handleFD. netConn stays set: the handler may still call
+    // methods that go through it.
     DeregisterFDEvenHandler();
-    netConn->CloseConn();
-    netConn = nullptr;
-    // SSL_free(ssl);
+    CloseConn();
     asyncConnectHandler->SslConnectionFailed(thisPtr, asyncConnectPtr);
     return 0;
 }
@@ -620,45 +621,44 @@ SslNetworkConnection::handleFD()
 {
     // Establish a secure connection
     LOGT("Handling connect");
+    // Deregister and close before the callback:
+    // the handler may drop the last reference to this object.
     auto ret = SSL_connect(ssl);
     switch(ret) {
         case 0:
-            DeregisterFDEvenHandler();
-            asyncConnectHandler->SslConnectionFailed(thisPtr, asyncConnectPtr);
-            netConn->CloseConn();
-            netConn = nullptr;
-            // SSL_free(ssl);
             LOGD("SSL connection failed: ", netConn->GetPeerAddress(), netConn->GetFd());
+            DeregisterFDEvenHandler();
+            CloseConn();
+            asyncConnectHandler->SslConnectionFailed(thisPtr, asyncConnectPtr);
             return 0;
         case 1:
+            LOGD("SSL connected: ", netConn->GetPeerAddress(), netConn->GetFd());
             connected = true;
             asyncConnectCompleted = true;
             DeregisterFDEvenHandler();
             asyncConnectHandler->SslConnected(thisPtr, asyncConnectPtr);
-            LOGD("SSL connected: ", netConn->GetPeerAddress(), netConn->GetFd());
             return 1;
         default:
         {
             auto sslErr = SSL_get_error(ssl, ret);
             ERR_clear_error();
+            // ConnectAsync registered this object, not netConn.
             switch (sslErr)
             {
             case SSL_ERROR_WANT_READ:
                 LOGT("Enabling READPOLL", netConn->GetFd());
-                netConn->EnableReadPoll();
-                netConn->DisableWritePoll();
+                EnableReadPoll();
+                DisableWritePoll();
                 return ret;
             case SSL_ERROR_WANT_WRITE:
                 LOGT("Enabling WRITE", netConn->GetFd());
-                netConn->EnableWritePoll();
-                netConn->DisableReadPoll();
+                EnableWritePoll();
+                DisableReadPoll();
                 return ret;
             default:
                 LOGE("Cannot connect as unknown error: ", sslErr, netConn->GetPeerAddress(), netConn->GetFd());
                 DeregisterFDEvenHandler();
-                // netConn->CloseConn();
-                // netConn = nullptr;
-                // SSL_free(ssl);
+                CloseConn();
                 asyncConnectHandler->SslConnectionFailed(thisPtr, asyncConnectPtr);
             }
             return ret;
