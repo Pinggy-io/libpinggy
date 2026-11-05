@@ -18,6 +18,7 @@
 #define SRC_CPP_PUBLIC_SDK_SDK_HH_
 
 #include <net/ConnectionListener.hh>
+#include <net/SslNetworkConnection.hh>
 #include <Session.hh>
 #include <poll/PinggyPoll.hh>
 #include <mutex>
@@ -114,6 +115,7 @@ class Sdk:
         virtual public net::ConnectionListenerHandler,
         virtual public FDEventHandler,
         virtual public net::NonBlockingConnectEventHandler,
+        virtual public net::SslConnectHandler,
         virtual public protocol::ChannelEventHandler //this is for internal connection using portConfig
 {
 public:
@@ -244,6 +246,13 @@ public:
     virtual len_t
     HandleConnectionFailed(net::NetworkConnectionImplPtr) override;
 
+//net::SslConnectHandler
+    virtual void
+    SslConnected(net::SslNetworkConnectionPtr sslConn, pinggy::VoidPtr) override;
+
+    virtual void
+    SslConnectionFailed(net::SslNetworkConnectionPtr sslConn, pinggy::VoidPtr) override;
+
 //protocol::ChannelEventHandler
     virtual void
     ChannelDataReceived(protocol::ChannelPtr) override;
@@ -272,6 +281,27 @@ private:
 
     void
     internalConnect();
+
+    void
+    serverTcpConnected(net::NetworkConnectionImplPtr netConn);
+
+    void
+    serverConnected(net::NetworkConnectionPtr netConn);
+
+    void
+    failServerConnect(tString reason);
+
+    void
+    closePendingServerConnections();
+
+    void
+    armConnectDeadline();
+
+    void
+    disarmConnectDeadline();
+
+    void
+    connectDeadlineReached();
 
     bool
     startPollingInCurrentThread();
@@ -368,6 +398,13 @@ private:
 
     common::PollableTaskPtr     keepAliveTask;
     tInt16                      reconnectCounter;
+
+    // Server connection being set up; callbacks for any other connection are stale.
+    net::NetworkConnectionImplPtr
+                                pendingTcpConn;
+    net::SslNetworkConnectionPtr
+                                pendingSslConn;
+    common::PollableTaskPtr     connectDeadlineTask;
 
     bool                        usagesRunning;
     tString                     greetingMsgs;

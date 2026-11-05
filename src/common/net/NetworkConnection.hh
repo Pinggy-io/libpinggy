@@ -545,6 +545,11 @@ public:
     virtual void
     Connect(NonBlockingConnectEventHandlerPtr handler, pinggy::VoidPtr ptr = nullptr, tString tag = "");
 
+    // Abandons a connect started with Connect(); no callback fires afterwards.
+    // Safe to call when no connect is in progress.
+    void
+    CancelConnect();
+
     virtual tNetState
     GetState() override         { return netState; }
 

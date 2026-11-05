@@ -281,7 +281,9 @@ len_t
 NetworkConnectionImpl::HandleConnectError(tInt16 err)
 {
     LOGE("Connect error occurred", thisPtr);
-    return 0;
+    // poll() reports a failed connect as POLLERR/POLLHUP without POLLOUT, so
+    // HandleConnect would never run and the event would fire again forever.
+    return HandleConnect();
 }
 
 void
@@ -608,6 +610,22 @@ NetworkConnectionImpl::Connect(NonBlockingConnectEventHandlerPtr handler,
     connectEventPtr     = ptr;
     connecting = true;
     tryNonBlockingConnect();
+}
+
+void
+NetworkConnectionImpl::CancelConnect()
+{
+    // connectTimer is set only while a connect is registered.
+    if (connectTimer) {
+        connectTimer->DisArm();
+        connectTimer = nullptr;
+        DeregisterConnectHandler();
+    }
+    connecting          = false;
+    connectEventHandler = nullptr;
+    connectEventPtr     = nullptr;
+    connectEventTag     = "";
+    CloseConn();
 }
 
 SocketStatPtr

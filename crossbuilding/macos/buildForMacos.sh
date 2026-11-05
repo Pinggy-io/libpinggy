@@ -149,9 +149,21 @@ then
   LOG_LEVEL=LogLevelDebug
 fi
 
+# Pin the headers so CMake cannot fall back to Homebrew's OpenSSL.
+if [ "$OPENSSL_INCLUDE_PATH" == "" ]
+then
+  OPENSSL_INCLUDE_PATH="$OPENSSL_ROOT_PATH/include"
+fi
+if [ ! -f "$OPENSSL_INCLUDE_PATH/openssl/ssl.h" ]
+then
+  echo "OpenSSL headers not found in $OPENSSL_INCLUDE_PATH" > /dev/stderr
+  exit 1
+fi
+
 try cmake -S . -B $BUILD_PATH/$ARCH/pinggy \
     -DPINGGY_BUILD_ARCH=$ARCH \
     -DOPENSSL_ROOT_DIR="$OPENSSL_ROOT_PATH" \
+    -DOPENSSL_INCLUDE_DIR="$OPENSSL_INCLUDE_PATH" \
     -DCMAKE_BUILD_SERVER=no \
     -DLOG_LEVEL=$LOG_LEVEL \
     -DPINGGY_RELEASE_DIR="$RELEASE_PATH" \
