@@ -623,6 +623,8 @@ SslNetworkConnection::handleFD()
     LOGT("Handling connect");
     // Deregister and close before the callback:
     // the handler may drop the last reference to this object.
+    // SSL_get_error is only reliable with an empty error queue (seen on Windows).
+    ERR_clear_error();
     auto ret = SSL_connect(ssl);
     switch(ret) {
         case 0:
@@ -641,6 +643,9 @@ SslNetworkConnection::handleFD()
         default:
         {
             auto sslErr = SSL_get_error(ssl, ret);
+            auto sysErr = app_get_errno();
+            char reason[256] = "";
+            ERR_error_string_n(ERR_peek_error(), reason, sizeof(reason));
             ERR_clear_error();
             // ConnectAsync registered this object, not netConn.
             switch (sslErr)
@@ -656,7 +661,7 @@ SslNetworkConnection::handleFD()
                 DisableReadPoll();
                 return ret;
             default:
-                LOGE("Cannot connect as unknown error: ", sslErr, netConn->GetPeerAddress(), netConn->GetFd());
+                LOGE("Cannot connect as unknown error: ", sslErr, reason, sysErr, netConn->GetPeerAddress(), netConn->GetFd());
                 DeregisterFDEvenHandler();
                 CloseConn();
                 asyncConnectHandler->SslConnectionFailed(thisPtr, asyncConnectPtr);
