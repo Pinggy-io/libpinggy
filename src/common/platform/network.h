@@ -170,7 +170,13 @@ int send_fd(sock_t unix_sock, sock_t fd);
 #endif
 
 
+#ifdef __WINDOWS_OS__
+// Winsock reports WSAEWOULDBLOCK, not the CRT EWOULDBLOCK/EAGAIN values.
+// EAGAIN stays for app_set_eagain().
+#define app_is_eagain()   (app_get_errno() == WSAEWOULDBLOCK || app_get_errno() == EWOULDBLOCK || app_get_errno() == EAGAIN)
+#else
 #define app_is_eagain()   (app_get_errno() == EWOULDBLOCK || app_get_errno() == EAGAIN)
+#endif
 #define app_is_timedout() (app_get_errno() == ETIMEDOUT)
 #define app_set_eagain()  app_set_errno(EAGAIN)
 

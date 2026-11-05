@@ -85,7 +85,7 @@ jobs:
         path: releases
 
   build-on-macos:
-    runs-on: macos-latest
+    runs-on: macos-15
 
     steps:
     - name: Checkout source
