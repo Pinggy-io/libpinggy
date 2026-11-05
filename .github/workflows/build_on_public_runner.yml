@@ -85,7 +85,7 @@ jobs:
         path: releases
 
   build-on-macos:
-    runs-on: macos-15
+    runs-on: macos-latest
 
     steps:
     - name: Checkout source
@@ -106,7 +106,9 @@ jobs:
 
     - name: Run build script
       run: |
-        OPENSSL_ROOT_PATH="${{ github.workspace }}/OpenSSL/3.3.1/universal" bash -x crossbuilding/macos/buildForMacos.sh
+        OPENSSL_ROOT_PATH="${{ github.workspace }}/OpenSSL/3.3.1/universal" \
+        OPENSSL_INCLUDE_PATH="${{ github.workspace }}/OpenSSL/3.3.1/arm64/include" \
+        bash -x crossbuilding/macos/buildForMacos.sh
 
     - name: LS
       run: ls -lrt .
