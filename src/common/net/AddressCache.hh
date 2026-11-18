@@ -21,6 +21,7 @@
 #include <platform/network.h>
 #include <platform/SharedPtr.hh>
 #include <map>
+#include <mutex>
 #include <optional>
 
 namespace net
@@ -33,13 +34,11 @@ public:
     AddressCache(const AddressCache&) = delete;
     AddressCache& operator=(const AddressCache&) = delete;
 
-    // Static method to access the single instance
-    static std::shared_ptr<AddressCache> GetInstance()
-    {
-        if (!AddressCache::instance)
-            AddressCache::instance = std::shared_ptr<AddressCache>(new AddressCache()); // Guaranteed to be thread-safe in C++11+
-        return AddressCache::instance;
-    }
+    // Static method to access the single instance. The cache is shared by every
+    // tunnel in the process, and each tunnel runs on its own thread, so this and
+    // the two functions below can be called from several threads at once.
+    static std::shared_ptr<AddressCache>
+    GetInstance();
 
     std::optional<sock_addrinfo>
     GetAddrInfo(tString host, tString port, bool tcp = true);
@@ -54,9 +53,7 @@ private:
 
     std::map<std::tuple<tString, tString, bool>, sock_addrinfo>
                                 addrInfoMap;
-
-    static std::shared_ptr<AddressCache>
-                                instance;
+    std::mutex                  lock; // guards addrInfoMap
 };
 DefineMakeSharedPtr(AddressCache);
 
