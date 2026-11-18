@@ -25,8 +25,8 @@ AddressCache::GetInstance()
 {
     // A function-local static is initialised exactly once, even when several
     // threads get here together. It is allocated on the heap and never freed,
-    // so a tunnel thread that is still running while the process exits can
-    // never see a destroyed cache.
+    // so a caller's thread that is still running a tunnel while the process
+    // exits can never see a destroyed cache.
     static auto *instance = new std::shared_ptr<AddressCache>(new AddressCache());
     return *instance;
 }

@@ -2,7 +2,7 @@
 # Changed Log
 
 ### Fix-AddressCacheThreadSafety
-* `net::AddressCache` is shared by every tunnel in the process, and each tunnel runs on its own thread. Its map had no lock and `GetInstance()` created the object without one, so tunnels that connected at the same moment could corrupt the map and crash the process (seen as `EXC_BAD_ACCESS` in `AddressCache::SetAddrInfo` when several tunnels started together).
+* `net::AddressCache` is shared by every tunnel in the process. libpinggy starts no thread for a tunnel, but a caller may run each tunnel on a thread of its own (the Node SDK does). Its map had no lock and `GetInstance()` created the object without one, so tunnels that connected at the same moment could corrupt the map and crash the process (seen as `EXC_BAD_ACCESS` in `AddressCache::SetAddrInfo` when several tunnels started together).
 * Added a mutex around the map, and `GetInstance()` now uses a function-local static that is never destroyed. No API changes.
 
 ### Fix-InvalidReference

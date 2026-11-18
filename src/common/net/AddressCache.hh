@@ -35,8 +35,10 @@ public:
     AddressCache& operator=(const AddressCache&) = delete;
 
     // Static method to access the single instance. The cache is shared by every
-    // tunnel in the process, and each tunnel runs on its own thread, so this and
-    // the two functions below can be called from several threads at once.
+    // tunnel in the process. libpinggy starts no thread for a tunnel, but the
+    // caller may run each tunnel on a thread of its own (the Node SDK does), so
+    // this and the two functions below can be called from several threads at
+    // once.
     static std::shared_ptr<AddressCache>
     GetInstance();
 
