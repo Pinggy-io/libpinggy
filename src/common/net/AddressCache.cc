@@ -20,13 +20,26 @@ namespace net
 {
 
 
+std::shared_ptr<AddressCache>
+AddressCache::GetInstance()
+{
+    // A function-local static is initialised exactly once, even when several
+    // threads get here together. It is allocated on the heap and never freed,
+    // so a caller's thread that is still running a tunnel while the process
+    // exits can never see a destroyed cache.
+    static auto *instance = new std::shared_ptr<AddressCache>(new AddressCache());
+    return *instance;
+}
+
 std::optional<sock_addrinfo>
 AddressCache::GetAddrInfo(tString host, tString port, bool tcp)
 {
     auto key = std::tuple(host, port, tcp);
-    if (addrInfoMap.find(key) == addrInfoMap.end())
+    std::lock_guard<std::mutex> guard(lock);
+    auto entry = addrInfoMap.find(key);
+    if (entry == addrInfoMap.end())
         return std::nullopt;
-    return addrInfoMap[key];
+    return entry->second;
 }
 
 void
@@ -34,10 +47,9 @@ AddressCache::SetAddrInfo(tString host, tString port, bool tcp, sock_addrinfo ad
 {
     auto key = std::tuple(host, port, tcp);
     addr.cached = 1;
+    std::lock_guard<std::mutex> guard(lock);
     addrInfoMap[key] = addr;
 }
-
-std::shared_ptr<AddressCache> AddressCache::instance = nullptr;
 
 } // namespace net
 
